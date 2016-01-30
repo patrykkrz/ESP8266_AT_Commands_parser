@@ -63,10 +63,30 @@ extern "C" {
  * To use this library, you must:
  *
 \verbatim
-	- Have working ESP8266 module (I use ESP01 and ESP07 to test this library) with proper wiring to ESP8266 module with UART and RESET pin
-	- Always update ESP8266 module with latest official AT commands software provided by Espressif Systems (Link for more info in Resources section)
-	- Have a microcontroller which has U(S)ART capability to communicate with module
+- Have working ESP8266 module (I use ESP01 and ESP07 to test this library) with proper wiring to ESP8266 module with UART and RESET pin
+- Always update ESP8266 module with latest official AT commands software provided by Espressif Systems (Link for more info in Resources section)
+- Have a microcontroller which has U(S)ART capability to communicate with module with RX not empty interrupt capability
+* At least 4k RAM on microcontroller (still working on optimizations)
 \endverbatim
+ *
+ * \section sect_download Download and resources
+ *
+ * \par Download library
+ *
+ * Here are links to download links for library in all versions, current and older releases.
+ *
+ * If you want to download all examples done for this library, please follow <a href="https://github.com/MaJerle/ESP8266_AT_Commands_parser">Github</a> and download repository.
+ *
+ * Download latest library version: <a href="http://stm32f4-discovery.com/download/esp8266-at-commands-parser-v0-2/">ESP8266 AT commands parser V0.2 (January 27, 2016)</a>
+ *
+ * \par Other releases:
+ * - <a href="http://stm32f4-discovery.com/download/esp8266-at-commands-parser-v0-1/">ESP8266 AT commands parser V0.1</a>
+ *
+ * \par External sources
+ *
+ * Here is a list of external sources you should keep in mind when using ESP8266 module:
+ *   - <a href="http://bbs.espressif.com">ESP8266 official forum</a>
+ *   - <a href="http://bbs.espressif.com/viewtopic.php?f=16&t=1613">Flashing ESP8266 to latest ESP AT firmware</a>
  *
  * \section sect_changelog Changelog
  *
@@ -83,22 +103,6 @@ v0.2 (January , 2016)
 v0.1 (January 24, 2016)
 	- First stable release
 \endverbatim
- *
- * \section sect_download Download and resources
- *
- * \par Download library
- *
- * Here are links to download links for library in all versions, current and older releases.
- *
- * If you want to download all examples done for this library, please follow <a href="https://github.com/MaJerle/ESP8266_AT_Commands_parser">Github</a> and download repository.
- *
- * Download latest library version: <a href="/download/esp8266-at-commands-parser-v0-1/">ESP8266 AT commands parser V0.1</a>
- *
- * \par External sources
- *
- * Here is a list of external sources you should keep in mind when using ESP8266 module:
- *   - <a href="http://bbs.espressif.com">ESP8266 official forum</a>
- *   - <a href="http://bbs.espressif.com/viewtopic.php?f=16&t=1613">Flashing ESP8266 to latest ESP AT firmware</a>
  *
  * \section sect_bugs Bugs report
  *
@@ -165,7 +169,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /* Check values */
 #if !defined(ESP8266_CONF_H) || ESP8266_CONF_H != ESP8266_H
-#error Wrong configuration file!
+//#error Wrong configuration file!
 #endif
 
 /**
@@ -179,11 +183,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define ESP8266_MAX_CONNECTEDSTATIONS  10 /*!< Number of AP stations saved to received data array */
 
  /* Check for GNUC */
-#if defined (__GNUC__)
-	#ifndef __weak		
-		#define __weak   	__attribute__((weak))
-	#endif	/* Weak attribute */
+#ifndef __weak	
+#if defined (__GNUC__)	
+#define __weak   	__attribute__((weak))
 #endif
+#endif	/* Weak attribute */
 
 /**
  * @}
@@ -286,7 +290,7 @@ typedef struct {
 #if ESP8266_USE_SINGLE_CONNECTION_BUFFER == 1
 	char* Data;                  /*<! Use pointer to data array */
 #else
-	char Data[ESP8266_CONNECTION_BUFFER_SIZE]; /*!< Data array */
+	char Data[ESP8266_CONNECTION_BUFFER_SIZE]; /*!< Data array for connection */
 #endif
 	uint16_t DataSize;           /*!< Number of bytes in current data package.
                                         Becomes useful, when we have buffer size for data less than ESP8266 IPD statement has data for us.
@@ -307,7 +311,7 @@ typedef struct {
  * @brief  Connected network structure
  */
 typedef struct {
-	char SSID[64];   /*!< SSID network name */
+	char SSID[ESP8266_MAX_CONNECTED_SSID_NAME_LENGTH]; /*!< SSID network name */
 	uint8_t MAC[6];  /*!< MAC address of network */
 	uint8_t Channel; /*!< Network channel */
 	int16_t RSSI;    /*!< Signal strength */
@@ -318,7 +322,7 @@ typedef struct {
  */
 typedef struct {
 	uint8_t Ecn;         /*!< Security of Wi-Fi spot. This parameter has a value of @ref ESP8266_Ecn_t enumeration */
-	char SSID[64];       /*!< Service Set Identifier value. Wi-Fi spot name */
+	char SSID[ESP8266_MAX_SSID_NAME]; /*!< Service Set Identifier value. Wi-Fi spot name */
 	int16_t RSSI;        /*!< Signal strength of Wi-Fi spot */
 	uint8_t MAC[6];      /*!< MAC address of spot */
 	uint8_t Channel;     /*!< Wi-Fi channel */
@@ -354,8 +358,8 @@ typedef struct {
  * @brief  Access point configuration
  */
 typedef struct {
-	char SSID[65];          /*!< Network public name for ESP AP mode */
-	char Pass[65];          /*!< Network password for ESP AP mode */
+	char SSID[ESP8266_MAX_SSID_NAME]; /*!< Network public name for ESP AP mode */
+	char Pass[ESP8266_MAX_SSID_PASSWORD]; /*!< Network password for ESP AP mode */
 	ESP8266_Ecn_t Ecn;      /*!< Security of Wi-Fi spot. This parameter can be a value of @ref ESP8266_Ecn_t enumeration */
 	uint8_t Channel;        /*!< Channel Wi-Fi is operating at */
 	uint8_t MaxConnections; /*!< Max number of stations that are allowed to connect to ESP AP, between 1 and 4 */
@@ -377,7 +381,7 @@ typedef struct {
 typedef struct {
 	uint32_t Baudrate;                                        /*!< Currently used baudrate for ESP module */
 	uint32_t ActiveCommand;                                   /*!< Currently active AT command for module */
-	char ActiveCommandResponse[5][64];                        /*!< List of responses we expect with AT command */
+	char ActiveCommandResponse[64];                           /*!< List of responses we expect with AT command */
 	uint32_t StartTime;                                       /*!< Time when command was sent */
 	uint32_t Time;                                            /*!< Curent time in milliseconds */
 	uint32_t LastReceivedTime;                                /*!< Time when last string was received from ESP module */
@@ -394,9 +398,9 @@ typedef struct {
 	ESP8266_Mode_t SentMode;                                  /*!< AP/STA mode we sent to module. This parameter can be a value of @ref ESP8266_Mode_t enumeration */
 	ESP8266_Mode_t Mode;                                      /*!< AT/STA mode which is currently active. This parameter can be a value of @ref ESP8266_Mode_t enumeration */
 	ESP8266_APConfig_t AP;                                    /*!< Configuration settings for ESP when using as Access point mode */
-	ESP8266_IPD_t IPD;                                        /*!< IPD status strucutre. Used when new data are available from module */
-#if ESP8266_USE_PING
-	ESP8266_Ping_t PING;                                      /*!< Pinging structure */
+	ESP8266_IPD_t IPD;                                        /*!< IPD status structure. Used when new data are available from module */
+#if ESP8266_USE_PING == 1
+	ESP8266_Ping_t Pinging;                                   /*!< Pinging structure */
 #endif
 	ESP8266_ConnectedWifi_t ConnectedWifi;                    /*!< Informations about currently connected wifi network */
 	ESP8266_WifiConnectError_t WifiConnectError;              /*!< Error code for connection to wifi network. This parameter can be a value of @ref ESP8266_WifiConnectError_t enumeration */
@@ -1009,11 +1013,11 @@ void ESP8266_Callback_PingStarted(ESP8266_t* ESP8266, char* address);
 /**
  * @brief  Pinging to external server has started
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * @param  *PING: Pointer to \ref ESP8266_Ping_t structure with information
+ * @param  *Pinging: Pointer to \ref ESP8266_Ping_t structure with information
  * @retval None
  * @note   With weak parameter to prevent link errors if not defined by user
  */
-void ESP8266_Callback_PingFinished(ESP8266_t* ESP8266, ESP8266_Ping_t* PING);
+void ESP8266_Callback_PingFinished(ESP8266_t* ESP8266, ESP8266_Ping_t* Pinging);
 
 /**
  * @brief  Firmware update status checking
