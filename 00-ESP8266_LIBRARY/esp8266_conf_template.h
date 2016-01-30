@@ -28,6 +28,16 @@
 #ifndef ESP8266_CONF_H
 #define ESP8266_CONF_H 020
 
+/**************************************************************************/
+/**************************************************************************/
+/**************************************************************************/
+/*                                                                        */
+/*   Edit file name to esp8266_conf.h and edit values for your platform   */
+/*                                                                        */
+/**************************************************************************/
+/**************************************************************************/
+/**************************************************************************/
+
 /**
  * @defgroup ESP8266_CONF
  * @brief    Configuration parameters for ESP8266 library
@@ -43,7 +53,7 @@
  *
  * @note    When possible, buffer should be at least 1024 bytes.
  */
-#define ESP8266_USARTBUFFER_SIZE                 1024
+#define ESP8266_USARTBUFFER_SIZE                  1024
 
 /**
  * @brief   Temporary buffer size. 
@@ -56,7 +66,7 @@
  *
  * @note    When possible, buffer should be at least 512 bytes for safety reasons.
  */
-#define ESP8266_TMPBUFFER_SIZE                   512
+#define ESP8266_TMPBUFFER_SIZE                    512
 
 /**
  * @brief   This options allows you to specify if you will use single buffer which will be shared between
@@ -78,7 +88,7 @@
  *
  * @note    Buffer must be at least 256 bytes or there might be unexpected results
  */
-#define ESP8266_CONNECTION_BUFFER_SIZE             5842
+#define ESP8266_CONNECTION_BUFFER_SIZE            5842
 
 /**
  * @brief   Enables (1) or disables (0) pinging functionality to other servers
@@ -86,7 +96,7 @@
  *          When enabled, additional structure for pinging is added to main structure,
  *          but it is removed if feature is disabled
  */
-#define ESP8266_USE_PING                           1
+#define ESP8266_USE_PING                          1
 
 /**
  * @brief   Enables (1) or disables (0) update ESP8288 AT software via network using AT commands.
@@ -96,14 +106,14 @@
  *
  *          This macro enables/disables functions for firmware updating
  */
-#define ESP8266_USE_FIRMWAREUPDATE                 1
+#define ESP8266_USE_FIRMWAREUPDATE                1
 
 /**
  * @brief   Enables (1) or disables (0) feature to search network for Acces points
  *
  *          You can disable this feature if you know exact network where you will connect to save some memory
  */
-#define ESP8266_USE_APSEARCH                       0
+#define ESP8266_USE_APSEARCH                      1
 
 /**
  * @brief   Sets how many AP stations stack will parse which are received from ESP8266 module
@@ -112,13 +122,31 @@
  *
  * @note    @ref ESP8266_USE_APSEARCH must be enabled for this feature
  */
-#define ESP8266_MAX_DETECTED_AP                    10
+#define ESP8266_MAX_DETECTED_AP                   10
 
 /**
  * @brief   Sets number of bytes each connection can use for identification name used by user when creating client connection
  *          using @ref ESP8266_CreateClientConnection.
  */
-#define ESP8266_MAX_CONNECTION_NAME                32
+#define ESP8266_MAX_CONNECTION_NAME               32
+
+/**
+ * @brief   Number of characters SSID can have when we are connected to it.
+ *
+ *          If it has more than used here, unexpected behavior can occur.
+ */
+#define ESP8266_MAX_CONNECTED_SSID_NAME_LENGTH    16
+
+/**
+ * @brief   Maximal SSID name in any case used in library except on connected SSID name
+ */
+#define ESP8266_MAX_SSID_NAME                     20
+
+/**
+ * @brief   Maximal number of bytes password can have for SSID
+ *
+ */
+#define ESP8266_MAX_SSID_PASSWORD                 16
 
 /**
  * @}
