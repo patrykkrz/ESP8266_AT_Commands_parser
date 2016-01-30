@@ -145,7 +145,7 @@ uint16_t BUFFER_Read(BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
 }
 
 uint16_t BUFFER_GetFree(BUFFER_t* Buffer) {
-	uint32_t size, in, out;
+	uint32_t size = 0, in, out;
 	
 	/* Check buffer structure */
 	if (Buffer == NULL) {
