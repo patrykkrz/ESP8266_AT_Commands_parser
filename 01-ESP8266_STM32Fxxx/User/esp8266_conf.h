@@ -149,6 +149,11 @@
 #define ESP8266_MAX_SSID_PASSWORD                  16
 
 /**
+ * @brief   Enables (1) or disables (0) functions for setting WPS
+ */
+#define ESP8266_USE_WPS                            1
+
+/**
  * @}
  */
 

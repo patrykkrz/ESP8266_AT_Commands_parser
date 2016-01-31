@@ -41,6 +41,9 @@
 #define ESP8266_COMMAND_RST            15
 #define ESP8266_COMMAND_RESTORE        16
 #define ESP8266_COMMAND_UART           17
+#if ESP8266_USE_PING
+#define ESP8266_COMMAND_PING           18
+#endif
 #define ESP8266_COMMAND_CWJAP_GET      19
 #define ESP8266_COMMAND_SLEEP          20
 #define ESP8266_COMMAND_GSLP           21
@@ -52,9 +55,8 @@
 #define ESP8266_COMMAND_CWLIF          27
 #define ESP8266_COMMAND_CIPSTATUS      28
 #define ESP8266_COMMAND_SENDDATA       29
-
-#if ESP8266_USE_PING
-#define ESP8266_COMMAND_PING           18
+#if ESP8266_USE_WPS == 1
+#define ESP8266_COMMAND_WPS            30
 #endif
 
 #define ESP8266_DEFAULT_BAUDRATE       115200 /*!< Default ESP8266 baudrate */
@@ -652,6 +654,9 @@ ESP8266_Result_t ESP8266_AllConectionsClosed(ESP8266_t* ESP8266) {
 ESP8266_Result_t ESP8266_SetMux(ESP8266_t* ESP8266, uint8_t mux) {
 	char tmp[14];
 	
+	/* Check idle */
+	ESP8266_CHECK_IDLE(ESP8266);
+	
 	/* Format command */
 	sprintf(tmp, "AT+CIPMUX=%d\r\n", mux);
 	
@@ -676,6 +681,9 @@ ESP8266_Result_t ESP8266_SetMux(ESP8266_t* ESP8266, uint8_t mux) {
 ESP8266_Result_t ESP8266_Setdinfo(ESP8266_t* ESP8266, uint8_t info) {
 	char tmp[16];
 	
+	/* Check idle */
+	ESP8266_CHECK_IDLE(ESP8266);
+	
 	/* Format string */
 	sprintf(tmp, "AT+CIPDINFO=%d\r\n", info);
 
@@ -696,6 +704,26 @@ ESP8266_Result_t ESP8266_Setdinfo(ESP8266_t* ESP8266, uint8_t info) {
 	/* Return OK */
 	ESP8266_RETURNWITHSTATUS(ESP8266, ESP_OK);
 }
+
+#if ESP8266_USE_WPS == 1
+ESP8266_Result_t ESP8266_SetWPS(ESP8266_t* ESP8266, ESP8266_WPS_t wps) {
+	char tmp[16];
+	
+	/* Check idle */
+	ESP8266_CHECK_IDLE(ESP8266);
+	
+	/* Format string */
+	sprintf(tmp, "AT+WPS=%d\r\n", (uint8_t)wps);
+
+	/* Send command and wait */
+	if (SendCommand(ESP8266, ESP8266_COMMAND_WPS, tmp, "AT+WPS") != ESP_OK) {
+		return ESP8266->Result;
+	}
+
+	/* Wait till command end */
+	return ESP8266_WaitReady(ESP8266);
+}
+#endif
 
 ESP8266_Result_t ESP8266_ServerEnable(ESP8266_t* ESP8266, uint16_t port) {
 	char tmp[19];
@@ -1026,7 +1054,7 @@ ESP8266_Result_t ESP8266_GetConnectedStations(ESP8266_t* ESP8266) {
 /******************************************/
 /*               TCP CLIENT               */
 /******************************************/
-ESP8266_Result_t ESP8266_StartClientConnection(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters) {
+ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters) {
 	int8_t conn = -1;
 	uint8_t i = 0;
 	
@@ -1060,6 +1088,67 @@ ESP8266_Result_t ESP8266_StartClientConnection(ESP8266_t* ESP8266, char* name, c
 		/* We are active now as client */
 		ESP8266->Connection[i].Active = 1;
 		ESP8266->Connection[i].Client = 1;
+		ESP8266->Connection[i].Type = ESP8266_ConnectionType_TCP;
+		ESP8266->Connection[i].TotalBytesReceived = 0;
+		ESP8266->Connection[i].Number = conn;
+#if ESP8266_USE_SINGLE_CONNECTION_BUFFER == 1
+		ESP8266->Connection[i].Data = ConnectionData;
+#endif
+		ESP8266->StartConnectionSent = i;
+		
+		/* Copy values */
+		strncpy(ESP8266->Connection[i].Name, name, sizeof(ESP8266->Connection[i].Name));
+		ESP8266->Connection[i].UserParameters = user_parameters;
+		
+		/* Return OK */
+		ESP8266_RETURNWITHSTATUS(ESP8266, ESP_OK);
+	}
+	
+	/* Return error */
+	ESP8266_RETURNWITHSTATUS(ESP8266, ESP_ERROR);
+}
+
+/******************************************/
+/*               SSL CLIENT               */
+/******************************************/
+ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters) {
+	int8_t conn = -1;
+	uint8_t i = 0;
+	
+	/* Check if IDLE */
+	ESP8266_CHECK_IDLE(ESP8266);
+	
+	/* Check if connected to network */
+	ESP8266_CHECK_WIFICONNECTED(ESP8266);
+	
+	/* Find available connection */
+	for (i = 0; i < ESP8266_MAX_CONNECTIONS; i++) {
+		if (!ESP8266->Connection[i].Active) {
+			/* Save */
+			conn = i;
+			
+			break;
+		} else if (ESP8266->Connection[i].Client && ESP8266->Connection[i].Type == ESP8266_ConnectionType_SSL) {
+			/* Return error, SSL connection already exists */
+			ESP8266_RETURNWITHSTATUS(ESP8266, ESP_ERROR);
+		}
+	}
+	
+	/* Try it */
+	if (conn != -1) {
+		char tmp[100];
+		/* Format command */
+		sprintf(tmp, "AT+CIPSTART=%d,\"SSL\",\"%s\",%d\r\n", conn, location, port);
+		
+		/* Send command */
+		if (SendCommand(ESP8266, ESP8266_COMMAND_CIPSTART, tmp, NULL) != ESP_OK) {
+			return ESP8266->Result;
+		}
+		
+		/* We are active now as client */
+		ESP8266->Connection[i].Active = 1;
+		ESP8266->Connection[i].Client = 1;
+		ESP8266->Connection[i].Type = ESP8266_ConnectionType_SSL;
 		ESP8266->Connection[i].TotalBytesReceived = 0;
 		ESP8266->Connection[i].Number = conn;
 #if ESP8266_USE_SINGLE_CONNECTION_BUFFER == 1
@@ -2197,6 +2286,9 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 		case ESP8266_COMMAND_GSLP:
 		case ESP8266_COMMAND_CIPSTO:
 		case ESP8266_COMMAND_RESTORE:
+#if ESP8266_USE_WPS == 1
+		case ESP8266_COMMAND_WPS:
+#endif
 			if (strcmp(Received, "OK\r\n") == 0) {
 				/* Reset active command */
 				ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;
@@ -2507,9 +2599,13 @@ static void CallConnectionCallbacks(ESP8266_t* ESP8266) {
 	/* Check if there are any pending data to be sent to connection */
 	for (conn_number = 0; conn_number < ESP8266_MAX_CONNECTIONS; conn_number++) {
 		if (
-			ESP8266->ActiveCommand == ESP8266_COMMAND_IDLE &&                                            /*!< Must be IDLE, if we are not because callbacks start command, stop execution */
 			ESP8266->Connection[conn_number].Active && ESP8266->Connection[conn_number].CallDataReceived /*!< We must call function for received data */
 		) {
+			/* In case we are server, we must be idle to call functions */
+			if (!ESP8266->Connection[conn_number].Client) {
+				continue;
+			}
+			
 			/* Clear flag */
 			ESP8266->Connection[conn_number].CallDataReceived = 0;
 			

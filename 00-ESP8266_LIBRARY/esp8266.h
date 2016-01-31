@@ -3,7 +3,7 @@
  * @email   tilen@majerle.eu
  * @website http://stm32f4-discovery.com
  * @link    
- * @version v0.2
+ * @version v0.3
  * @ide     Keil uVision
  * @license GNU GPL v3
  * @brief   Library for ESP8266 module using AT commands for embedded systems
@@ -28,7 +28,7 @@
 \endverbatim
  */
 #ifndef ESP8266_H
-#define ESP8266_H 020
+#define ESP8266_H 030
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -91,6 +91,8 @@ extern "C" {
  * \section sect_changelog Changelog
  *
 \verbatim
+	
+	- PING member in ESP8266_t structure has been changed to Pinging because of interference with reserved "PING" word for Atmel AVR devices
 v0.2 (January , 2016)
 	- Function ESP8266_RequestSendData has been improved to remove waiting for ESP8266 to answer with "> " before continue 
 	- Added ESP8266_USE_PING macro to enable or disable ping feature on ESP8266 module
@@ -274,6 +276,14 @@ typedef struct {
 } ESP8266_IPD_t;
 
 /**
+ * @brief  Connection type
+ */
+typedef enum {
+	ESP8266_ConnectionType_TCP = 0x00, /*!< Connection type is TCP */
+	ESP8266_ConnectionType_SSL         /*!< Connection type is SSL */
+} ESP8266_ConnectionType_t;
+
+/**
  * @brief  Connection structure
  */
 typedef struct {
@@ -282,6 +292,7 @@ typedef struct {
 	uint8_t Client;              /*!< Set to 1 if connection was made as client */
 	uint16_t RemotePort;         /*!< Remote PORT number */
 	uint8_t RemoteIP[4];         /*!< IP address of device */
+	ESP8266_ConnectionType_t Type; /*!< Connection type. Parameter is valid only if connection is made as client */
 	uint32_t BytesReceived;      /*!< Number of bytes received in current +IPD data package. U
                                         Use @arg DataSize to detect how many data bytes are in current package when callback function is called for received data */
 	uint32_t TotalBytesReceived; /*!< Number of bytes received in entire connection lifecycle */
@@ -374,6 +385,14 @@ typedef struct {
 	uint32_t Time;    /*!< Time in milliseconds needed for pinging */
 	uint8_t Success;  /*!< Status indicates if ping was successful */
 } ESP8266_Ping_t;
+
+/**
+ * @brief  WPS functionality
+ */
+typedef enum {
+	ESP8266_WPS_Off = 0x00, /*!< Disables WPS functionality */
+	ESP8266_WPS_On = 0x01   /*!< Enables WPS functionality */
+} ESP8266_WPS_t;
 
 /**
  * @brief  Main ESP8266 working structure
@@ -576,6 +595,14 @@ ESP8266_Result_t ESP8266_WifiDisconnect(ESP8266_t* ESP8266);
 ESP8266_Result_t ESP8266_SetMode(ESP8266_t* ESP8266, ESP8266_Mode_t Mode);
 
 /**
+ * @brief  Sets WPS mode for ESP8266
+ * @param  *ESP8266: Pointer to working @ref ESP8266_t structure
+ * @param  wps: WPS status. This parameter can be a value of @ref ESP8266_WPS_t enumeration
+ * @return Member of @ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_SetWPS(ESP8266_t* ESP8266, ESP8266_WPS_t wps);
+
+/**
  * @brief  Sets multiple connections for ESP8266 device.
  * @note   This setting is enabled by default
  * @param  *ESP8266: Pointer to working @ref ESP8266_t structure
@@ -717,7 +744,7 @@ ESP8266_Result_t ESP8266_SetAP(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_C
 ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, char* addr);
 
 /**
- * @brief  Starts new connection as ESP client and connects to given address and port
+ * @brief  Starts new TCP connection as ESP client and connects to given address and port
  * @param  *ESP8266: Pointer to working @ref ESP8266_t structure
  * @param  *name: Identification connection name for callback functions to detect proper connection
  * @param  *location: Domain name or IP address to connect to as string
@@ -725,7 +752,24 @@ ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, char* addr);
  * @param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
  * @return Member of @ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_StartClientConnection(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters);
+ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters);
+
+/**
+ * @brief  Starts new SSL connection as ESP client and connects to given address and port
+ * @note   Only one connection can be made as SSL at a time
+ * @param  *ESP8266: Pointer to working @ref ESP8266_t structure
+ * @param  *name: Identification connection name for callback functions to detect proper connection
+ * @param  *location: Domain name or IP address to connect to as string
+ * @param  port: Port to connect to
+ * @param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
+ * @return Member of @ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters);
+
+/**
+ * @brief  Wrapper for TCP connection
+ */
+#define ESP8266_StartClientConnection ESP8266_StartClientConnectionTCP
 
 /**
  * @brief  Closes all opened connections
