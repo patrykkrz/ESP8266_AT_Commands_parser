@@ -152,6 +152,12 @@
  */
 #define ESP8266_USE_WPS                            1
 
+/** 
+ * @brief   Enables (1) or disables (0) functions for getting a list
+ *          of connected stations to our software AP
+ */
+#define ESP8266_USE_CONNECTED_STATIONS            1
+
 /**
  * @}
  */

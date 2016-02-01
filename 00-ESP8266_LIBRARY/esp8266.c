@@ -52,7 +52,9 @@
 #define ESP8266_COMMAND_CIPSTAMAC      24
 #define ESP8266_COMMAND_CIPAPMAC       25
 #define ESP8266_COMMAND_CIPSTO         26
+#if ESP8266_USE_CONNECTED_STATIONS == 1
 #define ESP8266_COMMAND_CWLIF          27
+#endif
 #define ESP8266_COMMAND_CIPSTATUS      28
 #define ESP8266_COMMAND_SENDDATA       29
 #if ESP8266_USE_WPS == 1
@@ -78,8 +80,8 @@ static BUFFER_t USART_Buffer;
 static uint8_t TMPBuffer[ESP8266_TMPBUFFER_SIZE];
 static uint8_t USARTBuffer[ESP8266_USARTBUFFER_SIZE];
 
-#if ESP8266_USE_APSEARCH
 /* AP list */
+#if ESP8266_USE_APSEARCH
 static ESP8266_APs_t ESP8266_APs;
 #endif
 
@@ -89,13 +91,9 @@ static char ConnectionData[ESP8266_CONNECTION_BUFFER_SIZE]; /*!< Data array */
 #endif
 
 /* Private functions */
-#if ESP8266_USE_APSEARCH
-static void ParseCWLAP(ESP8266_t* ESP8266, char* Buffer);
-#endif
 static void ParseCIPSTA(ESP8266_t* ESP8266, char* Buffer);
 static void ParseCWSAP(ESP8266_t* ESP8266, char* Buffer);
 static void ParseCWJAP(ESP8266_t* ESP8266, char* Buffer);
-static void ParseCWLIF(ESP8266_t* ESP8266, char* Buffer);
 static void ParseIP(char* ip_str, uint8_t* arr, uint8_t* cnt);
 static void ParseMAC(char* ptr, uint8_t* arr, uint8_t* cnt);
 static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart_buffer, uint16_t bufflen);
@@ -109,7 +107,14 @@ static ESP8266_Result_t SendMACCommand(ESP8266_t* ESP8266, uint8_t* addr, char* 
 static void CallConnectionCallbacks(ESP8266_t* ESP8266);
 static void ProcessSendData(ESP8266_t* ESP8266);
 void* mem_mem(void* haystack, size_t haystacksize, void* needle, size_t needlesize);
-static void Int2String(char* ptr, int32_t num);
+static void Int2String(char* ptr, long int num);
+
+#if ESP8266_USE_CONNECTED_STATIONS == 1
+static void ParseCWLIF(ESP8266_t* ESP8266, char* Buffer);
+#endif
+#if ESP8266_USE_APSEARCH
+static void ParseCWLAP(ESP8266_t* ESP8266, char* Buffer);
+#endif
 
 #define CHARISNUM(x)    ((x) >= '0' && (x) <= '9')
 static uint8_t CHARISHEXNUM(char a);
@@ -291,6 +296,7 @@ ESP8266_Result_t ESP8266_Init(ESP8266_t* ESP8266, uint32_t baudrate) {
 ESP8266_Result_t ESP8266_DeInit(ESP8266_t* ESP8266) {
 	/* Clear temporary buffer */
 	BUFFER_Free(&TMP_Buffer);
+	BUFFER_Free(&USART_Buffer);
 	
 	/* Return OK from function */
 	ESP8266_RETURNWITHSTATUS(ESP8266, ESP_OK);
@@ -1078,7 +1084,7 @@ ESP8266_Result_t ESP8266_SetAPDefault(ESP8266_t* ESP8266, ESP8266_APConfig_t* ES
 	/* Wait till command end */
 	return ESP8266_WaitReady(ESP8266);
 }
-
+#if ESP8266_USE_CONNECTED_STATIONS == 1
 ESP8266_Result_t ESP8266_GetConnectedStations(ESP8266_t* ESP8266) {
 	char resp[4];
 	
@@ -1096,6 +1102,7 @@ ESP8266_Result_t ESP8266_GetConnectedStations(ESP8266_t* ESP8266) {
 	/* Return result */
 	return ESP8266->Result;
 }
+#endif
 
 /******************************************/
 /*               TCP CLIENT               */
@@ -1494,11 +1501,13 @@ __weak void ESP8266_Callback_FirmwareUpdateError(ESP8266_t* ESP8266) {
 #endif
 
 /* Called when AT+CWLIF returns OK */
+#if ESP8266_USE_CONNECTED_STATIONS == 1
 __weak void ESP8266_Callback_ConnectedStationsDetected(ESP8266_t* ESP8266, ESP8266_ConnectedStations_t* Stations) {
 	/* NOTE: This function Should not be modified, when the callback is needed,
            the ESP8266_Callback_ConnectedStationsDetected could be implemented in the user file
 	*/
 }
+#endif
 
 /******************************************/
 /*           PRIVATE FUNCTIONS            */
@@ -1731,6 +1740,7 @@ static void ParseCIPSTA(ESP8266_t* ESP8266, char* Buffer) {
 	}
 }
 
+#if ESP8266_USE_CONNECTED_STATIONS == 1
 static void ParseCWLIF(ESP8266_t* ESP8266, char* Buffer) {
 	uint8_t cnt;
 	
@@ -1748,6 +1758,7 @@ static void ParseCWLIF(ESP8266_t* ESP8266, char* Buffer) {
 	/* Increase counter */
 	ESP8266->ConnectedStations.Count++;
 }
+#endif
 
 static void ParseCWJAP(ESP8266_t* ESP8266, char* Buffer) {
 	char* ptr = Buffer;
@@ -1761,6 +1772,11 @@ static void ParseCWJAP(ESP8266_t* ESP8266, char* Buffer) {
 	/* Find first " character */
 	while (*ptr && *ptr != '"') {
 		ptr++;
+	}
+	
+	/* Check if zero detected */
+	if (!*ptr) {
+		return;
 	}
 	
 	/* Remove first " for SSID */
@@ -2473,6 +2489,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 			}
 			break;
 #endif
+#if ESP8266_USE_CONNECTED_STATIONS == 1
 		case ESP8266_COMMAND_CWLIF:
 			/* Check if first character is number */
 			if (CHARISNUM(Received[0])) {
@@ -2488,6 +2505,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 				ESP8266_Callback_ConnectedStationsDetected(ESP8266, &ESP8266->ConnectedStations);
 			}
 			break;
+#endif
 		default:
 			/* No command was used to send, data received without command */
 			break;
@@ -2765,7 +2783,7 @@ static void ProcessSendData(ESP8266_t* ESP8266) {
 	/* Send zero at the end even if data are not valid = stop sending data to module */
 	ESP8266_LL_USARTSend((uint8_t *)"\\0", 2);
 	
-	/* Set flag as data sent we have sent and waiting for response */
+	/* Set flag as data sent we are now waiting for response */
 	Connection->WaitingSentRespond = 1;
 }
 
@@ -2785,6 +2803,6 @@ void* mem_mem(void* haystack, size_t haystacksize, void* needle, size_t needlesi
 	return 0;
 }
 
-static void Int2String(char* ptr, int32_t num) {
+static void Int2String(char* ptr, long int num) {
 	sprintf(ptr, "%ld", num);
 }

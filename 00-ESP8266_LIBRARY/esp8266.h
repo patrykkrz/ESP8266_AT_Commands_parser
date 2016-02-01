@@ -325,7 +325,9 @@ typedef struct {
 	ESP8266_ConnectedWifi_t ConnectedWifi;                    /*!< Informations about currently connected wifi network */
 	ESP8266_WifiConnectError_t WifiConnectError;              /*!< Error code for connection to wifi network. This parameter can be a value of @ref ESP8266_WifiConnectError_t enumeration */
 	int8_t StartConnectionSent;                               /*!< Connection number which has active CIPSTART command and waits response */
+#if ESP8266_USE_CONNECTED_STATIONS == 1
 	ESP8266_ConnectedStations_t ConnectedStations;            /*!< Connected stations to ESP8266 module softAP */
+#endif
 	uint32_t TotalBytesReceived;                              /*!< Total number of bytes ESP8266 module has received from network and sent to our stack */
 	uint32_t TotalBytesSent;                                  /*!< Total number of network data bytes we have sent to ESP8266 module for transmission */
 	ESP8266_Connection_t* SendDataConnection;                 /*!< Pointer to currently active connection to sent data */
