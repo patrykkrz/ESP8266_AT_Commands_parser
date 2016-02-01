@@ -28,16 +28,6 @@
 #ifndef ESP8266_CONF_H
 #define ESP8266_CONF_H 020
 
-/**************************************************************************/
-/**************************************************************************/
-/**************************************************************************/
-/*                                                                        */
-/*   Edit file name to esp8266_conf.h and edit values for your platform   */
-/*                                                                        */
-/**************************************************************************/
-/**************************************************************************/
-/**************************************************************************/
-
 /**
  * @defgroup ESP8266_CONF
  * @brief    Configuration parameters for ESP8266 library
@@ -153,6 +143,12 @@
  * @brief   Enables (1) or disables (0) functions for setting WPS
  */
 #define ESP8266_USE_WPS                           0
+
+/** 
+ * @brief   Enables (1) or disables (0) functions for getting a list
+ *          of connected stations to our software AP
+ */
+#define ESP8266_USE_CONNECTED_STATIONS            0
 
 /**
  * @}
