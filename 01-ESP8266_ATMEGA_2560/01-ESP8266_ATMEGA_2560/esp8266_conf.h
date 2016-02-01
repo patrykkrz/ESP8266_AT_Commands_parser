@@ -97,7 +97,7 @@
  *          When enabled, additional structure for pinging is added to main structure,
  *          but it is removed if feature is disabled
  */
-#define ESP8266_USE_PING                          1
+#define ESP8266_USE_PING                          0
 
 /**
  * @brief   Enables (1) or disables (0) update ESP8288 AT software via network using AT commands.
@@ -107,14 +107,14 @@
  *
  *          This macro enables/disables functions for firmware updating
  */
-#define ESP8266_USE_FIRMWAREUPDATE                1
+#define ESP8266_USE_FIRMWAREUPDATE                0
 
 /**
  * @brief   Enables (1) or disables (0) feature to search network for Acces points
  *
  *          You can disable this feature if you know exact network where you will connect to save some memory
  */
-#define ESP8266_USE_APSEARCH                      1
+#define ESP8266_USE_APSEARCH                      0
 
 /**
  * @brief   Sets how many AP stations stack will parse which are received from ESP8266 module
