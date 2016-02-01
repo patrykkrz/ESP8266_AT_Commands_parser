@@ -1005,7 +1005,8 @@ ESP8266_Result_t ESP8266_GetAP(ESP8266_t* ESP8266) {
 }
 
 ESP8266_Result_t ESP8266_SetAP(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_Config) {
-	uint8_t ch, ecn, maxc, hid, sep = ',';
+	uint8_t ecn, maxc, hid, sep = ',';
+	char ch[4];
 	
 	/* Check IDLE state */
 	ESP8266_CHECK_IDLE(ESP8266);
@@ -1023,7 +1024,7 @@ ESP8266_Result_t ESP8266_SetAP(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_C
 	}
 	
 	/* Go to ASCII */
-	ch = (uint8_t)ESP8266_Config->Channel + '0';
+	Int2String(ch, ESP8266_Config->Channel);
 	ecn = (uint8_t)ESP8266_Config->Ecn + '0';
 	maxc = (uint8_t)ESP8266_Config->MaxConnections + '0';
 	hid = (uint8_t)ESP8266_Config->Hidden + '0';
@@ -1034,7 +1035,7 @@ ESP8266_Result_t ESP8266_SetAP(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_C
 	ESP8266_USARTSENDSTRING("\",\"");
 	EscapeStringAndSend(ESP8266_Config->Pass);
 	ESP8266_USARTSENDSTRING("\",");
-	ESP8266_USARTSENDCHAR(&ch);
+	EscapeStringAndSend(ch);
 	ESP8266_USARTSENDCHAR(&sep);
 	ESP8266_USARTSENDCHAR(&ecn);
 	ESP8266_USARTSENDCHAR(&sep);
