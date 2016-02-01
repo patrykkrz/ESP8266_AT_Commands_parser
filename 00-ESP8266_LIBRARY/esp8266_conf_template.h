@@ -1,10 +1,9 @@
 /**
  * @author  Tilen Majerle
  * @email   tilen@majerle.eu
- * @website http://stm32f4-discovery.com
- * @link    
+ * @website http://esp8266at.com
  * @license GNU GPL v3
- * @brief   Configuration for ESP8266 library
+ * @brief   Configuration part for ESP8266 library
  *	
 \verbatim
    ----------------------------------------------------------------------

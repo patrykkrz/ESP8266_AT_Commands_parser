@@ -109,7 +109,7 @@ static ESP8266_Result_t SendMACCommand(ESP8266_t* ESP8266, uint8_t* addr, char* 
 static void CallConnectionCallbacks(ESP8266_t* ESP8266);
 static void ProcessSendData(ESP8266_t* ESP8266);
 void* mem_mem(void* haystack, size_t haystacksize, void* needle, size_t needlesize);
-static void Int2String(char* ptr, uint32_t num);
+static void Int2String(char* ptr, int32_t num);
 
 #define CHARISNUM(x)    ((x) >= '0' && (x) <= '9')
 static uint8_t CHARISHEXNUM(char a);
@@ -272,6 +272,9 @@ ESP8266_Result_t ESP8266_Init(ESP8266_t* ESP8266, uint32_t baudrate) {
 	/* Enable IP and PORT to be shown on +IPD statement */
 	while (ESP8266_Setdinfo(ESP8266, 1) != ESP_OK);
 	
+	/* Set mode to STA+AP by default */
+	while (ESP8266_SetMode(ESP8266, ESP8266_Mode_STA_AP) != ESP_OK);
+	
 	/* Get station MAC */
 	while (ESP8266_GetSTAMAC(ESP8266) != ESP_OK);
 	
@@ -365,6 +368,7 @@ ESP8266_Result_t ESP8266_Sleep(ESP8266_t* ESP8266, uint32_t Milliseconds) {
 	/* Format string from milliseconds */
 	Int2String(tmp, Milliseconds);
 	
+	/* Send sleep values to module */
 	ESP8266_USARTSENDSTRING("AT+GSLP=");
 	ESP8266_USARTSENDSTRING(Milliseconds);
 	ESP8266_USARTSENDSTRING("\r\n");
@@ -411,6 +415,7 @@ ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266) {
 		if (ESP8266->Flags.F.WaitForWrapper) {
 			int16_t found;
 			uint8_t dummy[2];
+			
 			/* Wait for character */
 			if ((found = BUFFER_Find(&USART_Buffer, (uint8_t *)"> ", 2)) >= 0) {
 				if (found == 0) {
@@ -475,6 +480,7 @@ ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266) {
 	/* If we are in IPD mode */
 	if (ESP8266->IPD.InIPD) {
 		BUFFER_t* buff;
+		
 		/* Check for USART buffer */
 		if (ESP8266->IPD.USART_Buffer) {
 			buff = &USART_Buffer;
@@ -2698,7 +2704,7 @@ static void CallConnectionCallbacks(ESP8266_t* ESP8266) {
 			ESP8266->Connection[conn_number].Active && ESP8266->Connection[conn_number].CallDataReceived /*!< We must call function for received data */
 		) {
 			/* In case we are server, we must be idle to call functions */
-			if (!ESP8266->Connection[conn_number].Client) {
+			if (!ESP8266->Connection[conn_number].Client && ESP8266->ActiveCommand != ESP8266_COMMAND_IDLE) {
 				continue;
 			}
 			
@@ -2758,6 +2764,9 @@ static void ProcessSendData(ESP8266_t* ESP8266) {
 		
 	/* Send zero at the end even if data are not valid = stop sending data to module */
 	ESP8266_LL_USARTSend((uint8_t *)"\\0", 2);
+	
+	/* Set flag as data sent we have sent and waiting for response */
+	Connection->WaitingSentRespond = 1;
 }
 
 /* Check if needle exists in haystack memory */
@@ -2776,6 +2785,6 @@ void* mem_mem(void* haystack, size_t haystacksize, void* needle, size_t needlesi
 	return 0;
 }
 
-static void Int2String(char* ptr, uint32_t num) {
-	sprintf(ptr, "%d", num);
+static void Int2String(char* ptr, int32_t num) {
+	sprintf(ptr, "%ld", num);
 }

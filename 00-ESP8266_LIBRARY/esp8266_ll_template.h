@@ -1,10 +1,7 @@
 /**
  * @author  Tilen Majerle
  * @email   tilen@majerle.eu
- * @website http://stm32f4-discovery.com
- * @link    
- * @version v1.0
- * @ide     Keil uVision
+ * @website http://esp8266at.com
  * @license GNU GPL v3
  * @brief   Low level, platform dependant, part for communicate with ESP module and platform.
  *	

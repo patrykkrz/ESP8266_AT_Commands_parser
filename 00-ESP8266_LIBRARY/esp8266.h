@@ -1,10 +1,8 @@
 /**
  * @author  Tilen Majerle
  * @email   tilen@majerle.eu
- * @website http://stm32f4-discovery.com
- * @link    
- * @version v0.3
- * @ide     Keil uVision
+ * @website http://esp8266at.com
+ * @version v0.2
  * @license GNU GPL v3
  * @brief   Library for ESP8266 module using AT commands for embedded systems
  *	
