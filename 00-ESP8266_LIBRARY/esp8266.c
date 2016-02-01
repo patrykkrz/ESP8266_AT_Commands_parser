@@ -60,6 +60,7 @@
 #if ESP8266_USE_WPS == 1
 #define ESP8266_COMMAND_WPS            30
 #endif
+#define ESP8266_COMMAND_AUTOCONN       31
 
 #define ESP8266_DEFAULT_BAUDRATE       115200 /*!< Default ESP8266 baudrate */
 #define ESP8266_TIMEOUT                30000  /*!< Timeout value in milliseconds */
@@ -1103,6 +1104,24 @@ ESP8266_Result_t ESP8266_GetConnectedStations(ESP8266_t* ESP8266) {
 	return ESP8266->Result;
 }
 #endif
+
+ESP8266_Result_t ESP8266_SetAutoConnect(ESP8266_t* ESP8266, ESP8266_AutoConnect_t Autoconn) {
+	char c = (uint8_t)Autoconn + '0';
+	
+	/* Check IDLE state */
+	ESP8266_CHECK_IDLE(ESP8266);
+	
+	/* Send command */
+	ESP8266_USARTSENDSTRING("AT+CWAUTOCONN=");
+	ESP8266_USARTSENDCHAR(&c);
+	ESP8266_USARTSENDSTRING("\r\n");
+	
+	/* Send command */
+	SendCommand(ESP8266, ESP8266_COMMAND_AUTOCONN, NULL, NULL);
+	
+	/* Wait till end */
+	return ESP8266_WaitReady(ESP8266);
+}
 
 /******************************************/
 /*               TCP CLIENT               */
@@ -2231,13 +2250,6 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 	
 	/* Check commands we have sent */
 	switch (ESP8266->ActiveCommand) {
-		/* Check wifi disconnect response */
-		case ESP8266_COMMAND_CWQAP:
-			if (strcmp(Received, "OK\r\n") == 0) {
-				/* Reset active command */
-				ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;
-			}
-			break;
 		case ESP8266_COMMAND_CWJAP:			
 			/* We send command and we have error response */
 			if (strncmp(Received, "+CWJAP:", 7) == 0) {
@@ -2380,6 +2392,8 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 		case ESP8266_COMMAND_GSLP:
 		case ESP8266_COMMAND_CIPSTO:
 		case ESP8266_COMMAND_RESTORE:
+		case ESP8266_COMMAND_AUTOCONN:
+		case ESP8266_COMMAND_CWQAP:
 #if ESP8266_USE_WPS == 1
 		case ESP8266_COMMAND_WPS:
 #endif
