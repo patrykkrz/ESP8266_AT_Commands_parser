@@ -13,6 +13,21 @@
  * @conf      PLL parameters are set in "Options for Target" -> "C/C++" -> "Defines"
  * @packs     STM32F4xx/STM32F7xx Keil packs are requred with HAL driver support
  * @stdperiph STM32F4xx/STM32F7xx HAL drivers required
+ *
+ * 
+ * Pinout (See Google how to setup your ESP8266 device):
+ *
+ * ESP8266        STM32F4xx           DESCRIPTION
+ * 
+ * RX             PA9                 TX from STM to RX to ESP
+ * TX             PA10                RX from STM
+ * VCC            3.3V                Use external 3.3V regulator
+ * GND            GND
+ * RST            PA0                 
+ *
+ *                PC13                Button, active low
+ *
+ * For debug purpose, PA2 as TX is used at 921600 bauds.
  */
 /* Include core modules */
 #include "stm32fxxx_hal.h"

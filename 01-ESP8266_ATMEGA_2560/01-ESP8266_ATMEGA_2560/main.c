@@ -24,7 +24,7 @@
  *
  *                PB6                 Button. Use wire to set pin low. After you remove wire from GND, connection should start if everything is OK
  *
- * Debug UART is mapped to normal Arduino pins for Serial, RX0 and RX1, which gives you normal USB access
+ * Debug UART is mapped to normal Arduino pins for Serial, RX0 and RX1, which gives you normal USB access, 115200 baud is used
  * I used Atmel MKII to download software to microcontroller.
  */ 
 
