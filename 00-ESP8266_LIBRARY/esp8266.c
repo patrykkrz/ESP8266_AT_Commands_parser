@@ -1974,7 +1974,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 	}
 	
 	/* First check, if any command is active */
-	if (ESP8266->ActiveCommand != ESP8266_COMMAND_IDLE && from_usart_buffer == 1) {
+	if (ESP8266->ActiveCommand != ESP8266_COMMAND_IDLE && from_usart_buffer) {
 		/* Check if string does not belong to this command */
 		if (
 			strcmp(Received, "OK\r\n") != 0 &&
@@ -2176,7 +2176,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 	
 	/* Check if already connected */
 	if (strstr(Received, "ALREADY CONNECTED\r\n") != NULL) {
-		printf("Connection %d already connected!\r\n", ESP8266->StartConnectionSent);
+		
 	}
 	
 	/* Check if we have a closed connection */
@@ -2343,7 +2343,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 			break;
 		case ESP8266_COMMAND_SEND:
 			if (strcmp(Received, "OK\r\n") == 0) {
-				/* Reset active command */
+				/* Go to send data command */
 				ESP8266->ActiveCommand = ESP8266_COMMAND_SENDDATA;
 				
 				/* Do not reset command, instead, wait for wrapper command! */
@@ -2517,7 +2517,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 		
 		/* Reset active command */
 		/* TODO: Check if OK here */
-		if (ESP8266->ActiveCommand != ESP8266_COMMAND_SEND) {
+		if (ESP8266->ActiveCommand != ESP8266_COMMAND_SEND && ESP8266->ActiveCommand != ESP8266_COMMAND_SENDDATA) {
 			/* We are waiting for "> " string */
 			ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;
 		}
