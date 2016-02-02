@@ -676,6 +676,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, char* name
 /**
  * @brief  Starts new SSL connection as ESP client and connects to given address and port
  * @note   Only one connection can be made as SSL at a time
+ * @note   Use \ref ESP8266_SetSSLBufferSize first before you start connection
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  *name: Identification connection name for callback functions to detect proper connection
  * @param  *location: Domain name or IP address to connect to as string
@@ -684,6 +685,15 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, char* name
  * @return Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters);
+
+/**
+ * @brief  Sets SSL buffer size for connections
+ * @note   This function must be called before you can make a new connection using \ref ESP8266_StartClientConnectionSSL
+ * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * @param  buffersize: Size of SSL buffer. Recommended value is 4096 or more.
+ * @return Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_SetSSLBufferSize(ESP8266_t* ESP8266, uint16_t buffersize);
 
 /**
  * @brief  Wrapper for TCP connection. For more informations, take a look at \ref ESP8266_StartClientConnectionTCP

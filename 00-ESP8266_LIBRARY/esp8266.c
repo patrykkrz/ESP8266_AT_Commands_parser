@@ -61,6 +61,7 @@
 #define ESP8266_COMMAND_WPS            30
 #endif
 #define ESP8266_COMMAND_AUTOCONN       31
+#define ESP8266_COMMAND_SSLBUFFERSIZE  32
 
 #define ESP8266_DEFAULT_BAUDRATE       115200 /*!< Default ESP8266 baudrate */
 #define ESP8266_TIMEOUT                30000  /*!< Timeout value in milliseconds */
@@ -990,7 +991,7 @@ ESP8266_Result_t ESP8266_ListWifiStations(ESP8266_t* ESP8266) {
 	ESP8266_APs.Count = 0;
 	
 	/* Send list command */
-	return SendCommand(ESP8266, ESP8266_COMMAND_CWLAP, "AT+CWLAP\r\n", "+CWLAP");	
+	return SendCommand(ESP8266, ESP8266_COMMAND_CWLAP, "AT+CWLAP=\"SSID\"\r\n", "+CWLAP");	
 }
 #endif
 
@@ -1271,6 +1272,27 @@ ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name
 	
 	/* Return error */
 	ESP8266_RETURNWITHSTATUS(ESP8266, ESP_ERROR);
+}
+
+ESP8266_Result_t ESP8266_SetSSLBufferSize(ESP8266_t* ESP8266, uint16_t buffersize) {
+	char buff[6];
+	
+	/* Check if IDLE */
+	ESP8266_CHECK_IDLE(ESP8266);
+	
+	/* Format to string */
+	Int2String(buff, buffersize);
+	
+	/* Send command */
+	ESP8266_USARTSENDSTRING("AT+CIPSSLSIZE=");
+	ESP8266_USARTSENDSTRING(buff);
+	ESP8266_USARTSENDSTRING("\r\n");
+	
+	/* Send command */
+	SendCommand(ESP8266, ESP8266_COMMAND_SSLBUFFERSIZE, NULL, NULL);
+	
+	/* Wait response */
+	return ESP8266_WaitReady(ESP8266);
 }
 
 /******************************************/
@@ -2395,6 +2417,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 		case ESP8266_COMMAND_RESTORE:
 		case ESP8266_COMMAND_AUTOCONN:
 		case ESP8266_COMMAND_CWQAP:
+		case ESP8266_COMMAND_SSLBUFFERSIZE:
 #if ESP8266_USE_WPS == 1
 		case ESP8266_COMMAND_WPS:
 #endif
