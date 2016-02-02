@@ -96,13 +96,6 @@ extern "C" {
 #define ESP8266_RESET_PIN     GPIO_PIN_0 
 
 /**
- * @brief   Provides delay for amount of milliseconds
- * @param   x: Number of milliseconds for delay
- * @retval  None
- */
-#define ESP8266_DELAYMS(x)         Delayms(x)
-
-/**
  * @brief  Initializes U(S)ART peripheral for ESP8266 communication
  * @note   This function is called from ESP stack
  * @param  baudrate: baudrate for USART you have to use when initializing USART peripheral

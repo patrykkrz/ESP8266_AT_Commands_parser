@@ -51,6 +51,7 @@ uint8_t ESP8266_LL_USARTInit(uint32_t baudrate) {
 	/* Enable interrupts if not already */
 	sei();
 	
+	/* Make a little delay */
 	_delay_ms(10);
 	
 	/* Return 0 = Successful */

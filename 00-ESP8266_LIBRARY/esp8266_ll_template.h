@@ -164,29 +164,6 @@ void TIMER_INTERRUPT_FUNCTION_NAME(void) {
 }
 \endcode
  *
- * \par Delay configuration
- *
- * ESP module part needs milliseconds based delay for some special events, specially on initialization process.
- *
- * You need to implement your own delay function to be used with ESP stack.
- *
- * Use \ref ESP8266_DELAYMS macro to specify delay function.
- *
-\code
-//Set delay function
-
-//Init delay function
-#define ESP8266_DELAYMS(x)      Delayms(x)
-
-//Example for Atmel AVR
-#define ESP8266_DELAYMS(x)      do {   \
-    uint16_t i;                        \
-    for (i = 0; i < x; i++) {          \
-        _delay_ms(1);                  \
-    }                                  \
-} while (0)
-\endcode
- *
  * \par Dependencies
  *
 \verbatim
@@ -202,13 +179,6 @@ void TIMER_INTERRUPT_FUNCTION_NAME(void) {
 
 /* Include ESP layer */
 #include "esp8266.h"
-
-/**
- * @brief   Provides delay for amount of milliseconds
- * @param   x: Number of milliseconds for delay
- * @retval  None
- */
-#define ESP8266_DELAYMS(x)         Delayms(x)
 
 /**
  * @brief  Initializes U(S)ART peripheral for ESP8266 communication

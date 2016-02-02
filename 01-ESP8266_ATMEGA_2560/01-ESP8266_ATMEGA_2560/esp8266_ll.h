@@ -202,18 +202,6 @@ void TIMER_INTERRUPT_FUNCTION_NAME(void) {
 #include <util/delay.h>
 
 /**
- * @brief   Provides delay for amount of milliseconds
- * @param   x: Number of milliseconds for delay
- * @retval  None
- */
-#define ESP8266_DELAYMS(x)      do {     \
-	uint16_t i;                          \
-	for (i = 0; i < x; i++) {            \
-		_delay_ms(1);                    \
-	}	                                 \
-} while (0)
-
-/**
  * @brief  Initializes U(S)ART peripheral for ESP8266 communication
  * @note   This function is called from ESP stack
  * @param  baudrate: baudrate for USART you have to use when initializing USART peripheral

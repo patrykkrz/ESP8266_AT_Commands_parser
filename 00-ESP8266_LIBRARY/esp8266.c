@@ -76,6 +76,9 @@
 /* Maximum number of return data size in one +IPD from ESP8266 module */
 #define ESP8255_MAX_BUFF_SIZE          5842
 
+/* Delay milliseconds */
+#define ESP8266_DELAYMS(ESP, x)        do {uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x));} while (0);
+
 /* Temporary buffer */
 static BUFFER_t TMP_Buffer;
 static BUFFER_t USART_Buffer;
@@ -198,13 +201,13 @@ ESP8266_Result_t ESP8266_Init(ESP8266_t* ESP8266, uint32_t baudrate) {
 	ESP8266_RESET_LOW;
 	
 	/* Delay for while */
-	ESP8266_DELAYMS(100);
+	ESP8266_DELAYMS(ESP8266, 100);
 	
 	/* Set pin high */
 	ESP8266_RESET_HIGH;
 	
 	/* Delay for while */
-	ESP8266_DELAYMS(100);
+	ESP8266_DELAYMS(ESP8266, 100);
 	
 	/* Save current baudrate */
 	ESP8266->Baudrate = baudrate;
@@ -311,7 +314,7 @@ ESP8266_Result_t ESP8266_RestoreDefault(ESP8266_t* ESP8266) {
 	}
 	
 	/* Little delay */
-	ESP8266_DELAYMS(2);
+	ESP8266_DELAYMS(ESP8266, 2);
 	
 	/* Reset USART to default ESP baudrate */
 	ESP8266_LL_USARTInit(ESP8266_DEFAULT_BAUDRATE);
@@ -2693,7 +2696,7 @@ static ESP8266_Result_t SendUARTCommand(ESP8266_t* ESP8266, uint32_t baudrate, c
 	ESP8266->Baudrate = baudrate;
 	
 	/* Delay a little, wait for all bytes from ESP are received before we delete them from buffer */
-	ESP8266_DELAYMS(5);
+	ESP8266_DELAYMS(ESP8266, 5);
 	
 	/* Set new UART baudrate */
 	ESP8266_LL_USARTInit(ESP8266->Baudrate);
@@ -2702,7 +2705,7 @@ static ESP8266_Result_t SendUARTCommand(ESP8266_t* ESP8266, uint32_t baudrate, c
 	BUFFER_Reset(&USART_Buffer);
 	
 	/* Delay a little */
-	ESP8266_DELAYMS(5);
+	ESP8266_DELAYMS(ESP8266, 5);
 	
 	/* Reset command */
 	ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;
