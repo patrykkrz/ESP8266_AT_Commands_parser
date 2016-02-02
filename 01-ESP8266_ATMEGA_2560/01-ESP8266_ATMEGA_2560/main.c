@@ -84,13 +84,16 @@ int main(void) {
 	/* Disconnect from wifi if connected */
 	ESP8266_WifiDisconnect(&ESP8266);
 	
-	#if ESP8266_USE_APSEARCH
+	/* Wait till finishes */
+	ESP8266_WaitReady(&ESP8266);
+	
+#if ESP8266_USE_APSEARCH
 	/* Get a list of all stations */
 	ESP8266_ListWifiStations(&ESP8266);
-	#endif
 	
 	/* Wait till finishes */
 	ESP8266_WaitReady(&ESP8266);
+#endif
 	
 	/* Connect to wifi and save settings */
 	ESP8266_WifiConnect(&ESP8266, "YOUR SSID", "YOUR PASSWORD");
@@ -131,7 +134,7 @@ void TimerInit(void) {
 	/* 16.000.000 / 64 = 250k ticks per second = 250 ticks per millisecond */
 	
 	/* Set prescaler to 64 */
-	TCCR0B|= (1 << CS01) | (1 << CS00);
+	TCCR0B |= (1 << CS01) | (1 << CS00);
 	
 	/* Set counter to count up to 249 */
 	OCR0A = 249;
@@ -140,12 +143,13 @@ void TimerInit(void) {
 	TIMSK0 |= 1 << OCIE0A;
 }
 
+/* 1ms timer interrupt handler */
 ISR(TIMER0_COMPA_vect) {
 	/* Notify stack about new time */
 	ESP8266_TimeUpdate(&ESP8266, 1);
 }
 
-/* UART interrupt handler */
+/* UART interrupt handler, DEBUG uart */
 ISR(USART0_RX_vect) {
 	/* Get character */
 	uint8_t ch = UDR0;
