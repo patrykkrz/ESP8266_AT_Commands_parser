@@ -163,18 +163,6 @@ void TIMER_INTERRUPT_FUNCTION_NAME(void) {
     ESP8266_TimeUpdate(&ESP8266, 1);
 }
 \endcode
- *
- * \par Dependencies
- *
-\verbatim
- Platform based dependencies
-\endverbatim
- */
-
-/**
- * @defgroup ESP8266_LL
- * @brief    Low level, platform dependent, part for communicate with ESP module and platform.
- * @{
  */
 
 /* Include ESP layer */

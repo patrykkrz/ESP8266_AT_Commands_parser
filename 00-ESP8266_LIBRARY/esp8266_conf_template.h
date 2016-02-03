@@ -47,7 +47,7 @@
  * @brief   USART input buffer size. This buffer stores data received from USART RX interrupt 
  *          before stack use them.
  *
- *          Size of buffer depends on speed of calling @ref ESP8266_Update function, ESP baudrate and
+ *          Size of buffer depends on speed of calling \ref ESP8266_Update function, ESP baudrate and
  *          max ESP receive string size.
  *
  * @note    When possible, buffer should be at least 1024 bytes.
@@ -60,7 +60,7 @@
  *          When stack sends command, and it waits for "OK" or "ERROR" or something else and if there are data received,
  *          which are not part of this command, then all that data are stored in temporary buffer before they are processed.
  *
- *          Size of buffer depends on speed of calling @ref ESP8266_Update function, ESP baudrate and
+ *          Size of buffer depends on speed of calling \ref ESP8266_Update function, ESP baudrate and
  *          max ESP receive string size.
  *
  * @note    When possible, buffer should be at least 512 bytes for safety reasons.
@@ -119,13 +119,13 @@
  *
  *          Set to 10 by default.
  *
- * @note    @ref ESP8266_USE_APSEARCH must be enabled for this feature
+ * @note    \ref ESP8266_USE_APSEARCH must be enabled for this feature
  */
 #define ESP8266_MAX_DETECTED_AP                   10
 
 /**
  * @brief   Sets number of bytes each connection can use for identification name used by user when creating client connection
- *          using @ref ESP8266_CreateClientConnection.
+ *          using \ref ESP8266_CreateClientConnectionTCP or \ref ESP8266_CreateClientConnectionSSL.
  */
 #define ESP8266_MAX_CONNECTION_NAME               32
 

@@ -578,6 +578,7 @@ ESP8266_Result_t ESP8266_GetSTAMAC(ESP8266_t* ESP8266);
 /**
  * @brief  Sets ESP MAC address when acting like station
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * @param  *addr: 6-byts long MAX address
  * @return Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_SetSTAMAC(ESP8266_t* ESP8266, uint8_t* addr);
@@ -585,6 +586,7 @@ ESP8266_Result_t ESP8266_SetSTAMAC(ESP8266_t* ESP8266, uint8_t* addr);
 /**
  * @brief  Sets ESP MAC address when acting like station and stores value to ESP flash memory
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * @param  *addr: 6-byts long MAX address
  * @return Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_SetSTAMACDefault(ESP8266_t* ESP8266, uint8_t* addr);
@@ -613,6 +615,7 @@ ESP8266_Result_t ESP8266_GetAPMAC(ESP8266_t* ESP8266);
 /**
  * @brief  Sets ESP MAC address when acting like softAP
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * @param  *addr: 6-bytes long MAC address
  * @return Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_SetAPMAC(ESP8266_t* ESP8266, uint8_t* addr);
@@ -620,6 +623,7 @@ ESP8266_Result_t ESP8266_SetAPMAC(ESP8266_t* ESP8266, uint8_t* addr);
 /**
  * @brief  Sets ESP MAC address when acting like softAP and stores value to flash memory
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * @param  *addr: 6-bytes long MAC address
  * @return Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_SetAPMACDefault(ESP8266_t* ESP8266, uint8_t* addr);
@@ -831,11 +835,11 @@ void ESP8266_Callback_DHCPTimeout(ESP8266_t* ESP8266);
  * @brief  Device has detected wifi access point where we can connect to.
  * @note   Function is called when you use \ref ESP8266_ListWifiStations function
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * @param  *ESP8266_AP: Pointer to \ref ESP8266_APs_t structure with data
  * @retval None
  * @note   With weak parameter to prevent link errors if not defined by user
  */
 void ESP8266_Callback_WifiDetected(ESP8266_t* ESP8266, ESP8266_APs_t* ESP8266_AP);
-
 
 /**
  * @brief  ESP8266 has a new connection active, acting like server
@@ -858,7 +862,8 @@ void ESP8266_Callback_ServerConnectionClosed(ESP8266_t* ESP8266, ESP8266_Connect
 /**
  * @brief  ESP8266 has a data received on active connection when acting like server
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * @param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
+ * @param  *Connection: Pointer to \ref ESP8266_Connection_t connection
+ * @param  *Buffer: Buffer with data
  * @retval None
  * @note   With weak parameter to prevent link errors if not defined by user
  */
@@ -966,7 +971,8 @@ void ESP8266_Callback_ClientConnectionDataSentError(ESP8266_t* ESP8266, ESP8266_
 /**
  * @brief  ESP8266 received network data and sends it to microcontroller. Function is called when when entire package of data is parsed
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * @param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
+ * @param  *Connection: Pointer to \ref ESP8266_Connection_t connection
+ * @param  *Buffer: Buffer with data
  * @retval None
  * @note   With weak parameter to prevent link errors if not defined by user
  */
@@ -994,6 +1000,7 @@ void ESP8266_Callback_PingFinished(ESP8266_t* ESP8266, ESP8266_Ping_t* Pinging);
  * @brief  Firmware update status checking
  * @note   You must use \ref ESP8266_FirmwareUpdate function to start updating
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * @param  status: Called with current status about updating. This parameter can be a value of \ref ESP8266_FirmwareUpdate_t enumeration
  * @retval None
  * @note   With weak parameter to prevent link errors if not defined by user
  */
@@ -1017,7 +1024,7 @@ void ESP8266_Callback_FirmwareUpdateError(ESP8266_t* ESP8266);
 
 /**
  * @brief  ESP8266 returns new data about connected stations to our softAP
- * @note   This function is called in case \ref is used for detection connected stations
+ * @note   This function is called in case \ref ESP8266_GetConnectedStations is used for detection connected stations
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  *Stations: Pointer to \ref ESP8266_ConnectedStations_t structure with data
  * @retval None

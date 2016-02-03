@@ -191,7 +191,7 @@ int16_t BUFFER_FindElement(BUFFER_t* Buffer, uint8_t Element);
 /**
  * @brief  Checks if specific data sequence are stored in buffer
  * @param  *Buffer: Pointer to @ref BUFFER_t structure
- * @param  uint8_t* Data: Array with data sequence
+ * @param  *Data: Array with data sequence
  * @param  Size: Data size in units of bytes
  * @retval Status of sequence:
  *            -  < 0: Sequence was not found
@@ -202,7 +202,7 @@ int16_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint16_t Size);
 /**
  * @brief  Sets string delimiter character when reading from buffer as string
  * @param  Buffer: Pointer to @ref BUFFER_t structure
- * @param  StringDelimIter: Character as string delimiter
+ * @param  StrDel: Character as string delimiter
  * @retval None
  */
 #define BUFFER_SetStringDelimiter(Buffer, StrDel)  ((Buffer)->StringDelimiter = (StrDel))
