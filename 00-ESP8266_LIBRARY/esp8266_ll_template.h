@@ -62,7 +62,7 @@ extern "C" {
  *
  * Most microcontrollers have USART RX capability, so when USART RX interrupt happens,
  * you should send this received byte to ESP8266 module using @ref ESP8266_DataReceived function to notify new incoming data.
- * Use interrupt handler routing to notify new data using previous mentioned function.
+ * Use interrupt handler routine to notify new data using previous mentioned function.
  *
 \code
 //Code below show example procedure and does need to be directly for your platform.
