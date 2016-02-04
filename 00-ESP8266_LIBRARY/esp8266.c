@@ -502,7 +502,7 @@ ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266) {
 		/* If anything received */
 		while (
 			ESP8266->IPD.InPtr < ESP8266->Connection[ESP8266->IPD.ConnNumber].BytesReceived && /*!< Still not everything received */
-			BUFFER_GetFull(buff) > 0                                                    /*!< Data are available in buffer */
+			BUFFER_GetFull(buff) > 0                                                           /*!< Data are available in buffer */
 		) {
 			/* Read from buffer */
 			BUFFER_Read(buff, (uint8_t *)&ch, 1);
@@ -2107,8 +2107,83 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 		}
 	}
 	
+	/* Check if we have a new connection */
+	if (bufflen > 10 && (ch_ptr = (char *)mem_mem(&Received[bufflen - 10], bufflen, ",CONNECT\r\n", 10)) != NULL) {
+		/* New connection has been made */
+		Conn = &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))];
+		Conn->Active = 1;
+		Conn->Number = CHAR2NUM(*(ch_ptr - 1));
+		
+		/* Call user function according to connection type (client, server) */
+		if (Conn->Client) {			
+			/* Reset current connection */
+			if (ESP8266->ActiveCommand == ESP8266_COMMAND_CIPSTART) {
+				ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;
+			}
+			
+			/* Connection started as client */
+			ESP8266_Callback_ClientConnectionConnected(ESP8266, Conn);
+		} else {
+			/* Connection started as server */
+			ESP8266_Callback_ServerConnectionActive(ESP8266, Conn);
+		}
+		
+		/* Check if already connected */
+	} else if (strstr(Received, "ALREADY CONNECTED\r\n") != NULL) {
+		
+		/* Check if we have a closed connection, check the end of string */
+	} else if (bufflen > 9 && (ch_ptr = (char *)mem_mem(&Received[bufflen - 9], bufflen, ",CLOSED\r\n", 9)) != NULL && Received != ch_ptr) {
+		uint8_t client, active;
+		
+		/* Check if CLOSED statement is on beginning, if not, write it to temporary buffer and leave here */
+		/* If not on beginning of string, probably ,CLOSED was returned after +IPD statement */
+		/* Make string standalone */
+		if (ch_ptr == (Received + 1)) {
+			/* Save values */
+			client = ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))].Client;
+			active = ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))].Active;
+			
+			/* Connection closed, reset flags now */
+			ESP8266_RESETCONNECTION(ESP8266, &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))]);
+			
+			/* Call user function */
+			if (active) {
+				if (client) {
+					/* Client connection closed */
+					ESP8266_Callback_ClientConnectionClosed(ESP8266, &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))]);
+				} else {
+					/* Server connection closed */
+					ESP8266_Callback_ServerConnectionClosed(ESP8266, &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))]);
+				}
+			}
+		} else {
+			/* Write to temporary buffer */
+			BUFFER_Write(&TMP_Buffer, (uint8_t *)(ch_ptr - 1), 10);
+		}
+		
+		/* Check if we have a new connection, analyze only last part */
+	} else if (bufflen > 16 && (ch_ptr = strstr(&Received[bufflen - 15], ",CONNECT FAIL\r\n")) != NULL) {
+		/* New connection has been made */
+		Conn = &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))];
+		ESP8266_RESETCONNECTION(ESP8266, Conn);
+		Conn->Number = CHAR2NUM(*(ch_ptr - 1));
+		
+		/* Call user function according to connection type (client, server) */
+		if (Conn->Client) {
+			/* Reset current connection */
+			if (ESP8266->ActiveCommand == ESP8266_COMMAND_CIPSTART) {
+				ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;
+			}
+			
+			/* Connection failed */
+			ESP8266_Callback_ClientConnectionError(ESP8266, Conn);
+		}
+	}
+	
 	/* Check if +IPD was received with incoming data */
-	if (strncmp(Received, "+IPD,", 5) == 0) {		
+	if (strncmp(Received, "+IPD,", 5) == 0) {
+		uint16_t blength = bufflen;
+		
 		/* If we are not in IPD mode already */
 		/* Go to IPD mode */
 		ESP8266->IPD.InIPD = 1;
@@ -2169,22 +2244,27 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 		
 		/* Find : element where real data starts */
 		ipd_ptr = 0;
-		while (Received[ipd_ptr] != ':') {
+		while (Received[ipd_ptr] != ':' && ipd_ptr < blength) {
 			ipd_ptr++;
 		}
 		ipd_ptr++;
 		
+		/* Calculate size of buffer */
+		if ((blength - ipd_ptr) > ESP8266->Connection[ESP8266->IPD.ConnNumber].BytesReceived) {
+			blength = ESP8266->Connection[ESP8266->IPD.ConnNumber].BytesReceived + ipd_ptr;
+		}
+		
 		/* Copy content to beginning of buffer */
-		memcpy((uint8_t *)ESP8266->Connection[ESP8266->IPD.ConnNumber].Data, (uint8_t *)&Received[ipd_ptr], bufflen - ipd_ptr);
+		memcpy((uint8_t *)ESP8266->Connection[ESP8266->IPD.ConnNumber].Data, (uint8_t *)&Received[ipd_ptr], blength - ipd_ptr);
 		
 		/* Check for length */
-		if ((bufflen - ipd_ptr) > ESP8266->Connection[ESP8266->IPD.ConnNumber].BytesReceived) {
+		if ((blength - ipd_ptr) > ESP8266->Connection[ESP8266->IPD.ConnNumber].BytesReceived) {
 			/* Add zero at the end of string */
 			ESP8266->Connection[ESP8266->IPD.ConnNumber].Data[ESP8266->Connection[ESP8266->IPD.ConnNumber].BytesReceived] = 0;
 		}
 		
 		/* Calculate remaining bytes */
-		ESP8266->IPD.InPtr = ESP8266->IPD.PtrTotal = bufflen - ipd_ptr;
+		ESP8266->IPD.InPtr = ESP8266->IPD.PtrTotal = blength - ipd_ptr;
 		
 		/* Check remaining data */
 		if (ipd_ptr >= ESP8266->Connection[ESP8266->IPD.ConnNumber].BytesReceived) {
@@ -2197,83 +2277,6 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 			
 			/* Enable flag to call received data callback */
 			ESP8266->Connection[ESP8266->IPD.ConnNumber].CallDataReceived = 1;
-		}
-	}
-	
-	/* Check if we have a new connection */
-	if ((ch_ptr = (char *)mem_mem(Received, bufflen, ",CONNECT\r\n", 10)) != NULL) {
-		/* New connection has been made */
-		Conn = &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))];
-		Conn->Active = 1;
-		Conn->Number = CHAR2NUM(*(ch_ptr - 1));
-		
-		/* Call user function according to connection type (client, server) */
-		if (Conn->Client) {			
-			/* Reset current connection */
-			if (ESP8266->ActiveCommand == ESP8266_COMMAND_CIPSTART) {
-				ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;
-			}
-			
-			/* Connection started as client */
-			ESP8266_Callback_ClientConnectionConnected(ESP8266, Conn);
-		} else {
-			/* Connection started as server */
-			ESP8266_Callback_ServerConnectionActive(ESP8266, Conn);
-		}
-	}
-	
-	/* Check if already connected */
-	if (strstr(Received, "ALREADY CONNECTED\r\n") != NULL) {
-		
-	}
-	
-	/* Check if we have a closed connection */
-	if ((ch_ptr = (char *)mem_mem(Received, bufflen, ",CLOSED\r\n", 9)) != NULL && Received != ch_ptr) {
-		uint8_t client, active;
-		
-		/* Check if CLOSED statement is on beginning, if not, write it to temporary buffer and leave here */
-		/* If not on beginning of string, probably ,CLOSED was returned after +IPD statement */
-		/* Make string standalone */
-		if (ch_ptr == (Received + 1)) {
-			/* Save values */
-			client = ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))].Client;
-			active = ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))].Active;
-			
-			/* Connection closed, reset flags now */
-			ESP8266_RESETCONNECTION(ESP8266, &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))]);
-			
-			/* Call user function */
-			if (active) {
-				if (client) {
-					/* Client connection closed */
-					ESP8266_Callback_ClientConnectionClosed(ESP8266, &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))]);
-				} else {
-					/* Server connection closed */
-					ESP8266_Callback_ServerConnectionClosed(ESP8266, &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))]);
-				}
-			}
-		} else {
-			/* Write to temporary buffer */
-			BUFFER_Write(&TMP_Buffer, (uint8_t *)(ch_ptr - 1), 10);
-		}
-	}
-	
-	/* Check if we have a new connection */
-	if ((ch_ptr = strstr(Received, ",CONNECT FAIL\r\n")) != NULL) {
-		/* New connection has been made */
-		Conn = &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))];
-		ESP8266_RESETCONNECTION(ESP8266, Conn);
-		Conn->Number = CHAR2NUM(*(ch_ptr - 1));
-		
-		/* Call user function according to connection type (client, server) */
-		if (Conn->Client) {
-			/* Reset current connection */
-			if (ESP8266->ActiveCommand == ESP8266_COMMAND_CIPSTART) {
-				ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;
-			}
-			
-			/* Connection failed */
-			ESP8266_Callback_ClientConnectionError(ESP8266, Conn);
 		}
 	}
 	
