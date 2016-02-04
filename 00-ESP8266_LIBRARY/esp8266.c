@@ -2027,7 +2027,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 			strcmp(Received, "ERROR\r\n") != 0 &&
 			strcmp(Received, "ready\r\n") != 0 &&
 			strcmp(Received, "busy p...\r\n") != 0 &&
-			strncmp(Received, "+IPD:", 4) != 0 &&
+			strncmp(Received, "+IPD,", 5) != 0 &&
 			strncmp(Received, ESP8266->ActiveCommandResponse, strlen(ESP8266->ActiveCommandResponse)) != 0
 		) {
 			/* Save string to temporary buffer, because we received a string which does not belong to this command */
@@ -2077,6 +2077,9 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 		
 		/* Call user callback function */
 		ESP8266_Callback_WifiGotIP(ESP8266);
+	} else if (strcmp(Received, "DHCP TIMEOUT") == 0) {
+		/* Call user function */
+		ESP8266_Callback_DHCPTimeout(ESP8266);
 	}
 			
 	/* In case data were send */
@@ -2105,7 +2108,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 	}
 	
 	/* Check if +IPD was received with incoming data */
-	if (strncmp(Received, "+IPD", 4) == 0) {		
+	if (strncmp(Received, "+IPD,", 5) == 0) {		
 		/* If we are not in IPD mode already */
 		/* Go to IPD mode */
 		ESP8266->IPD.InIPD = 1;
