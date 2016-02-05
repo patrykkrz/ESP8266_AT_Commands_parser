@@ -113,7 +113,8 @@ typedef enum {
 	ESP_LINKNOTVALID,       /*!< Link for connection is not valid */
 	ESP_NOHEAP,             /*!< Heap memory is not available */
 	ESP_WIFINOTCONNECTED,   /*!< Wifi is not connected to network */
-	ESP_BUSY                /*!< Device is busy, new command is not possible */
+	ESP_BUSY,               /*!< Device is busy, new command is not possible */
+	ESP_INVALIDPARAMETERS   /*!< Parameters for functions are invalid */
 } ESP8266_Result_t;
 
 /**
@@ -419,8 +420,18 @@ void ESP8266_TimeUpdate(ESP8266_t* ESP8266, uint32_t time_increase);
  * @brief  Restores default values from ESP8266 module flash memory
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_RestoreDefault(ESP8266_t* ESP8266);
+
+/**
+ * @brief  Sets radio frequency power output in steps by 0.25 dBm
+ * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * @param  pwr: Power in units of dBm. This parameter can be a value between 0 and 20.5 dBm
+ * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
+ */
+ESP8266_Result_t ESP8266_SetRFPower(ESP8266_t* ESP8266, float pwr);
 
 /**
  * @brief  Starts firmware module update over the air (OTA)
@@ -446,6 +457,7 @@ ESP8266_Result_t ESP8266_SetUART(ESP8266_t* ESP8266, uint32_t baudrate);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  baudrate: Baudrate to use with module
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetUARTDefault(ESP8266_t* ESP8266, uint32_t baudrate);
 
@@ -454,6 +466,7 @@ ESP8266_Result_t ESP8266_SetUARTDefault(ESP8266_t* ESP8266, uint32_t baudrate);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  SleepMode: Sleep mode type. This parameter can be a value of \ref ESP8266_SleepMode_t enumeration
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetSleepMode(ESP8266_t* ESP8266, ESP8266_SleepMode_t SleepMode);
 
@@ -502,6 +515,7 @@ ESP8266_Result_t ESP8266_WifiDisconnect(ESP8266_t* ESP8266);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  Mode: ESP8266 working mode. This parameter can be a value of \ref ESP8266_Mode_t enumeration
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetMode(ESP8266_t* ESP8266, ESP8266_Mode_t Mode);
 
@@ -510,6 +524,7 @@ ESP8266_Result_t ESP8266_SetMode(ESP8266_t* ESP8266, ESP8266_Mode_t Mode);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  wps: WPS status. This parameter can be a value of \ref ESP8266_WPS_t enumeration
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetWPS(ESP8266_t* ESP8266, ESP8266_WPS_t wps);
 
@@ -519,6 +534,7 @@ ESP8266_Result_t ESP8266_SetWPS(ESP8266_t* ESP8266, ESP8266_WPS_t wps);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  mux: Set to 0 to disable feature or 1 to enable
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetMux(ESP8266_t* ESP8266, uint8_t mux);
 
@@ -528,6 +544,7 @@ ESP8266_Result_t ESP8266_SetMux(ESP8266_t* ESP8266, uint8_t mux);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  dinfo: Set to 1 to enable it, or zero to disable
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_Setdinfo(ESP8266_t* ESP8266, uint8_t dinfo);
 
@@ -536,6 +553,7 @@ ESP8266_Result_t ESP8266_Setdinfo(ESP8266_t* ESP8266, uint8_t dinfo);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  port: Port number ESP will be visible on
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_ServerEnable(ESP8266_t* ESP8266, uint16_t port);
 
@@ -543,6 +561,7 @@ ESP8266_Result_t ESP8266_ServerEnable(ESP8266_t* ESP8266, uint16_t port);
  * @brief  Disables server mode on ESP8266 module
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_ServerDisable(ESP8266_t* ESP8266);
 
@@ -551,6 +570,7 @@ ESP8266_Result_t ESP8266_ServerDisable(ESP8266_t* ESP8266);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  timeout: Timeout value in unit of seconds
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetServerTimeout(ESP8266_t* ESP8266, uint16_t timeout);
 
@@ -565,6 +585,7 @@ ESP8266_Result_t ESP8266_GetSTAIP(ESP8266_t* ESP8266);
  * @brief  Gets current IP of ESP module connected to other wifi network as station and waits for response from module
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_GetSTAIPBlocking(ESP8266_t* ESP8266);
 
@@ -580,6 +601,7 @@ ESP8266_Result_t ESP8266_GetSTAMAC(ESP8266_t* ESP8266);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  *addr: 6-byts long MAX address
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetSTAMAC(ESP8266_t* ESP8266, uint8_t* addr);
 
@@ -588,6 +610,7 @@ ESP8266_Result_t ESP8266_SetSTAMAC(ESP8266_t* ESP8266, uint8_t* addr);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  *addr: 6-byts long MAX address
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetSTAMACDefault(ESP8266_t* ESP8266, uint8_t* addr);
 
@@ -602,6 +625,7 @@ ESP8266_Result_t ESP8266_GetAPIP(ESP8266_t* ESP8266);
  * @brief  Gets current IP of ESP module acting like softAP and waits for response from module
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_GetAPIPBlocking(ESP8266_t* ESP8266);
 
@@ -617,6 +641,7 @@ ESP8266_Result_t ESP8266_GetAPMAC(ESP8266_t* ESP8266);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  *addr: 6-bytes long MAC address
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetAPMAC(ESP8266_t* ESP8266, uint8_t* addr);
 
@@ -625,6 +650,7 @@ ESP8266_Result_t ESP8266_SetAPMAC(ESP8266_t* ESP8266, uint8_t* addr);
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  *addr: 6-bytes long MAC address
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetAPMACDefault(ESP8266_t* ESP8266, uint8_t* addr);
 
@@ -647,6 +673,7 @@ ESP8266_Result_t ESP8266_GetAP(ESP8266_t* ESP8266);
  * @note   For connection, saved AP is used, which can be saved to flash using \ref ESP8266_WifiConnectDefault
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  Autoconn: Autoconnection status. This parameter can be a value of \ref ESP8266_AutoConnect_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetAutoConnect(ESP8266_t* ESP8266, ESP8266_AutoConnect_t Autoconn);
 
@@ -655,6 +682,7 @@ ESP8266_Result_t ESP8266_SetAutoConnect(ESP8266_t* ESP8266, ESP8266_AutoConnect_
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  *ESP8266_Config: Pointer to \ref ESP8266_APConfig_t structure with settings
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetAP(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_Config);
 
@@ -696,6 +724,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name
  * @param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * @param  buffersize: Size of SSL buffer. Recommended value is 4096 or more.
  * @return Member of \ref ESP8266_Result_t enumeration
+ * @note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetSSLBufferSize(ESP8266_t* ESP8266, uint16_t buffersize);
 
@@ -759,7 +788,7 @@ uint16_t ESP8266_DataReceived(uint8_t* ch, uint16_t count);
  * @defgroup ESP8266_Callback_Functions
  * @brief    Library callback functions
  *           
- *           Callback functions are called from ESP stack to user which should implement it when needs it.
+ *           Callback functions are called from ESP stack to user which should implement it when he needs them.
  * @{
  */
  

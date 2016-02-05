@@ -62,6 +62,7 @@
 #endif
 #define ESP8266_COMMAND_AUTOCONN       31
 #define ESP8266_COMMAND_SSLBUFFERSIZE  32
+#define ESP8266_COMMAND_RFPOWER        33
 
 #define ESP8266_DEFAULT_BAUDRATE       115200 /*!< Default ESP8266 baudrate */
 #define ESP8266_TIMEOUT                30000  /*!< Timeout value in milliseconds */
@@ -329,6 +330,41 @@ ESP8266_Result_t ESP8266_RestoreDefault(ESP8266_t* ESP8266) {
 	ESP8266_RETURNWITHSTATUS(ESP8266, ESP_OK);
 }
 
+/******************************************/
+/*            TX POWER SETTINGS           */
+/******************************************/
+ESP8266_Result_t ESP8266_SetRFPower(ESP8266_t* ESP8266, float pwr) {
+	uint32_t intval = (int)((float)pwr * (float)4.0);
+	char num[3];
+	
+	/* Check parameters first */
+	if (intval > 82) {
+		ESP8266_RETURNWITHSTATUS(ESP8266, ESP_INVALIDPARAMETERS);
+	}
+	
+	/* Check IDLE status */
+	ESP8266_CHECK_IDLE(ESP8266);
+	
+	/* Format to string */
+	Int2String(num, intval);
+	
+	/* Format command */
+	ESP8266_USARTSENDSTRING("AT+RFPOWER=");
+	ESP8266_USARTSENDSTRING(num);
+	ESP8266_USARTSENDSTRING("\r\n");
+	
+	/* Send command */
+	if (SendCommand(ESP8266, ESP8266_COMMAND_RFPOWER, NULL, NULL) != ESP_OK) {
+		return ESP8266->Result;
+	}
+	
+	/* Return status */
+	return ESP8266_Update(ESP8266);
+}
+
+/******************************************/
+/*             FIRMWARE UPDATE            */
+/******************************************/
 #if ESP8266_USE_FIRMWAREUPDATE
 ESP8266_Result_t ESP8266_FirmwareUpdate(ESP8266_t* ESP8266) {
 	/* Check connected */
@@ -1331,6 +1367,9 @@ ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, char* addr) {
 }
 #endif
 
+/******************************************/
+/*             DATA RECEIVED              */
+/******************************************/
 uint16_t ESP8266_DataReceived(uint8_t* ch, uint16_t count) {
 	/* Writes data to USART buffer */
 	return BUFFER_Write(&USART_Buffer, ch, count);
@@ -2427,6 +2466,7 @@ static void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart
 		case ESP8266_COMMAND_AUTOCONN:
 		case ESP8266_COMMAND_CWQAP:
 		case ESP8266_COMMAND_SSLBUFFERSIZE:
+		case ESP8266_COMMAND_RFPOWER:
 #if ESP8266_USE_WPS == 1
 		case ESP8266_COMMAND_WPS:
 #endif
