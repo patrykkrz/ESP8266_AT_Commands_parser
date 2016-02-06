@@ -271,8 +271,13 @@ ESP8266_Result_t ESP8266_Init(ESP8266_t* ESP8266, uint32_t baudrate) {
 		ESP8266_RETURNWITHSTATUS(ESP8266, ESP_DEVICENOTCONNECTED);
 	}
 	
+#if ESP8266_ECHO
 	/* Enable echo if not already */
 	SendCommand(ESP8266, ESP8266_COMMAND_ATE, "ATE1\r\n", "ATE1");
+#else
+	/* Disable echo if not already */
+	SendCommand(ESP8266, ESP8266_COMMAND_ATE, "ATE0\r\n", "ATE0");
+#endif
 	
 	/* Wait till idle */
 	ESP8266_WaitReady(ESP8266);

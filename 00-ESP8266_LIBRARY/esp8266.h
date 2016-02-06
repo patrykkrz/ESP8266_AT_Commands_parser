@@ -85,12 +85,17 @@ extern "C" {
 #define ESP8266_MAX_CONNECTIONS        5  /*!< Number of maximum active connections on ESP */
 #define ESP8266_MAX_CONNECTEDSTATIONS  10 /*!< Number of AP stations saved to received data array */
 
- /* Check for GNUC */
+/* Check for GNUC */
 #ifndef __weak	
 #if defined (__GNUC__)	
 #define __weak   	__attribute__((weak))
 #endif
 #endif	/* Weak attribute */
+
+/* Check debug */
+#ifndef ESP8266_ECHO
+#define ESP8266_ECHO           0
+#endif
 
 /**
  * @}
