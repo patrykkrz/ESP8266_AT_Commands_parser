@@ -310,6 +310,13 @@ typedef enum {
 } ESP8266_AutoConnect_t;
 
 /**
+ * \brief  SNTP structure for current time
+ */
+typedef struct {
+	uint32_t Time;
+} ESP8266_SNTP_t;
+
+/**
  * \brief  Main ESP8266 working structure
  */
 typedef struct {
@@ -341,6 +348,9 @@ typedef struct {
 	int8_t StartConnectionSent;                               /*!< Connection number which has active CIPSTART command and waits response */
 #if ESP8266_USE_CONNECTED_STATIONS == 1
 	ESP8266_ConnectedStations_t ConnectedStations;            /*!< Connected stations to ESP8266 module softAP */
+#endif
+#if ESP8266_USE_SNTP == 1
+	ESP8266_SNTP_t SNTP;                                      /*!< SNTP structure for current time */
 #endif
 	uint32_t TotalBytesReceived;                              /*!< Total number of bytes ESP8266 module has received from network and sent to our stack */
 	uint32_t TotalBytesSent;                                  /*!< Total number of network data bytes we have sent to ESP8266 module for transmission */
@@ -447,7 +457,6 @@ ESP8266_Result_t ESP8266_FirmwareUpdate(ESP8266_t* ESP8266);
 
 /**
  * \brief  Sets baudrate for ESP8266 module
- * \note   Module has some issues on returning OK to this command so I don't recommend UART change
  * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * \param  baudrate: Baudrate to use with module
  * \retval Member of \ref ESP8266_Result_t enumeration
@@ -456,8 +465,7 @@ ESP8266_Result_t ESP8266_SetUART(ESP8266_t* ESP8266, uint32_t baudrate);
 
 /**
  * \brief  Sets baudrate for ESP8266 module and stores it to ESP flash for future use
- * \note   Module has some issues on returning OK to this command so I don't recommend UART change
- *             if you really want to change it, use this function and later reconfigure your program to start with changed UART for ESP USART BAUDRATE
+ * \note   I don't recommend to use this feature. Use \ref ESP8266_SetUART to set new baudrate until ESP8266 will reset again.
  *             
  * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * \param  baudrate: Baudrate to use with module
@@ -776,7 +784,30 @@ ESP8266_Result_t ESP8266_RequestSendData(ESP8266_t* ESP8266, ESP8266_Connection_
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_GetConnectedStations(ESP8266_t* ESP8266);
- 
+
+/**
+ * \brief  Sets server for SNTP datetime retrieving
+ * \note   This feature is not implemented by default in ESP8266 AT commands software.
+ *            Instead of, custom implementation was made for this and may not work on your software for ESP8266 module.
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  num: Number (between 0 and 2) indicating which of 3 possible servers you will set
+ * \param  servername: Server name as hostname or IP in string format
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ * \note   This function is blocking function and will wait till ESP8266 sends result
+ */
+ESP8266_Result_t ESP8266_SNTPSetServer(ESP8266_t* ESP8266, uint8_t num, char* servername);
+
+/**
+ * \brief  Gets date and time from previously set servers with \ref ESP8266_SNTPSetServer function.
+ *            For status about function success of fail, callback functions are used.
+ * \note   This feature is not implemented by default in ESP8266 AT commands software.
+ *            Instead of, custom implementation was made for this and may not work on your software for ESP8266 module.
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ * \note   This function is blocking function and will wait till ESP8266 sends result
+ */
+ESP8266_Result_t ESP8266_SNTPGetDateTime(ESP8266_t* ESP8266);
+
 /**
  * \brief  Writes data from user defined USART RX interrupt handler to module stack
  * \note   This function should be called from USART RX interrupt handler to write new data
@@ -1066,6 +1097,25 @@ void ESP8266_Callback_FirmwareUpdateError(ESP8266_t* ESP8266);
  * \note   With weak parameter to prevent link errors if not defined by user
  */
 void ESP8266_Callback_ConnectedStationsDetected(ESP8266_t* ESP8266, ESP8266_ConnectedStations_t* Stations);
+
+/**
+ * \brief  ESP8266 returns new data about connected stations to our softAP
+ * \note   This function is called in case \ref ESP8266_SNTPGetDateTime is used for current date time detection and error is returned
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  *SNTP: Pointer to \ref ESP8266_SNTP_t structure with data from response
+ * \retval None
+ * \note   With weak parameter to prevent link errors if not defined by user
+ */
+void ESP8266_Callback_SNTPOk(ESP8266_t* ESP8266, ESP8266_SNTP_t* SNTP);
+
+/**
+ * \brief  ESP8266 returns new data about connected stations to our softAP
+ * \note   This function is called in case \ref ESP8266_SNTPGetDateTime is used for current date time detection and error is returned
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \retval None
+ * \note   With weak parameter to prevent link errors if not defined by user
+ */
+void ESP8266_Callback_SNTPError(ESP8266_t* ESP8266);
 
 /**
  * \}
