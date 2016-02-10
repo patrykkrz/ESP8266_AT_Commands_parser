@@ -159,6 +159,14 @@
 #define ESP8266_USE_CONNECTED_STATIONS            1
 
 /**
+ * @brief   Enables (1) or disables (0) SNTP feature for ESP8266.
+ *
+ *          This command does not work with official AT commands build yet.
+ *           Maybe Espresif will add this command.
+ */
+#define ESP8266_USE_SNTP                          0
+
+/**
  * @}
  */
 
