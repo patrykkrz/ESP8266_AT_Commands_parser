@@ -28,6 +28,8 @@
  *                PC13                Button, active low
  *
  * For debug purpose, PA2 as TX is used at 921600 bauds.
+ *
+ * Response from my example is in file included, "UART_RESPONSE_LOG.txt" file. 
  */
 /* Include core modules */
 #include "stm32fxxx_hal.h"
@@ -89,7 +91,7 @@ int main(void) {
 	ESP8266_WaitReady(&ESP8266);
 	
 	/* Connect to wifi and save settings */
-	ESP8266_WifiConnect(&ESP8266, "your SSID", "your password");
+	ESP8266_WifiConnect(&ESP8266, "YOUR SSID", "SSID PASSWORD");
 	
 	/* Wait till finish */
 	ESP8266_WaitReady(&ESP8266);
