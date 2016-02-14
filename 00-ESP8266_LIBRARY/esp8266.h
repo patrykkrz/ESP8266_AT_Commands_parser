@@ -729,7 +729,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char
  * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name, const char* location, uint16_t port, void* user_parameters);
+ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, void* user_parameters);
 
 /**
  * \brief  Sets SSL buffer size for connections

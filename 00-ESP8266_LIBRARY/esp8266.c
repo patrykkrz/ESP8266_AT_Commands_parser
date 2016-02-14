@@ -1268,7 +1268,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char
 /******************************************/
 /*               SSL CLIENT               */
 /******************************************/
-ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, void* user_parameters) {
+ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, void* user_parameters) {
 	int8_t conn = -1;
 	uint8_t i = 0;
 	
