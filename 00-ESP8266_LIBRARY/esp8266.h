@@ -218,7 +218,7 @@ typedef struct {
                                         When data buffer is bigger, this parameter is always set to 1 */
 	uint8_t CallDataReceived;    /*!< Set to 1 when we are waiting for commands to be inactive before we call callback function */
 	uint32_t ContentLength;      /*!< Value of "Content-Length" header if it exists in +IPD data packet */
-	char Name[ESP8266_MAX_CONNECTION_NAME]; /*!< Connection name, useful when using as client */
+	char* Name;                  /*!< Pointer to connection name, useful when using as client */
 	void* UserParameters;        /*!< User parameters pointer. Useful when user wants to pass custom data which can later be used in callbacks */
 	uint8_t HeadersDone;         /*!< User option flag to set when headers has been found in response */
 	uint8_t FirstPacket;         /*!< Set to 1 when if first packet in connection received */
@@ -288,7 +288,7 @@ typedef struct {
  * \brief  Ping structure
  */
 typedef struct {
-	char Address[64]; /*!< Domain or IP to ping */
+	char* Address;    /*!< Pointer to domain or IP to ping */
 	uint32_t Time;    /*!< Time in milliseconds needed for pinging */
 	uint8_t Success;  /*!< Status indicates if ping was successful */
 } ESP8266_Ping_t;
@@ -716,7 +716,7 @@ ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, char* addr);
  * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters);
+ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, void* user_parameters);
 
 /**
  * \brief  Starts new SSL connection as ESP client and connects to given address and port
@@ -729,7 +729,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, char* name
  * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters);
+ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name, const char* location, uint16_t port, void* user_parameters);
 
 /**
  * \brief  Sets SSL buffer size for connections
@@ -1051,7 +1051,7 @@ void ESP8266_Callback_ClientConnectionDataReceived(ESP8266_t* ESP8266, ESP8266_C
  * \retval None
  * \note   With weak parameter to prevent link errors if not defined by user
  */
-void ESP8266_Callback_PingStarted(ESP8266_t* ESP8266, char* address);
+void ESP8266_Callback_PingStarted(ESP8266_t* ESP8266, const char* address);
 
 /**
  * \brief  Pinging to external server has started

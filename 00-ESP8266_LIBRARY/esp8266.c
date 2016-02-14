@@ -1195,7 +1195,7 @@ ESP8266_Result_t ESP8266_SetAutoConnect(ESP8266_t* ESP8266, ESP8266_AutoConnect_
 /******************************************/
 /*               TCP CLIENT               */
 /******************************************/
-ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters) {
+ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, void* user_parameters) {
 	int8_t conn = -1;
 	uint8_t i = 0;
 	
@@ -1254,7 +1254,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, char* name
 		ESP8266->StartConnectionSent = i;
 		
 		/* Copy values */
-		strncpy(ESP8266->Connection[i].Name, name, sizeof(ESP8266->Connection[i].Name));
+		ESP8266->Connection[i].Name = (char *)name;
 		ESP8266->Connection[i].UserParameters = user_parameters;
 		
 		/* Return OK */
@@ -1268,7 +1268,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, char* name
 /******************************************/
 /*               SSL CLIENT               */
 /******************************************/
-ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name, char* location, uint16_t port, void* user_parameters) {
+ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, void* user_parameters) {
 	int8_t conn = -1;
 	uint8_t i = 0;
 	
@@ -1330,7 +1330,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, char* name
 		ESP8266->StartConnectionSent = i;
 		
 		/* Copy values */
-		strncpy(ESP8266->Connection[i].Name, name, sizeof(ESP8266->Connection[i].Name));
+		ESP8266->Connection[i].Name = (char *)name;
 		ESP8266->Connection[i].UserParameters = user_parameters;
 		
 		/* Return OK */
@@ -1620,7 +1620,7 @@ __weak void ESP8266_Callback_ClientConnectionClosed(ESP8266_t* ESP8266, ESP8266_
 
 #if ESP8266_USE_PING == 1
 /* Called when pinging started */
-__weak void ESP8266_Callback_PingStarted(ESP8266_t* ESP8266, char* address) {
+__weak void ESP8266_Callback_PingStarted(ESP8266_t* ESP8266, const char* address) {
 	/* NOTE: This function Should not be modified, when the callback is needed,
            the ESP8266_Callback_PingStarted could be implemented in the user file
 	*/
