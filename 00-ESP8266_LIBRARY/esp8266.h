@@ -276,8 +276,8 @@ typedef struct {
  * \brief  Access point configuration
  */
 typedef struct {
-	char SSID[ESP8266_MAX_SSID_NAME]; /*!< Network public name for ESP AP mode */
-	char Pass[ESP8266_MAX_SSID_PASSWORD]; /*!< Network password for ESP AP mode */
+	char* SSID;             /*!< Network public name for ESP AP mode */
+	char* Pass;             /*!< Network password for ESP AP mode */
 	ESP8266_Ecn_t Ecn;      /*!< Security of Wi-Fi spot. This parameter can be a value of \ref ESP8266_Ecn_t enumeration */
 	uint8_t Channel;        /*!< Channel Wi-Fi is operating at */
 	uint8_t MaxConnections; /*!< Max number of stations that are allowed to connect to ESP AP, between 1 and 4 */
@@ -322,7 +322,7 @@ typedef struct {
 typedef struct {
 	uint32_t Baudrate;                                        /*!< Currently used baudrate for ESP module */
 	uint32_t ActiveCommand;                                   /*!< Currently active AT command for module */
-	char ActiveCommandResponse[64];                           /*!< List of responses we expect with AT command */
+	char* ActiveCommandResponse;                              /*!< List of responses we expect with AT command */
 	uint32_t StartTime;                                       /*!< Time when command was sent */
 	uint32_t Time;                                            /*!< Curent time in milliseconds */
 	uint32_t LastReceivedTime;                                /*!< Time when last string was received from ESP module */
@@ -498,7 +498,7 @@ ESP8266_Result_t ESP8266_Sleep(ESP8266_t* ESP8266, uint32_t Milliseconds);
  * \param  *pass: Password for SSID. Set to "" if there is no password required
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_WifiConnect(ESP8266_t* ESP8266, char* ssid, char* pass);
+ESP8266_Result_t ESP8266_WifiConnect(ESP8266_t* ESP8266, const char* ssid, const char* pass);
 
 /**
  * \brief  Connects to wifi network and saves setting to internal flash of ESP for auto connect to network
@@ -507,7 +507,7 @@ ESP8266_Result_t ESP8266_WifiConnect(ESP8266_t* ESP8266, char* ssid, char* pass)
  * \param  *pass: Password for SSID. Set to "" if there is no password required
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_WifiConnectDefault(ESP8266_t* ESP8266, char* ssid, char* pass);
+ESP8266_Result_t ESP8266_WifiConnectDefault(ESP8266_t* ESP8266, const char* ssid, const char* pass);
 
 /**
  * \brief  Gets AP settings of connected network
@@ -705,7 +705,7 @@ ESP8266_Result_t ESP8266_SetAP(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_C
  * \param  *addr: Address to ping. Can be either domain name or IP address as string
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, char* addr);
+ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, const char* addr);
 
 /**
  * \brief  Starts new TCP connection as ESP client and connects to given address and port
@@ -795,7 +795,7 @@ ESP8266_Result_t ESP8266_GetConnectedStations(ESP8266_t* ESP8266);
  * \retval Member of \ref ESP8266_Result_t enumeration
  * \note   This function is blocking function and will wait till ESP8266 sends result
  */
-ESP8266_Result_t ESP8266_SNTPSetServer(ESP8266_t* ESP8266, uint8_t num, char* servername);
+ESP8266_Result_t ESP8266_SNTPSetServer(ESP8266_t* ESP8266, uint8_t num, const char* servername);
 
 /**
  * \brief  Gets date and time from previously set servers with \ref ESP8266_SNTPSetServer function.
