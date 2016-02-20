@@ -45,6 +45,7 @@ extern "C" {
  * When reading as string from buffer, you have to know these things:
  *
 \verbatim
+- Buffer supports fast memory read/write operation using memory copy feature
 - Buffer will first check if string delimiter character exists in buffer. 
     - If it exists, characters will be set to user buffer until delimiter is detected. 
 	- Delimiter is included in string!
@@ -85,6 +86,10 @@ extern "C" {
 #define LIB_FREE_FUNC          free
 #endif
 
+#ifndef BUFFER_FAST
+#define BUFFER_FAST            1
+#endif
+
 /**
  * @}
  */
@@ -99,9 +104,9 @@ extern "C" {
  * @brief  Buffer structure
  */
 typedef struct _BUFFER_t {
-	uint16_t Size;           /*!< Size of buffer in units of bytes, DO NOT MOVE OFFSET, 0 */
-	uint16_t In;             /*!< Input pointer to save next value, DO NOT MOVE OFFSET, 1 */
-	uint16_t Out;            /*!< Output pointer to read next value, DO NOT MOVE OFFSET, 2 */
+	uint32_t Size;           /*!< Size of buffer in units of bytes, DO NOT MOVE OFFSET, 0 */
+	uint32_t In;             /*!< Input pointer to save next value, DO NOT MOVE OFFSET, 1 */
+	uint32_t Out;            /*!< Output pointer to read next value, DO NOT MOVE OFFSET, 2 */
 	uint8_t* Buffer;         /*!< Pointer to buffer data array, DO NOT MOVE OFFSET, 3 */
 	uint8_t Flags;           /*!< Flags for buffer, DO NOT MOVE OFFSET, 4 */
 	uint8_t StringDelimiter; /*!< Character for string delimiter when reading from buffer as string, DO NOT MOVE OFFSET, 5 */
