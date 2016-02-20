@@ -116,12 +116,6 @@
 #define ESP8266_MAX_DETECTED_AP                   10
 
 /**
- * @brief   Sets number of bytes each connection can use for identification name used by user when creating client connection
- *          using @ref ESP8266_CreateClientConnection.
- */
-#define ESP8266_MAX_CONNECTION_NAME               32
-
-/**
  * @brief   Number of characters SSID can have when we are connected to it.
  *
  *          If it has more than used here, unexpected behavior can occur.
