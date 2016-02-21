@@ -709,7 +709,7 @@ ESP8266_Result_t ESP8266_RequestSendData(ESP8266_t* ESP8266, ESP8266_Connection_
 	Connection->Number -= '0';
 	
 	/* Send command */
-	if (SendCommand(ESP8266, ESP8266_COMMAND_SEND, NULL, "AT+CIPSENDEX") != ESP_OK) {
+	if (SendCommand(ESP8266, ESP8266_COMMAND_SEND, NULL, NULL) != ESP_OK) {
 		return ESP8266->Result;
 	}
 	
@@ -740,12 +740,12 @@ ESP8266_Result_t ESP8266_CloseConnection(ESP8266_t* ESP8266, ESP8266_Connection_
 	Connection->Number -= '0';
 	
 	/* Send command */
-	return SendCommand(ESP8266, ESP8266_COMMAND_CLOSE, NULL, "AT+CIPCLOSE");
+	return SendCommand(ESP8266, ESP8266_COMMAND_CLOSE, NULL, NULL);
 }
 
 ESP8266_Result_t ESP8266_CloseAllConnections(ESP8266_t* ESP8266) {
 	/* Send command */
-	return SendCommand(ESP8266, ESP8266_COMMAND_CLOSE, "AT+CIPCLOSE=5\r\n", "AT+CIPCLOSE");
+	return SendCommand(ESP8266, ESP8266_COMMAND_CLOSE, "AT+CIPCLOSE=5\r\n", NULL);
 }
 
 ESP8266_Result_t ESP8266_AllConectionsClosed(ESP8266_t* ESP8266) {
@@ -764,16 +764,18 @@ ESP8266_Result_t ESP8266_AllConectionsClosed(ESP8266_t* ESP8266) {
 }
 
 ESP8266_Result_t ESP8266_SetMux(ESP8266_t* ESP8266, uint8_t mux) {
-	char tmp[14];
+	char m = (char) mux + '0';
 	
 	/* Check idle */
 	ESP8266_CHECK_IDLE(ESP8266);
 	
 	/* Format command */
-	sprintf(tmp, "AT+CIPMUX=%d\r\n", mux);
+	ESP8266_USARTSENDSTRING("AT+CIPMUX=");
+	ESP8266_USARTSENDCHAR(&m);
+	ESP8266_USARTSENDSTRING("\r\n");
 	
 	/* Send command */
-	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPMUX, tmp, "AT+CIPMUX") != ESP_OK) {
+	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPMUX, NULL, NULL) != ESP_OK) {
 		return ESP8266->Result;
 	}
 	
@@ -791,16 +793,18 @@ ESP8266_Result_t ESP8266_SetMux(ESP8266_t* ESP8266, uint8_t mux) {
 }
 
 ESP8266_Result_t ESP8266_Setdinfo(ESP8266_t* ESP8266, uint8_t info) {
-	char tmp[16];
+	char i = (char) info + '0';
 	
 	/* Check idle */
 	ESP8266_CHECK_IDLE(ESP8266);
 	
-	/* Format string */
-	sprintf(tmp, "AT+CIPDINFO=%d\r\n", info);
+	/* Format command */
+	ESP8266_USARTSENDSTRING("AT+CIPDINFO=");
+	ESP8266_USARTSENDCHAR(&i);
+	ESP8266_USARTSENDSTRING("\r\n");
 
 	/* Send command and wait */
-	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPDINFO, tmp, "AT+CIPDINFO") != ESP_OK) {
+	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPDINFO, NULL, NULL) != ESP_OK) {
 		return ESP8266->Result;
 	}
 
@@ -819,16 +823,18 @@ ESP8266_Result_t ESP8266_Setdinfo(ESP8266_t* ESP8266, uint8_t info) {
 
 #if ESP8266_USE_WPS == 1
 ESP8266_Result_t ESP8266_SetWPS(ESP8266_t* ESP8266, ESP8266_WPS_t wps) {
-	char tmp[16];
+	char w = (char) wps + '0';
 	
 	/* Check idle */
 	ESP8266_CHECK_IDLE(ESP8266);
 	
-	/* Format string */
-	sprintf(tmp, "AT+WPS=%d\r\n", (uint8_t)wps);
+	/* Format command */
+	ESP8266_USARTSENDSTRING("AT+WPS=");
+	ESP8266_USARTSENDCHAR(&w);
+	ESP8266_USARTSENDSTRING("\r\n");
 
 	/* Send command and wait */
-	if (SendCommand(ESP8266, ESP8266_COMMAND_WPS, tmp, "AT+WPS") != ESP_OK) {
+	if (SendCommand(ESP8266, ESP8266_COMMAND_WPS, NULL, NULL) != ESP_OK) {
 		return ESP8266->Result;
 	}
 
@@ -838,13 +844,21 @@ ESP8266_Result_t ESP8266_SetWPS(ESP8266_t* ESP8266, ESP8266_WPS_t wps) {
 #endif
 
 ESP8266_Result_t ESP8266_ServerEnable(ESP8266_t* ESP8266, uint16_t port) {
-	char tmp[19];
+	char port_str[7];
+	
+	/* Check idle */
+	ESP8266_CHECK_IDLE(ESP8266);
+	
+	/* Convert to string */
+	Int2String(port_str, port);
 	
 	/* Format string */
-	sprintf(tmp, "AT+CIPSERVER=1,%d\r\n", port);
+	ESP8266_USARTSENDSTRING("AT+CIPSERVER=1,");
+	ESP8266_USARTSENDSTRING(port_str);
+	ESP8266_USARTSENDSTRING("\r\n");
 
 	/* Send command and wait */
-	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPSERVER, tmp, "AT+CIPSERVER") != ESP_OK) {
+	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPSERVER, NULL, NULL) != ESP_OK) {
 		return ESP8266->Result;
 	}
 
@@ -863,7 +877,7 @@ ESP8266_Result_t ESP8266_ServerEnable(ESP8266_t* ESP8266, uint16_t port) {
 
 ESP8266_Result_t ESP8266_ServerDisable(ESP8266_t* ESP8266) {
 	/* Send command and wait */
-	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPSERVER, "AT+CIPSERVER=0\r\n", "AT+CIPSERVER") != ESP_OK) {
+	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPSERVER, "AT+CIPSERVER=0\r\n", NULL) != ESP_OK) {
 		return ESP8266->Result;
 	}
 
@@ -881,13 +895,21 @@ ESP8266_Result_t ESP8266_ServerDisable(ESP8266_t* ESP8266) {
 }
 
 ESP8266_Result_t ESP8266_SetServerTimeout(ESP8266_t* ESP8266, uint16_t timeout) {
-	char tmp[14];
+	char timeout_str[7];
+	
+	/* Check idle */
+	ESP8266_CHECK_IDLE(ESP8266);
+	
+	/* Convert to string */
+	Int2String(timeout_str, timeout);
 	
 	/* Format string */
-	sprintf(tmp, "AT+CIPSTO=%d\r\n", timeout);
+	ESP8266_USARTSENDSTRING("AT+CIPSTO=");
+	ESP8266_USARTSENDSTRING(timeout_str);
+	ESP8266_USARTSENDSTRING("\r\n");
 
 	/* Send command and wait */
-	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPSTO, tmp, NULL) != ESP_OK) {
+	if (SendCommand(ESP8266, ESP8266_COMMAND_CIPSTO, NULL, NULL) != ESP_OK) {
 		return ESP8266->Result;
 	}
 
@@ -1114,7 +1136,7 @@ ESP8266_Result_t ESP8266_SetAP(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_C
 	ESP8266_USARTSENDSTRING("\r\n");
 	
 	/* Send command */
-	SendCommand(ESP8266, ESP8266_COMMAND_CWSAP, NULL, "AT+CWSAP");
+	SendCommand(ESP8266, ESP8266_COMMAND_CWSAP, NULL, NULL);
 	
 	/* Return status */
 	return ESP8266_Update(ESP8266);
@@ -1161,7 +1183,7 @@ ESP8266_Result_t ESP8266_SetAPDefault(ESP8266_t* ESP8266, ESP8266_APConfig_t* ES
 	ESP8266_USARTSENDSTRING("\r\n");
 	
 	/* Send command */
-	SendCommand(ESP8266, ESP8266_COMMAND_CWSAP, NULL, "AT+CWSAP");
+	SendCommand(ESP8266, ESP8266_COMMAND_CWSAP, NULL, NULL);
 	
 	/* Return status */
 	return ESP8266_Update(ESP8266);
