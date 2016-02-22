@@ -440,7 +440,7 @@ ESP8266_Result_t ESP8266_Sleep(ESP8266_t* ESP8266, uint32_t Milliseconds) {
 	
 	/* Send sleep values to module */
 	ESP8266_USARTSENDSTRING("AT+GSLP=");
-	ESP8266_USARTSENDSTRING(Milliseconds);
+	ESP8266_USARTSENDSTRING(tmp);
 	ESP8266_USARTSENDSTRING("\r\n");
 	
 	/* Send command */
