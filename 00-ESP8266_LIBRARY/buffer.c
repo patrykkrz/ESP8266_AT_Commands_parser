@@ -1,20 +1,27 @@
 /**	
- * |----------------------------------------------------------------------
- * | Copyright (C) Tilen Majerle, 2015
- * | 
- * | This program is free software: you can redistribute it and/or modify
- * | it under the terms of the GNU General Public License as published by
- * | the Free Software Foundation, either version 3 of the License, or
- * | any later version.
- * |  
- * | This program is distributed in the hope that it will be useful,
- * | but WITHOUT ANY WARRANTY; without even the implied warranty of
- * | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * | GNU General Public License for more details.
- * | 
- * | You should have received a copy of the GNU General Public License
- * | along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * |----------------------------------------------------------------------
+   ----------------------------------------------------------------------
+    Copyright (c) 2016 Tilen Majerle
+
+    Permission is hereby granted, free of charge, to any person
+    obtaining a copy of this software and associated documentation
+    files (the "Software"), to deal in the Software without restriction,
+    including without limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of the Software, 
+    and to permit persons to whom the Software is furnished to do so, 
+    subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+    OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+    AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+    OTHER DEALINGS IN THE SOFTWARE.
+   ----------------------------------------------------------------------
  */
 #include "buffer.h"
 
@@ -156,8 +163,7 @@ uint16_t BUFFER_Write(BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
 }
 
 uint16_t BUFFER_Read(BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
-	uint32_t i = 0;
-	uint32_t full;
+	uint32_t i = 0, full;
 #if BUFFER_FAST
 	uint32_t tocopy;
 #endif
@@ -316,7 +322,7 @@ void BUFFER_Reset(BUFFER_t* Buffer) {
 }
 
 int16_t BUFFER_FindElement(BUFFER_t* Buffer, uint8_t Element) {
-	uint16_t Num, Out, retval = 0;
+	uint32_t Num, Out, retval = 0;
 	
 	/* Check buffer structure */
 	if (Buffer == NULL) {
@@ -351,7 +357,7 @@ int16_t BUFFER_FindElement(BUFFER_t* Buffer, uint8_t Element) {
 }
 
 int16_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint16_t Size) {
-	uint16_t Num, Out, i, retval = 0;
+	uint32_t Num, Out, i, retval = 0;
 	uint8_t found = 0;
 
 	/* Check buffer structure and number of elements in buffer */
@@ -419,9 +425,9 @@ uint16_t BUFFER_WriteString(BUFFER_t* Buffer, char* buff) {
 }
 
 uint16_t BUFFER_ReadString(BUFFER_t* Buffer, char* buff, uint16_t buffsize) {
-	uint16_t i = 0;
+	uint32_t i = 0;
 	uint8_t ch;
-	uint16_t freeMem;
+	uint32_t freeMem, fullMem;
 	
 	/* Check value buffer */
 	if (Buffer == NULL) {
@@ -430,14 +436,15 @@ uint16_t BUFFER_ReadString(BUFFER_t* Buffer, char* buff, uint16_t buffsize) {
 	
 	/* Get free */
 	freeMem = BUFFER_GetFree(Buffer);
+	fullMem = BUFFER_GetFull(Buffer);
 	
 	/* Check for any data on USART */
 	if (
-		freeMem == 0 ||                                                /*!< Buffer empty */
+		fullMem == 0 ||                                                /*!< Buffer empty */
 		(
 			BUFFER_FindElement(Buffer, Buffer->StringDelimiter) < 0 && /*!< String delimiter is not in buffer */
 			freeMem != 0 &&                                            /*!< Buffer is not full */
-			BUFFER_GetFull(Buffer) < buffsize                          /*!< User buffer size is larger than number of elements in buffer */
+			fullMem < buffsize                                         /*!< User buffer size is larger than number of elements in buffer */
 		)
 	) {
 		/* Return 0 */
@@ -474,7 +481,7 @@ uint16_t BUFFER_ReadString(BUFFER_t* Buffer, char* buff, uint16_t buffsize) {
 }
 
 int8_t BUFFER_CheckElement(BUFFER_t* Buffer, uint16_t pos, uint8_t* element) {
-	uint16_t In, Out, i = 0;
+	uint32_t In, Out, i = 0;
 	
 	/* Check value buffer */
 	if (Buffer == NULL) {
