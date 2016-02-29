@@ -2,7 +2,7 @@
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
  * \website http://esp8266at.com
- * \version v0.2
+ * \version v0.4
  * \license MIT
  * \brief   Library for ESP8266 module using AT commands for embedded systems
  *	
@@ -33,7 +33,7 @@
 \endverbatim
  */
 #ifndef ESP8266_H
-#define ESP8266_H 030
+#define ESP8266_H 040
 
 /* C++ detection */
 #ifdef __cplusplus
