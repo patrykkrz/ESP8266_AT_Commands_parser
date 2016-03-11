@@ -25,7 +25,7 @@
  */
 #include "buffer.h"
 
-uint8_t BUFFER_Init(BUFFER_t* Buffer, uint16_t Size, uint8_t* BufferPtr) {
+uint8_t BUFFER_Init(BUFFER_t* Buffer, uint32_t Size, uint8_t* BufferPtr) {
 	/* Set buffer values to all zeros */
 	memset(Buffer, 0, sizeof(BUFFER_t));
 	
@@ -76,7 +76,7 @@ void BUFFER_Free(BUFFER_t* Buffer) {
 	Buffer->Size = 0;
 }
 
-uint16_t BUFFER_Write(BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
+uint32_t BUFFER_Write(BUFFER_t* Buffer, uint8_t* Data, uint32_t count) {
 	uint32_t i = 0;
 	uint32_t free;
 #if BUFFER_FAST
@@ -162,7 +162,7 @@ uint16_t BUFFER_Write(BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
 #endif
 }
 
-uint16_t BUFFER_Read(BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
+uint32_t BUFFER_Read(BUFFER_t* Buffer, uint8_t* Data, uint32_t count) {
 	uint32_t i = 0, full;
 #if BUFFER_FAST
 	uint32_t tocopy;
@@ -247,7 +247,7 @@ uint16_t BUFFER_Read(BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
 #endif
 }
 
-uint16_t BUFFER_GetFree(BUFFER_t* Buffer) {
+uint32_t BUFFER_GetFree(BUFFER_t* Buffer) {
 	uint32_t size = 0, in, out;
 	
 	/* Check buffer structure */
@@ -278,7 +278,7 @@ uint16_t BUFFER_GetFree(BUFFER_t* Buffer) {
 	return size - 1;
 }
 
-uint16_t BUFFER_GetFull(BUFFER_t* Buffer) {
+uint32_t BUFFER_GetFull(BUFFER_t* Buffer) {
 	uint32_t in, out, size;
 	
 	/* Check buffer structure */
@@ -310,6 +310,21 @@ uint16_t BUFFER_GetFull(BUFFER_t* Buffer) {
 	return size;
 }
 
+uint32_t BUFFER_GetFullFast(BUFFER_t* Buffer) {
+	uint32_t in, out;
+	
+	/* Check buffer structure */
+	if (Buffer == NULL) {
+		return 0;
+	}
+	
+	/* Save values */
+	in = Buffer->In;
+	out = Buffer->Out;
+	
+	return (Buffer->Size + in - out) % Buffer->Size;
+}
+
 void BUFFER_Reset(BUFFER_t* Buffer) {
 	/* Check buffer structure */
 	if (Buffer == NULL) {
@@ -321,7 +336,7 @@ void BUFFER_Reset(BUFFER_t* Buffer) {
 	Buffer->Out = 0;
 }
 
-int16_t BUFFER_FindElement(BUFFER_t* Buffer, uint8_t Element) {
+int32_t BUFFER_FindElement(BUFFER_t* Buffer, uint8_t Element) {
 	uint32_t Num, Out, retval = 0;
 	
 	/* Check buffer structure */
@@ -356,7 +371,7 @@ int16_t BUFFER_FindElement(BUFFER_t* Buffer, uint8_t Element) {
 	return -1;
 }
 
-int16_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint16_t Size) {
+int32_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint32_t Size) {
 	uint32_t Num, Out, i, retval = 0;
 	uint8_t found = 0;
 
@@ -419,12 +434,12 @@ int16_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint16_t Size) {
 	return -1;
 }
 
-uint16_t BUFFER_WriteString(BUFFER_t* Buffer, char* buff) {
+uint32_t BUFFER_WriteString(BUFFER_t* Buffer, char* buff) {
 	/* Write string to buffer */
 	return BUFFER_Write(Buffer, (uint8_t *)buff, strlen(buff));
 }
 
-uint16_t BUFFER_ReadString(BUFFER_t* Buffer, char* buff, uint16_t buffsize) {
+uint32_t BUFFER_ReadString(BUFFER_t* Buffer, char* buff, uint32_t buffsize) {
 	uint32_t i = 0;
 	uint8_t ch;
 	uint32_t freeMem, fullMem;
@@ -480,7 +495,7 @@ uint16_t BUFFER_ReadString(BUFFER_t* Buffer, char* buff, uint16_t buffsize) {
 	return i;
 }
 
-int8_t BUFFER_CheckElement(BUFFER_t* Buffer, uint16_t pos, uint8_t* element) {
+int8_t BUFFER_CheckElement(BUFFER_t* Buffer, uint32_t pos, uint8_t* element) {
 	uint32_t In, Out, i = 0;
 	
 	/* Check value buffer */

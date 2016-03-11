@@ -328,11 +328,11 @@ typedef struct {
  */
 typedef struct {
 	uint32_t Baudrate;                                        /*!< Currently used baudrate for ESP module */
-	uint32_t ActiveCommand;                                   /*!< Currently active AT command for module */
+	volatile uint32_t ActiveCommand;                          /*!< Currently active AT command for module */
 	char* ActiveCommandResponse;                              /*!< List of responses we expect with AT command */
-	uint32_t StartTime;                                       /*!< Time when command was sent */
-	uint32_t Time;                                            /*!< Curent time in milliseconds */
-	uint32_t LastReceivedTime;                                /*!< Time when last string was received from ESP module */
+	volatile uint32_t StartTime;                              /*!< Time when command was sent */
+	volatile uint32_t Time;                                   /*!< Curent time in milliseconds */
+	volatile uint32_t LastReceivedTime;                       /*!< Time when last string was received from ESP module */
 	uint32_t Timeout;                                         /*!< Timeout in milliseconds for command to return response */
 	ESP8266_Connection_t Connection[ESP8266_MAX_CONNECTIONS]; /*!< Array of connections */
 	uint8_t STAIP[4];                                         /*!< Assigned IP address for station for ESP module */

@@ -82,12 +82,15 @@ int main(void) {
 	/* Disconnect from wifi if connected */
 	ESP8266_WifiDisconnect(&ESP8266);
 	
+	/* Wait till finish */
+	ESP8266_WaitReady(&ESP8266);
+	
 #if ESP8266_USE_APSEARCH
 	/* Get a list of all stations */
 	ESP8266_ListWifiStations(&ESP8266);
 #endif
 	
-	/* Wait till finishes */
+	/* Wait till finish */
 	ESP8266_WaitReady(&ESP8266);
 	
 	/* Connect to wifi and save settings */

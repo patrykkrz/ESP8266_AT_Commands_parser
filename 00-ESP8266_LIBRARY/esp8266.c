@@ -91,7 +91,7 @@
 #define ESP8255_MAX_BUFF_SIZE          5842
 
 /* Delay milliseconds */
-#define ESP8266_DELAYMS(ESP, x)        do {uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x));} while (0);
+#define ESP8266_DELAYMS(ESP, x)        do {volatile uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x));} while (0);
 
 /* Buffers */
 static BUFFER_t TMP_Buffer;
@@ -1088,7 +1088,7 @@ ESP8266_Result_t ESP8266_ListWifiStations(ESP8266_t* ESP8266) {
 	ESP8266_APs.Count = 0;
 	
 	/* Send list command */
-	return SendCommand(ESP8266, ESP8266_COMMAND_CWLAP, "AT+CWLAP=\"SSID\"\r\n", "+CWLAP");	
+	return SendCommand(ESP8266, ESP8266_COMMAND_CWLAP, "AT+CWLAP\r\n", "+CWLAP");	
 }
 #endif
 
@@ -2285,7 +2285,7 @@ void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart_buffer
 	}
 	
 	/* Check if we have a new connection */
-	if (bufflen > 10 && (ch_ptr = (char *)mem_mem(&Received[bufflen - 10], bufflen, ",CONNECT\r\n", 10)) != NULL) {
+	if (bufflen > 10 && (ch_ptr = (char *)mem_mem(&Received[bufflen - 10], 10, ",CONNECT\r\n", 10)) != NULL) {
 		/* New connection has been made */
 		Conn = &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))];
 		Conn->Active = 1;
@@ -2309,7 +2309,7 @@ void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart_buffer
 	} else if (strstr(Received, "ALREADY CONNECTED\r\n") != NULL) {
 		
 		/* Check if we have a closed connection, check the end of string */
-	} else if (bufflen > 9 && (ch_ptr = (char *)mem_mem(&Received[bufflen - 9], bufflen, ",CLOSED\r\n", 9)) != NULL && Received != ch_ptr) {
+	} else if (bufflen > 9 && (ch_ptr = (char *)mem_mem(&Received[bufflen - 9], 9, ",CLOSED\r\n", 9)) != NULL && Received != ch_ptr) {
 		uint8_t client, active;
 		
 		/* Check if CLOSED statement is on beginning, if not, write it to temporary buffer and leave here */
@@ -3060,6 +3060,22 @@ void* mem_mem(void* haystack, size_t haystacksize, void* needle, size_t needlesi
 	unsigned char* nptr = (unsigned char *)needle;
 	unsigned int i;
 
+	/* Check sizes */
+	if (needlesize > haystacksize) {
+		/* Needle is greater than haystack = nothing in memory */
+		return 0;
+	}
+	
+	/* Check if same length */
+	if (haystacksize == needlesize) {
+		if (memcmp(hptr, nptr, needlesize) == 0) {
+			return hptr;
+		}
+	}
+	
+	/* Set haystack size pointers */
+	haystacksize -= needlesize;
+	
 	/* Go through entire memory */
 	for (i = 0; i < haystacksize; i++) {
 		if (memcmp(&hptr[i], nptr, needlesize) == 0) {
