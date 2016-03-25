@@ -2311,26 +2311,27 @@ void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart_buffer
 		/* Check if we have a closed connection, check the end of string */
 	} else if (bufflen > 9 && (ch_ptr = (char *)mem_mem(&Received[bufflen - 9], 9, ",CLOSED\r\n", 9)) != NULL && Received != ch_ptr) {
 		uint8_t client, active;
+		Conn = &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))];
 		
 		/* Check if CLOSED statement is on beginning, if not, write it to temporary buffer and leave here */
 		/* If not on beginning of string, probably ,CLOSED was returned after +IPD statement */
 		/* Make string standalone */
 		if (ch_ptr == (Received + 1)) {
 			/* Save values */
-			client = ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))].Client;
-			active = ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))].Active;
+			client = Conn->Client;
+			active = Conn->Active;
 			
 			/* Connection closed, reset flags now */
-			ESP8266_RESETCONNECTION(ESP8266, &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))]);
+			ESP8266_RESETCONNECTION(ESP8266, Conn);
 			
 			/* Call user function */
 			if (active) {
 				if (client) {
 					/* Client connection closed */
-					ESP8266_Callback_ClientConnectionClosed(ESP8266, &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))]);
+					ESP8266_Callback_ClientConnectionClosed(ESP8266, Conn);
 				} else {
 					/* Server connection closed */
-					ESP8266_Callback_ServerConnectionClosed(ESP8266, &ESP8266->Connection[CHAR2NUM(*(ch_ptr - 1))]);
+					ESP8266_Callback_ServerConnectionClosed(ESP8266, Conn);
 				}
 			}
 		} else {
