@@ -707,6 +707,15 @@ ESP8266_Result_t ESP8266_SetAutoConnect(ESP8266_t* ESP8266, ESP8266_AutoConnect_
 ESP8266_Result_t ESP8266_SetAP(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_Config);
 
 /**
+ * \brief  Sets AP config values for ESP module and stores it into ESP flash
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  *ESP8266_Config: Pointer to \ref ESP8266_APConfig_t structure with settings
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ * \note   This function is blocking function and will wait till ESP8266 sends result
+ */
+ESP8266_Result_t ESP8266_SetAPDefault(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_Config);
+
+/**
  * \brief  Starts ping operation to another server
  * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * \param  *addr: Address to ping. Can be either domain name or IP address as string
