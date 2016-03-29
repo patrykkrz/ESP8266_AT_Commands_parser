@@ -255,7 +255,7 @@ ESP8266_Result_t ESP8266_Init(ESP8266_t* ESP8266, uint32_t baudrate) {
 		/* Check for baudrate, try with predefined baudrates */
 		for (i = 0; i < sizeof(ESP8266_Baudrate) / sizeof(ESP8266_Baudrate[0]); i++) {
 			/* Init USART */
-			ESP8266_LL_USARTInit(ESP8266->Baudrate);
+			ESP8266_LL_USARTInit(ESP8266_Baudrate[i]);
 			
 			/* Set allowed timeout */
 			ESP8266->Timeout = 1000;
@@ -487,7 +487,7 @@ ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266) {
 	}
 	
 	/* We are waiting to send data */
-	if (ESP8266_COMMAND_SENDDATA) {
+	if (ESP8266->ActiveCommand == ESP8266_COMMAND_SENDDATA) {
 		/* Check what we are searching for */
 		if (ESP8266->Flags.F.WaitForWrapper) {
 			int16_t found;
@@ -2467,7 +2467,7 @@ void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart_buffer
 			/* We send command and we have error response */
 			if (strncmp(Received, "+CWJAP:", 7) == 0) {
 				/* We received an error, wait for "FAIL" string for next time */
-				strcpy(ESP8266->ActiveCommandResponse, "FAIL\r\n");
+				ESP8266->ActiveCommandResponse = "FAIL\r\n";
 				
 				/* Check reason */
 				ESP8266->WifiConnectError = (ESP8266_WifiConnectError_t)CHAR2NUM(Received[7]);
@@ -2575,7 +2575,7 @@ void ParseReceived(ESP8266_t* ESP8266, char* Received, uint8_t from_usart_buffer
 				ESP8266->Flags.F.WaitForWrapper = 1;
 				
 				/* We are now waiting for SEND OK */
-				strcpy(ESP8266->ActiveCommandResponse, "SEND OK");
+				ESP8266->ActiveCommandResponse = "SEND OK";
 			}
 			break;
 		case ESP8266_COMMAND_SENDDATA:
