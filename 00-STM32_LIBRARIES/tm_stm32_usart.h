@@ -3,32 +3,39 @@
  * @email   tilen@majerle.eu
  * @website http://stm32f4-discovery.com
  * @link    http://stm32f4-discovery.com/2015/07/hal-library-07-usart-for-stm32fxxx
- * @version v1.2
+ * @version v1.2.1
  * @ide     Keil uVision
- * @license GNU GPL v3
+ * @license MIT
  * @brief   USART Library for STM32Fxxx with receive interrupt
  *	
 \verbatim
    ----------------------------------------------------------------------
-    Copyright (C) Tilen Majerle, 2015
-    
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    any later version.
-     
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    Copyright (c) 2016 Tilen Majerle
+
+    Permission is hereby granted, free of charge, to any person
+    obtaining a copy of this software and associated documentation
+    files (the "Software"), to deal in the Software without restriction,
+    including without limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of the Software, 
+    and to permit persons to whom the Software is furnished to do so, 
+    subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+    OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+    AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+    OTHER DEALINGS IN THE SOFTWARE.
    ----------------------------------------------------------------------
 \endverbatim
  */
 #ifndef TM_USART_H
-#define TM_USART_H 120
+#define TM_USART_H 121
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -510,11 +517,13 @@ typedef enum {
 
 /* Configuration */
 #if defined(STM32F4XX)
+#define USART_TX_REG(USARTx)                ((USARTx)->DR)
 #define USART_WRITE_DATA(USARTx, data)      ((USARTx)->DR = (data))
 #define USART_READ_DATA(USARTx)             ((USARTx)->DR)
 #define GPIO_AF_UART5                       (GPIO_AF8_UART5)
 #define USART_STATUS_REG                    SR
 #else
+#define USART_TX_REG(USARTx)                ((USARTx)->TDR)
 #define USART_WRITE_DATA(USARTx, data)      ((USARTx)->TDR = (data))
 #define USART_READ_DATA(USARTx)             ((USARTx)->RDR)
 #define GPIO_AF_UART5                       (GPIO_AF7_UART5)
@@ -522,7 +531,8 @@ typedef enum {
 #endif
 
 /* Wait for TX empty */
-#define USART_WAIT(USARTx)                  while (!((USARTx)->USART_STATUS_REG & USART_FLAG_TXE))
+#define USART_TXEMPTY(USARTx)               ((USARTx)->USART_STATUS_REG & USART_FLAG_TXE)
+#define USART_WAIT(USARTx)                  while (!USART_TXEMPTY(USARTx))
 
  /**
  * @}

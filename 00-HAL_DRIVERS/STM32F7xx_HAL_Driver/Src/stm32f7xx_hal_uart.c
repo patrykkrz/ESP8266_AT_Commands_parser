@@ -1466,7 +1466,7 @@ static HAL_StatusTypeDef UART_Transmit_IT(UART_HandleTypeDef *huart)
         tmp = (uint16_t*) huart->pTxBuffPtr;
         huart->Instance->TDR = (*tmp & (uint16_t)0x01FF);
         huart->pTxBuffPtr += 2;
-      } 
+      }
       else
       {
         huart->Instance->TDR = (uint8_t)(*huart->pTxBuffPtr++ & (uint8_t)0xFF);
