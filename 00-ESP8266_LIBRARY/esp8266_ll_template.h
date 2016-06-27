@@ -1,9 +1,9 @@
 /**
- * @author  Tilen Majerle
- * @email   tilen@majerle.eu
- * @website http://esp8266at.com
- * @license MIT
- * @brief   Low level, platform dependant, part for communicate with ESP module and platform.
+ * \author  Tilen Majerle
+ * \email   tilen@majerle.eu
+ * \website http://esp8266at.com
+ * \license MIT
+ * \brief   Low level, platform dependant, part for communicate with ESP module and platform.
  *	
 \verbatim
    ----------------------------------------------------------------------
@@ -50,9 +50,9 @@ extern "C" {
 /**************************************************************************/
 
 /**
- * @defgroup ESP8266_LL
- * @brief    Low level, platform dependent, part for communicate with ESP module and platform.
- * @{
+ * \defgroup ESP8266_LL
+ * \brief    Low level, platform dependent, part for communicate with ESP module and platform.
+ * \{
  *
  * This is a low-level part of ESP module library.
  *
@@ -68,7 +68,7 @@ extern "C" {
  * ESP stack module does not check for any incoming data from ESP8266 module to USART of your device.
  *
  * Most microcontrollers have USART RX capability, so when USART RX interrupt happens,
- * you should send this received byte to ESP8266 module using @ref ESP8266_DataReceived function to notify new incoming data.
+ * you should send this received byte to ESP8266 module using \ref ESP8266_DataReceived function to notify new incoming data.
  * Use interrupt handler routine to notify new data using previous mentioned function.
  *
 \code
@@ -140,7 +140,7 @@ void USART_RX_INTERRUPT_HANDLER_FUNCTION_NAME(void) {
  *
  * You need to implement your own time source (systick interrupt, normal timer with interrupt capability, etc) to tell ESP stack current time.
  *
- * Use @ref ESP8266_TimeUpdate to notify ESP stack with new time.
+ * Use \ref ESP8266_TimeUpdate to notify ESP stack with new time.
  *
 \code
 //Example of configuring timer for 1ms interrupts
@@ -175,49 +175,60 @@ void TIMER_INTERRUPT_FUNCTION_NAME(void) {
 /* Include ESP layer */
 #include "esp8266.h"
 
+/* ESP defines */
+#define ESP_RTS_HIGH         1
+#define ESP_RTS_LOW          0
+
 /**
- * @brief  Initializes U(S)ART peripheral for ESP8266 communication
- * @note   This function is called from ESP stack
- * @param  baudrate: baudrate for USART you have to use when initializing USART peripheral
- * @retval Initialization status:
+ * \brief  Initializes U(S)ART peripheral for ESP8266 communication
+ * \note   This function is called from ESP stack
+ * \param  baudrate: baudrate for USART you have to use when initializing USART peripheral
+ * \retval Initialization status:
  *           - 0: Initialization OK
  *           - > 0: Initialization failed
  */
 uint8_t ESP8266_LL_USARTInit(uint32_t baudrate);
 
 /**
- * @brief  Sends data from ESP stack to ESP8266 module using USART
- * @param  *data: Pointer to data array which should be sent
- * @param  count: Number of data bytes to sent to module
- * @retval Sent status:
+ * \brief  Sends data from ESP stack to ESP8266 module using USART
+ * \param  *data: Pointer to data array which should be sent
+ * \param  count: Number of data bytes to sent to module
+ * \retval Sent status:
  *           - 0: Sent OK
  *           - > 0: Sent error
  */
 uint8_t ESP8266_LL_USARTSend(uint8_t* data, uint16_t count);
 
 /**
- * @brief  Initializes reset pin on platform
- * @note   Function is called from ESP stack module when needed
- * @note   Declared as macro 
+ * \brief  Sets software RTS pin on microcontroller
+ * \param  dir: Pin direction
+ * \retval None
+ */
+void ESP8266_LL_SetRTS(uint8_t dir);
+
+/**
+ * \brief  Initializes reset pin on platform
+ * \note   Function is called from ESP stack module when needed
+ * \note   Declared as macro 
  */
 #define ESP8266_RESET_INIT    (void)0
 	
 /**
- * @brief  Sets reset pin LOW
- * @note   Function is called from ESP stack module when needed
- * @note   Declared as macro 
+ * \brief  Sets reset pin LOW
+ * \note   Function is called from ESP stack module when needed
+ * \note   Declared as macro 
  */
 #define ESP8266_RESET_LOW     (void)0
 
 /**
- * @brief  Sets reset pin HIGH
- * @note   Function is called from ESP stack module when needed
- * @note   Declared as macro 
+ * \brief  Sets reset pin HIGH
+ * \note   Function is called from ESP stack module when needed
+ * \note   Declared as macro 
  */
 #define ESP8266_RESET_HIGH    (void)0
 
 /**
- * @}
+ * \}
  */
 
 /* C++ detection */
