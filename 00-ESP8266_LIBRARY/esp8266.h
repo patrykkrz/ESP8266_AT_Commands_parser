@@ -2,7 +2,7 @@
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
  * \website http://esp8266at.com
- * \version v1.0
+ * \version v1.1
  * \license MIT
  * \brief   Library for ESP8266 module using AT commands for embedded systems
  *	
@@ -33,7 +33,7 @@
 \endverbatim
  */
 #ifndef ESP8266_H
-#define ESP8266_H 100
+#define ESP8266_H 110
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -193,6 +193,7 @@ typedef struct {
  */
 typedef enum {
 	ESP8266_ConnectionType_TCP = 0x00, /*!< Connection type is TCP */
+	ESP8266_ConnectionType_UDP,        /*!< Connection type is UDP */
 	ESP8266_ConnectionType_SSL         /*!< Connection type is SSL */
 } ESP8266_ConnectionType_t;
 
@@ -737,6 +738,18 @@ ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, const char* addr);
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, void* user_parameters);
+
+/**
+ * \brief  Starts new UDP connection as ESP client and connects to given address and port
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  *name: Identification connection name for callback functions to detect proper connection
+ * \param  *location: Domain name or IP address to connect to as string
+ * \param  port: Port to connect to
+ * \param  local_port: ESP local port. This is optional and if not needed, set parameter to 0
+ * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters);
 
 /**
  * \brief  Starts new SSL connection as ESP client and connects to given address and port

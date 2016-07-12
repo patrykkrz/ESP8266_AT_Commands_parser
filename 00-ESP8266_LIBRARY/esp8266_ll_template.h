@@ -82,6 +82,10 @@ uint8_t ESP8266_LL_USARTInit(uint32_t baudrate) {
 
     //Enable RX Data Ready interrupt (RXNE = Received Not Empty)
     
+#if ESP8266_USE_CTS
+    //Enable custom RTS pin as output and connect it to ESP8266 CTS pin
+#endif
+
     //Return 0 = Successful
     return 0;
 }
@@ -104,6 +108,16 @@ void USART_RX_INTERRUPT_HANDLER_FUNCTION_NAME(void) {
     //Send received character to ESP stack
     ESP8266_DataReceived(&ch, 1);
 }
+
+#if ESP8266_USE_CTS
+void ESP8266_LL_SetRTS(uint8_t dir) {
+    if (dir) {
+        //Set RTS pin high
+    } else {
+        //Set RTS pin low
+    }
+}
+#endif
 
 \endcode
  * 
