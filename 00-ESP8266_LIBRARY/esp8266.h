@@ -210,7 +210,7 @@ typedef struct {
 #if ESP8266_USE_SINGLE_CONNECTION_BUFFER == 1
 	char* Data;                  /*<! Use pointer to data array */
 #else
-	char Data[ESP8266_CONNECTION_BUFFER_SIZE]; /*!< Data array for connection */
+	char Data[ESP8266_CONNECTION_BUFFER_SIZE + 1]; /*!< Data array for connection */
 #endif
 	uint16_t DataSize;           /*!< Number of bytes in current data package.
                                         Becomes useful, when we have buffer size for data less than ESP8266 IPD statement has data for us.
@@ -250,13 +250,13 @@ typedef struct {
  * \brief  AP station structure to use when searching for network
  */
 typedef struct {
-	uint8_t Ecn;                         /*!< Security of Wi-Fi spot. This parameter has a value of \ref ESP8266_Ecn_t enumeration */
-	char SSID[ESP8266_MAX_SSID_NAME +1]; /*!< Service Set Identifier value. Wi-Fi spot name */
-	int16_t RSSI;                        /*!< Signal strength of Wi-Fi spot */
-	uint8_t MAC[6];                      /*!< MAC address of spot */
-	uint8_t Channel;                     /*!< Wi-Fi channel */
-	uint8_t Offset;                      /*!< Frequency offset from base 2.4GHz in kHz */
-	uint8_t Calibration;                 /*!< Frequency offset calibration */
+	uint8_t Ecn;                          /*!< Security of Wi-Fi spot. This parameter has a value of \ref ESP8266_Ecn_t enumeration */
+	char SSID[ESP8266_MAX_SSID_NAME + 1]; /*!< Service Set Identifier value. Wi-Fi spot name */
+	int16_t RSSI;                         /*!< Signal strength of Wi-Fi spot */
+	uint8_t MAC[6];                       /*!< MAC address of spot */
+	uint8_t Channel;                      /*!< Wi-Fi channel */
+	uint8_t Offset;                       /*!< Frequency offset from base 2.4GHz in kHz */
+	uint8_t Calibration;                  /*!< Frequency offset calibration */
 } ESP8266_AP_t;
 
 /**

@@ -160,6 +160,16 @@ void BUFFER_Free(BUFFER_t* Buffer);
 uint32_t BUFFER_Write(BUFFER_t* Buffer, uint8_t* Data, uint32_t count);
 
 /**
+ * @brief  Writes data to buffer to top of buffer in reversed order
+ * @note   This function is not thread safe so make sure you don't have read operations when you try to use this function.
+ * @param  *Buffer: Pointer to @ref BUFFER_t structure
+ * @param  *Data: Pointer to data to be written
+ * @param  count: Number of elements of type unsigned char to write
+ * @retval Number of elements written in buffer on top in reverse order
+ */
+uint32_t BUFFER_WriteToTop(BUFFER_t* Buffer, uint8_t* Data, uint32_t count);
+
+/**
  * @brief  Reads data from buffer
  * @param  *Buffer: Pointer to @ref BUFFER_t structure
  * @param  *Data: Pointer to data where read values will be stored

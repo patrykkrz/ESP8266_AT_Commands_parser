@@ -162,6 +162,62 @@ uint32_t BUFFER_Write(BUFFER_t* Buffer, uint8_t* Data, uint32_t count) {
 #endif
 }
 
+
+uint32_t BUFFER_WriteToTop(BUFFER_t* Buffer, uint8_t* Data, uint32_t count) {
+	uint32_t i = 0;
+	uint32_t free;
+
+	/* Check buffer structure */
+	if (Buffer == NULL || count == 0) {
+		return 0;
+	}
+
+	/* Check input pointer */
+	if (Buffer->In >= Buffer->Size) {
+		Buffer->In = 0;
+	}
+	if (Buffer->Out >= Buffer->Size) {
+		Buffer->Out = 0;
+	}
+
+	/* Get free memory */
+	free = BUFFER_GetFree(Buffer);
+
+	/* Check available memory */
+	if (free < count) {
+		/* If no memory, stop execution */
+		if (free == 0) {
+			return 0;
+		}
+
+		/* Set values for write */
+		count = free;
+	}
+
+	/* We have calculated memory for write */
+
+	/* Start on bottom */
+	Data += count - 1;
+
+	/* Go through all elements */
+	while (count--) {
+		if (Buffer->Out == 0) {
+			Buffer->Out = Buffer->Size - 1;
+		} else {
+			Buffer->Out--;
+		}
+
+		/* Add to buffer */
+		Buffer->Buffer[Buffer->Out] = *Data--;
+
+		/* Increase pointers */
+		i++;
+	}
+
+	/* Return number of elements written */
+	return i;
+}
+
 uint32_t BUFFER_Read(BUFFER_t* Buffer, uint8_t* Data, uint32_t count) {
 	uint32_t i = 0, full;
 #if BUFFER_FAST
@@ -195,7 +251,7 @@ uint32_t BUFFER_Read(BUFFER_t* Buffer, uint8_t* Data, uint32_t count) {
 	/* We have calculated memory for write */
 
 #if BUFFER_FAST
-	/* Calculate number of elements we can put at the end of buffer */
+	/* Calculate number of elements we can read from end of buffer */
 	tocopy = Buffer->Size - Buffer->Out;
 
 	/* Check for copy count */
