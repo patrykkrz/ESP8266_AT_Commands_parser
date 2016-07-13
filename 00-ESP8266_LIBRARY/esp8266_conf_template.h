@@ -154,21 +154,22 @@
 #define ESP8266_USE_CONNECTED_STATIONS            1
 
 /**
- * \brief   Enables CTS pin on ESP8266 and software RTS pin on microcontroller
+ * \brief   Enables (1) or disables (0) CTS pin on ESP8266 and software RTS pin on microcontroller
  *          
- *          When option is enabled, MCU must implement RTS software output pin to disable ESP
+ *          When option is enabled, then MCU must implement RTS software output pin to disable ESP
  *          module to send data before they are read from buffer.
  *          This prevents loosing data if you have low RAM memory and you need to do hard work with data,
  *          like saving data to SDCARD.
  * 
- *          Function to control software RTS output on MCU is called when buffer is full.
+ *          Function to control software RTS output on MCU is called from function
+ *          which adds data to internal buffer of ESP stack.
  *         
  *          When buffer is read from ESP8266_Update function, RTS should be set low again.
  *
  * \note    Software RTS pin from microcontroller (any pin selected by user)
- *           must be connected to CTS pin on ESP8266 or communication won't work property.
+ *           must be connected to CTS pin on ESP8266.
  */
-#define ESP8266_USE_CTS                           0
+#define ESP8266_USE_CTS                           1
 
 /**
  * \brief   Enables (1) or disables (0) SNTP feature for ESP8266.

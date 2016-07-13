@@ -223,7 +223,6 @@ typedef struct {
 		struct {
 			uint8_t Active:1;              /*!< Status if connection is active */
 			uint8_t Client:1;              /*!< Set to 1 if connection was made as client */
-			uint8_t WaitForWrapper:1;      /*!< Status flag, to wait for ">" wrapper on data sent */
 			uint8_t WaitingSentRespond:1;  /*!< Set to 1 when we have sent data and we are waiting respond */
 			uint8_t CallDataReceived:1;    /*!< Set to 1 when we are waiting for commands to be inactive before we call callback function */
 			uint8_t LastPart:1;            /*!< When connection buffer is less than ESP8266 max +IPD possible data length,
@@ -553,26 +552,6 @@ ESP8266_Result_t ESP8266_SetMode(ESP8266_t* ESP8266, ESP8266_Mode_t Mode);
 ESP8266_Result_t ESP8266_SetWPS(ESP8266_t* ESP8266, ESP8266_WPS_t wps);
 
 /**
- * \brief  Sets multiple connections for ESP8266 device.
- * \note   This setting is enabled by default
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  mux: Set to 0 to disable feature or 1 to enable
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetMux(ESP8266_t* ESP8266, uint8_t mux);
-
-/**
- * \brief  Sets data info on network data receive from module
- * \note   This setting is enabled by default to get proper working state
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  dinfo: Set to 1 to enable it, or zero to disable
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_Setdinfo(ESP8266_t* ESP8266, uint8_t dinfo);
-
-/**
  * \brief  Enables server mode on ESP8266 module
  * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * \param  port: Port number ESP will be visible on
@@ -728,6 +707,12 @@ ESP8266_Result_t ESP8266_SetAPDefault(ESP8266_t* ESP8266, ESP8266_APConfig_t* ES
 ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, const char* addr);
 
 /**
+ * \brief  Wrapper for TCP connection.
+ * \note   For more informations, take a look at \ref ESP8266_StartClientConnectionTCP
+ */
+#define ESP8266_StartClientConnection ESP8266_StartClientConnectionTCP
+
+/**
  * \brief  Starts new TCP connection as ESP client and connects to given address and port
  * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * \param  *name: Identification connection name for callback functions to detect proper connection
@@ -772,12 +757,6 @@ ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, const char
  * \note   This function is blocking function and will wait till ESP8266 sends result
  */
 ESP8266_Result_t ESP8266_SetSSLBufferSize(ESP8266_t* ESP8266, uint16_t buffersize);
-
-/**
- * \brief  Wrapper for TCP connection.
- * \note   For more informations, take a look at \ref ESP8266_StartClientConnectionTCP
- */
-#define ESP8266_StartClientConnection ESP8266_StartClientConnectionTCP
 
 /**
  * \brief  Closes all opened connections
