@@ -193,8 +193,8 @@ typedef struct {
  */
 typedef enum {
 	ESP8266_ConnectionType_TCP = 0x00, /*!< Connection type is TCP */
-	ESP8266_ConnectionType_UDP,        /*!< Connection type is UDP */
-	ESP8266_ConnectionType_SSL         /*!< Connection type is SSL */
+	ESP8266_ConnectionType_UDP = 0x01, /*!< Connection type is UDP */
+	ESP8266_ConnectionType_SSL = 0x02  /*!< Connection type is SSL */
 } ESP8266_ConnectionType_t;
 
 /**
@@ -219,7 +219,6 @@ typedef struct {
 	uint32_t ContentLength;      /*!< Value of "Content-Length" header if it exists in +IPD data packet */
 	char* Name;                  /*!< Pointer to connection name, useful when using as client */
 	void* UserParameters;        /*!< User parameters pointer. Useful when user wants to pass custom data which can later be used in callbacks */
-	
 	union {
 		struct {
 			uint8_t Active:1;              /*!< Status if connection is active */

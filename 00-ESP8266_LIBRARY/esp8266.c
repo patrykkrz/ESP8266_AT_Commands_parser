@@ -608,8 +608,6 @@ char* ReverseEscapeString(char* str, char* buff) {
 	return buff;									/* Return buffer */
 }
 
-
-
 static
 void CallConnectionCallbacks(ESP8266_t* ESP8266) {
 	uint8_t conn_number;
@@ -1455,6 +1453,23 @@ ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266) {
 		}
 	}
 	
+	/* Manually check for IPD statements, +IPD format: +IPD,a,bbbb,ccc.ccc.ccc.ccc,ddddd: */
+	if (!ESP8266->IPD.InIPD) {
+		int32_t ipd_pos;
+		
+		if (USART_Buffer.Buffer[USART_Buffer.Out] == '+') {	/* Check if first character to read is plus sign, small optimization to prevent buffer search all the time */
+			ipd_pos = BUFFER_Find(&USART_Buffer, (uint8_t *)"+IPD,", 5);	/* Try to find +IPD statement in buffer */
+			if (ipd_pos == 0) {							/* +IPD is on start of buffer read operations */
+				ipd_pos = BUFFER_Find(&USART_Buffer, (uint8_t *)":", 1);
+				if (ipd_pos > 0 &&  ipd_pos < 35) { 	/* Check if colon exists and is in valid range */
+					stringlength = BUFFER_Read(&USART_Buffer, (uint8_t *)Received, ipd_pos + 1);	/* Read from buffer until colon is received */
+					Received[stringlength] = 0;			/* Add zero to the end of read string */
+					ParseReceived(ESP8266, Received, stringlength, 1);	/*  */
+				}
+			}
+		}
+	}
+	
 	/* Get string from TMP buffer when no command active */
 	while (
 		!ESP8266->IPD.InIPD &&						/* Not in IPD mode */
@@ -1481,8 +1496,7 @@ ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266) {
 		) {
 			BUFFER_Read(buff, (uint8_t *)&ch, 1);	/* Read from buffer */
 			
-#if ESP8266_USE_CTS
-			
+#if ESP8266_USE_CTS		
 			if (RTSStatus != ESP_RTS_LOW) {			/* Set CTS low again */
 				ESP8266_LL_SetRTS(ESP_RTS_LOW);
 				RTSStatus = ESP_RTS_LOW;
