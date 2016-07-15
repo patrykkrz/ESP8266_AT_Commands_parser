@@ -364,7 +364,7 @@ typedef struct {
 #endif
 	uint32_t TotalBytesReceived;                              /*!< Total number of bytes ESP8266 module has received from network and sent to our stack */
 	uint32_t TotalBytesSent;                                  /*!< Total number of network data bytes we have sent to ESP8266 module for transmission */
-	ESP8266_Connection_t* SendDataConnection;                 /*!< Pointer to currently active connection to sent data */
+	ESP8266_Connection_t* LastConnection    ;                 /*!< Pointer to currently active connection to operate */
 	union {
 		struct {
 			uint8_t STAIPIsSet:1;                             /*!< IP is set */

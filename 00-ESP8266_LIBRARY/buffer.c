@@ -281,6 +281,9 @@ int32_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint32_t Size) {
 	if (Buffer == NULL || (Num = BUFFER_GetFull(Buffer)) < Size) {	/* Check buffer structure and number of elements in buffer */
 		return -1;
 	}
+    if (Num > 10000) {
+        printf("BIG NUM!!");
+    }
 	Out = Buffer->Out;										/* Create temporary variables */
 	while (Num > 0) {										/* Go through input elements in buffer */
 		if (Out >= Buffer->Size) {							/* Check output overflow */
@@ -295,7 +298,7 @@ int32_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint32_t Size) {
 		retval++;
 		if (found) {										/* We have found first element */
 			i = 1;											/* First character found */
-			while (i < Size) {								/* Check others */	
+			while (i < Size && Num > 0) {					/* Check others */	
 				if (Out >= Buffer->Size) {					/* Check output overflow */
 					Out = 0;
 				}
@@ -336,7 +339,7 @@ uint32_t BUFFER_ReadString(BUFFER_t* Buffer, char* buff, uint32_t buffsize) {
 			fullMem < buffsize                                         	/* User buffer size is larger than number of elements in buffer */
 		)
 	) {
-		return 0;											/* Return 0 */
+		return 0;											/* Return with no elements read */
 	}
 	while (i < (buffsize - 1)) {							/* If available buffer size is more than 0 characters */
 		BUFFER_Read(Buffer, &ch, 1);						/* We have available data */
