@@ -231,7 +231,7 @@ void ESP8266_Callback_ClientConnectionDataReceived(ESP8266_t* ESP8266, ESP8266_C
 	);
 	
 	/* Print message when first packet */
-	if (Connection->FirstPacket) {
+	if (Connection->Flags.F.FirstPacket) {
 		/* Start counting time */
 		time = TM_DELAY_Time();
 		
