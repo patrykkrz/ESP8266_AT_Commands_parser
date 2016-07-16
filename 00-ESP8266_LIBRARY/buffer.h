@@ -32,7 +32,7 @@
 \endverbatim
  */
 #ifndef BUFFER_H
-#define BUFFER_H 100
+#define BUFFER_H 110
 
 /* C++ detection */
 #ifdef __cplusplus

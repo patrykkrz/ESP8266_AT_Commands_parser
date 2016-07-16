@@ -32,7 +32,7 @@
 \endverbatim
  */
 #ifndef ESP8266_LL_H
-#define ESP8266_LL_H 100
+#define ESP8266_LL_H 110
 
 /* C++ detection */
 #ifdef __cplusplus

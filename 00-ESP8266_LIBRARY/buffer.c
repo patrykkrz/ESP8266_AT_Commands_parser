@@ -281,9 +281,6 @@ int32_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint32_t Size) {
 	if (Buffer == NULL || (Num = BUFFER_GetFull(Buffer)) < Size) {	/* Check buffer structure and number of elements in buffer */
 		return -1;
 	}
-    if (Num > 10000) {
-        printf("BIG NUM!!");
-    }
 	Out = Buffer->Out;										/* Create temporary variables */
 	while (Num > 0) {										/* Go through input elements in buffer */
 		if (Out >= Buffer->Size) {							/* Check output overflow */
