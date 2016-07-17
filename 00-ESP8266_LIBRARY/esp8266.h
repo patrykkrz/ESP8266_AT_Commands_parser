@@ -230,9 +230,12 @@ typedef struct {
 												When data buffer is bigger, this parameter is always set to 1 */
 			uint8_t HeadersDone:1;         /*!< User option flag to set when headers has been found in response */
 			uint8_t FirstPacket:1;         /*!< Set to 1 when if first packet in connection received */
+            uint8_t Blocking:1;            /*!< Set to 1 when connection is blocking. This can only be achieved when using client mode */
 		} F;
 		uint8_t Value;
 	} Flags;
+    char* BlockingData;
+    uint16_t BlockingDataLength;
 } ESP8266_Connection_t;
 
 /**
@@ -724,6 +727,18 @@ ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, const char* addr);
 ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, void* user_parameters);
 
 /**
+ * \brief  Starts new TCP connection as ESP client and connects to given address and port and waits for response
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  **Conn: Pointer to pointer to \ref ESP8266_Connection_t to store connection information for future use
+ * \param  *name: Identification connection name for callback functions to detect proper connection
+ * \param  *location: Domain name or IP address to connect to as string
+ * \param  port: Port to connect to
+ * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_StartClientConnectionTCP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, void* user_parameters);
+
+/**
  * \brief  Starts new UDP connection as ESP client and connects to given address and port
  * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * \param  *name: Identification connection name for callback functions to detect proper connection
@@ -734,6 +749,18 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters);
+
+/**
+ * \brief  Starts new UDP connection as ESP client and connects to given address and port and waits for response
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  *name: Identification connection name for callback functions to detect proper connection
+ * \param  *location: Domain name or IP address to connect to as string
+ * \param  port: Port to connect to
+ * \param  local_port: ESP local port. This is optional and if not needed, set parameter to 0
+ * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_StartClientConnectionUDP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters);
 
 /**
  * \brief  Starts new SSL connection as ESP client and connects to given address and port
@@ -747,6 +774,20 @@ ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, void* user_parameters);
+
+/**
+ * \brief  Starts new SSL connection as ESP client and connects to given address and port and waits for response
+ * \note   Only one connection can be made as SSL at a time
+ * \note   Use \ref ESP8266_SetSSLBufferSize first before you start connection
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  **Conn: Pointer to pointer to \ref ESP8266_Connection_t to store connection information for future use
+ * \param  *name: Identification connection name for callback functions to detect proper connection
+ * \param  *location: Domain name or IP address to connect to as string
+ * \param  port: Port to connect to
+ * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_StartClientConnectionSSL_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, void* user_parameters);
 
 /**
  * \brief  Sets SSL buffer size for connections
@@ -766,12 +807,40 @@ ESP8266_Result_t ESP8266_SetSSLBufferSize(ESP8266_t* ESP8266, uint16_t buffersiz
 ESP8266_Result_t ESP8266_CloseAllConnections(ESP8266_t* ESP8266);
 
 /**
+ * \brief  Checks if connection is active
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  *Conn: Pointer to \ref ESP8266_Connection_t structure check status
+ * \retval Active status:
+ *           - 0: Closed
+ *           - > 0: Active
+ */
+#define ESP8266_IsConnectionActive(ESP8266, Conn)    ((Conn)->Flags.F.Active)
+
+/**
  * \brief  Closes specific previously opened connection
  * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * \param  *Connection: Pointer to \ref ESP8266_Connection_t structure to close it
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_CloseConnection(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
+
+/**
+ * \brief  Closes specific previously opened connection and waits response
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  *Connection: Pointer to \ref ESP8266_Connection_t structure to close it
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_CloseConnection_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
+
+/**
+ * \brief  Waits till connection is closed in specific timeout
+ * \note   This function has sense if you have client connection and you expect that remote server will close connection after response
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  *Connection: Pointer to \ref ESP8266_Connection_t structure to wait closed
+ * \param  Timeout: Timeout in milliseconds to wait to connection to close
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_WaitClosedConnection(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection, uint32_t Timeout);
 
 /**
  * \brief  Checks if all connections are closed
@@ -787,6 +856,16 @@ ESP8266_Result_t ESP8266_AllConnectionsClosed(ESP8266_t* ESP8266);
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_RequestSendData(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
+
+/**
+ * \brief  Makes a request to send data to specific open connection in blocking mode
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  *Connection: Pointer to \ref ESP8266_Connection_t structure to close it
+ * \param  *Data: Pointer to data array to send
+ * \param  length: Data length. If data length is greater than maximal ESP8266 package len, multiple packages are used to send
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_RequestSendData_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t* Conn, const char* Data, uint32_t length);
 
 /**
  * \brief  Gets a list of connected station devices to softAP on ESP module

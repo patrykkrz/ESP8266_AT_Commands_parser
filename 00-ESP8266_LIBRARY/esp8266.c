@@ -84,6 +84,7 @@
 
 /* Constants */
 #define ESP8266_MAX_RFPWR               82
+#define ESP8266_MAX_DATA_LEN            2046
 
 /* ESP responses */
 #define ESP8266_RESPONSE_OK             "OK\r\n"
@@ -142,10 +143,7 @@ do {                                                        \
 /* Reset ESP connection */
 #define ESP8266_RESET_CONNECTION(ESP8266, conn)             \
 do {                                                        \
-    (conn)->Flags.F.Active = 0;                             \
-    (conn)->Flags.F.Client = 0;                             \
-    (conn)->Flags.F.FirstPacket = 0;                        \
-    (conn)->Flags.F.HeadersDone = 0;                        \
+    (conn)->Flags.Value = 0;                                \
 } while (0)                                               
 
 /* Wait and return from function with operation status */
@@ -607,27 +605,34 @@ void CallConnectionCallbacks(ESP8266_t* ESP8266) {
 
 static
 void ProcessSendData(ESP8266_t* ESP8266) {
-    uint16_t len, max_buff = 2046;
+    uint16_t len, max_buff = ESP8266_MAX_DATA_LEN;
+    char* data;
     ESP8266_Connection_t* Connection = ESP8266->LastConnection;
     
     ESP8266->Flags.F.WaitForWrapper = 0;            		/* Wrapper was found */
     ESP8266->ActiveCommand = ESP8266_COMMAND_SENDDATA;    	/* Go to SENDDATA command as active */
     
-    if (ESP8266_CONNECTION_BUFFER_SIZE < 2046) {    		/* Calculate maximal buffer size */
+    if (ESP8266_CONNECTION_BUFFER_SIZE < ESP8266_MAX_DATA_LEN) {    		/* Calculate maximal buffer size */
         max_buff = ESP8266_CONNECTION_BUFFER_SIZE;    		/* Use maximal possible buffer size */
     }
     
-    if (Connection->Flags.F.Client) {                		/* Get data from user */
-        len = ESP8266_Callback_ClientConnectionSendData(ESP8266, Connection, Connection->Data, max_buff);   /* Get data as client */
+    if (Connection->Flags.F.Blocking) {
+        data = Connection->BlockingData;                    /* Get blocking data */
+        len = Connection->BlockingDataLength;               /* Get blocking data length */
     } else {
-        len = ESP8266_Callback_ServerConnectionSendData(ESP8266, Connection, Connection->Data, max_buff);   /* Get data as server */
+        data = Connection->Data;
+        if (Connection->Flags.F.Client) {                   /* Get data from user */
+            len = ESP8266_Callback_ClientConnectionSendData(ESP8266, Connection, data, max_buff);   /* Get data as client */
+        } else {
+            len = ESP8266_Callback_ServerConnectionSendData(ESP8266, Connection, data, max_buff);   /* Get data as server */
+        }
     }
     
     if (len > max_buff) {                            		/* Check for input data */
         len = max_buff;
     }
     if (len > 0) {                                		    /* If data valid */
-        ESP8266_LL_USARTSend((uint8_t *)Connection->Data, len); /* Send data */
+        ESP8266_LL_USARTSend((uint8_t *)data, len);         /* Send data */
         ESP8266->TotalBytesSent += len;            		    /* Increase number of bytes sent */
     }
     ESP8266_LL_USARTSend((uint8_t *)"\\0", 2);        		/* Send zero at the end even if data are not valid = stop sending data to module */
@@ -676,13 +681,15 @@ ESP8266_Result_t ESP8266_Setdinfo(ESP8266_t* ESP8266, uint8_t info) {
 static
 ESP8266_Result_t StartClientConnection(
     ESP8266_t* ESP8266,
+    ESP8266_Connection_t** Conn,
     ESP8266_ConnectionType_t type,
     const char* conn_type,
     const char* name,
     const char* location,
     uint16_t port,
     uint16_t udp_local_port,
-    void* user_parameters
+    void* user_parameters,
+    uint8_t blocking
 ) {
     int8_t conn = -1;
     uint8_t i = 0;
@@ -731,6 +738,7 @@ ESP8266_Result_t StartClientConnection(
         conn -= '0';                                		/* Go back from ASCII number to real number */
         ESP8266->Connection[i].Flags.F.Active = 1;    		/* We are active */
         ESP8266->Connection[i].Flags.F.Client = 1;   		/* We are in client mode */
+        ESP8266->Connection[i].Flags.F.Blocking = blocking ? 1 : 0; /* Set blocking mode */
         ESP8266->Connection[i].Type = type;         		/* Set connection type */
         ESP8266->Connection[i].TotalBytesReceived = 0;
         ESP8266->Connection[i].Number = conn;
@@ -742,6 +750,15 @@ ESP8266_Result_t StartClientConnection(
         ESP8266->Connection[i].Name = (char *)name;    		/* Save name */
         ESP8266->Connection[i].UserParameters = user_parameters;	/* Save user parameters pointer */
         
+        if (Conn != NULL) {
+            *Conn = &ESP8266->Connection[i];                /* Save connection to pointer */
+        }
+        if (ESP8266->Connection[i].Flags.F.Blocking) {
+            ESP8266_WaitReady(ESP8266);                     /* Wait till ready when in blocking mode */
+            if (!ESP8266->Flags.F.LastOperationStatus) {
+                ESP8266_RETURNWITHSTATUS(ESP8266, ESP_ERROR);   /* Return error, ESP did not connect to web */
+            }
+        }
         ESP8266_RETURNWITHSTATUS(ESP8266, ESP_OK);    		/* Return OK */
     }
     ESP8266_RETURNWITHSTATUS(ESP8266, ESP_ERROR);    		/* Return error */
@@ -858,12 +875,16 @@ uint32_t ParseReceived(ESP8266_t* ESP8266, char* Received, uint16_t bufflen, uin
         if (ch_ptr == (Received + 1)) {
             client = Conn->Flags.F.Client;            		/* Save values */
             active = Conn->Flags.F.Active;
-            ESP8266_RESET_CONNECTION(ESP8266, Conn);    		/* Connection closed, reset flags now */
+            ESP8266_RESET_CONNECTION(ESP8266, Conn);   		/* Connection closed, reset flags now */
             if (active) {                            		/* Call user function */
-                if (client) {
-                    ESP8266_Callback_ClientConnectionClosed(ESP8266, Conn);	/* Client connection closed */
+                if (Conn->Flags.F.Blocking) {
+                    ESP8266->Flags.F.LastOperationStatus = 1;
                 } else {
-                    ESP8266_Callback_ServerConnectionClosed(ESP8266, Conn);	/* Server connection closed */
+                    if (client) {
+                        ESP8266_Callback_ClientConnectionClosed(ESP8266, Conn);	/* Client connection closed */
+                    } else {
+                        ESP8266_Callback_ServerConnectionClosed(ESP8266, Conn);	/* Server connection closed */
+                    }
                 }
             }
         } else {
@@ -1024,8 +1045,8 @@ uint32_t ParseReceived(ESP8266_t* ESP8266, char* Received, uint16_t bufflen, uin
             }
             if (strcmp(Received, ESP8266_RESPONSE_ERROR) == 0) {    
                 ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;  /* Reset active command */        
-                ESP8266_RESET_CONNECTION(ESP8266, &ESP8266->Connection[ESP8266->StartConnectionSent]);   /* Reset connection */
-                ESP8266_Callback_ClientConnectionError(ESP8266, &ESP8266->Connection[ESP8266->StartConnectionSent]);    /* Call user function */
+                ESP8266_RESET_CONNECTION(ESP8266, ESP8266->LastConnection);   /* Reset connection */
+                ESP8266_Callback_ClientConnectionError(ESP8266, ESP8266->LastConnection);    /* Call user function */
             }
             break;
         case ESP8266_COMMAND_CIPMUX:
@@ -1328,6 +1349,7 @@ ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266) {
         if (lastcmd == ESP8266_COMMAND_CIPSTART) {          /* Timeout reached */
             ESP8266_RESET_CONNECTION(ESP8266, &ESP8266->Connection[ESP8266->StartConnectionSent]);   /* We get timeout on cipstart */
             ESP8266_Callback_ClientConnectionTimeout(ESP8266, &ESP8266->Connection[ESP8266->StartConnectionSent]);  /* Call user function */
+            ESP8266->Flags.F.LastOperationStatus = 0;
         }
     }
     
@@ -1499,13 +1521,7 @@ void ESP8266_TimeUpdate(ESP8266_t* ESP8266, uint32_t time_increase) {
 /*          DEVICE READY STATUS           */
 /******************************************/
 ESP8266_Result_t ESP8266_WaitReady(ESP8266_t* ESP8266) {
-    do {                                                    /* Do job */
-        if (ESP8266->Flags.F.WaitForWrapper) {              /* Check for wrapper */
-            if (BUFFER_Find(&USART_Buffer, (uint8_t *)"> ", 2) >= 0) {  /* We have found it, stop execution here */
-                //ESP8266->Flags.F.WaitForWrapper = 0;
-                break;
-            }
-        }
+    do {
         ESP8266_Update(ESP8266);                            /* Update device */
     } while (ESP8266->ActiveCommand != ESP8266_COMMAND_IDLE);
     ESP8266_RETURNWITHSTATUS(ESP8266, ESP_OK);              /* Return OK */
@@ -1688,6 +1704,46 @@ ESP8266_Result_t ESP8266_RequestSendData(ESP8266_t* ESP8266, ESP8266_Connection_
     return ESP8266->Result;                                 /* Return from function */
 }
 
+ESP8266_Result_t ESP8266_RequestSendData_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t* Conn, const char* Data, uint32_t length) {
+    uint8_t blocking;
+    ESP8266_CHECK_IDLE(ESP8266);                            /* Check idle state */
+    
+    if (Conn == NULL || !Conn->Flags.F.Active) {
+        ESP8266_RETURNWITHSTATUS(ESP8266, ESP_INVALIDPARAMETERS);   /* Check input parameters */
+    }
+    if (length > ESP8266_MAX_DATA_LEN) {
+        uint32_t len;
+        do {
+            if (length > ESP8266_MAX_DATA_LEN) {            /* Calculate length to send */
+                len = ESP8266_MAX_DATA_LEN;
+            } else {
+                len = length;
+            }
+            if (ESP8266_RequestSendData_Blocking(ESP8266, Conn, Data, len) != ESP_OK) { /* Try to send blocking */
+                return ESP8266->Result;
+            }
+            Data += len;                                    /* Calculate new values */
+            length -= len;
+        } while (length > 0);
+        ESP8266_RETURNWITHSTATUS(ESP8266, ESP_OK);          /* Check input parameters */
+    }
+    
+    blocking = Conn->Flags.F.Blocking;
+    Conn->Flags.F.Blocking = 1;                             /* Set as blocking */
+    Conn->BlockingData = (char *)Data;                      /* Set pointer to blocking data */
+    Conn->BlockingDataLength = length;                      /* Set blocking data length */
+    
+    if (ESP8266_RequestSendData(ESP8266, Conn) != ESP_OK) { /* Start connection send */
+        Conn->Flags.F.Blocking = blocking;                  /* Reset status */
+        return ESP8266->Result;
+    }
+    
+    ESP8266_WaitReady(ESP8266);                             /* Wait till command is active */
+    
+    Conn->Flags.F.Blocking = blocking;                      /* Reset status */
+    return ESP8266->Result;
+}
+
 /******************************************/
 /*         CONNECTIONS MANAGEMENT         */
 /******************************************/
@@ -1701,6 +1757,37 @@ ESP8266_Result_t ESP8266_CloseConnection(ESP8266_t* ESP8266, ESP8266_Connection_
     ESP8266_USARTSENDSTRING(ESP8266_CRLF);
     
     return SendCommand(ESP8266, ESP8266_COMMAND_CLOSE, NULL, NULL); /* Send command */
+}
+
+ESP8266_Result_t ESP8266_CloseConnection_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection) {
+    uint8_t blocking;
+    ESP8266_CHECK_IDLE(ESP8266);                            /* Check idle state */
+
+    blocking = Connection->Flags.F.Blocking;
+    Connection->Flags.F.Blocking = 1;                       /* Set as blocking */
+    
+    if (ESP8266_CloseConnection(ESP8266, Connection) != ESP_OK) {
+        Connection->Flags.F.Blocking = blocking;
+        return ESP8266->Result;
+    }
+    
+    ESP8266_WaitReady(ESP8266);                             /* Wait till done */
+    if (ESP8266->Flags.F.LastOperationStatus) {
+        ESP8266_RETURNWITHSTATUS(ESP8266, ESP_OK);
+    }
+    return ESP8266->Result;                                 /* Return status */
+}
+
+ESP8266_Result_t ESP8266_WaitClosedConnection(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection, uint32_t Timeout) {
+    uint32_t start = ESP8266->Time;
+    
+    while (Connection->Flags.F.Active) {                    /* Process if connection is active */
+        if ((ESP8266->Time - start) > Timeout) {            
+            ESP8266_RETURNWITHSTATUS(ESP8266, ESP_TIMEOUT); /* Timeout reached */
+        }
+        ESP8266_Update(ESP8266);                            /* Process update */
+    }
+    return ESP8266->Result;                                 /* Return status */
 }
 
 ESP8266_Result_t ESP8266_CloseAllConnections(ESP8266_t* ESP8266) {
@@ -1988,21 +2075,33 @@ ESP8266_Result_t ESP8266_SetAutoConnect(ESP8266_t* ESP8266, ESP8266_AutoConnect_
 /*               TCP CLIENT               */
 /******************************************/
 ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, void* user_parameters) {
-    return StartClientConnection(ESP8266, ESP8266_ConnectionType_TCP, "TCP", name, location, port, 0, user_parameters);
+    return StartClientConnection(ESP8266, NULL, ESP8266_ConnectionType_TCP, "TCP", name, location, port, 0, user_parameters, 0);
+}
+
+ESP8266_Result_t ESP8266_StartClientConnectionTCP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, void* user_parameters) {
+    return StartClientConnection(ESP8266, Conn, ESP8266_ConnectionType_TCP, "TCP", name, location, port, 0, user_parameters, 1);
 }
 
 /******************************************/
 /*               UDP CLIENT               */
 /******************************************/
 ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters) {
-    return StartClientConnection(ESP8266, ESP8266_ConnectionType_UDP, "UDP", name, location, port, local_port, user_parameters);
+    return StartClientConnection(ESP8266, NULL, ESP8266_ConnectionType_UDP, "UDP", name, location, port, local_port, user_parameters, 0);
+}
+
+ESP8266_Result_t ESP8266_StartClientConnectionUDP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters) {
+    return StartClientConnection(ESP8266, Conn, ESP8266_ConnectionType_UDP, "UDP", name, location, port, local_port, user_parameters, 1);
 }
 
 /******************************************/
 /*               SSL CLIENT               */
 /******************************************/
 ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, void* user_parameters) {
-    return StartClientConnection(ESP8266, ESP8266_ConnectionType_SSL, "SSL", name, location, port, 0, user_parameters);
+    return StartClientConnection(ESP8266, NULL, ESP8266_ConnectionType_SSL, "SSL", name, location, port, 0, user_parameters, 0);
+}
+
+ESP8266_Result_t ESP8266_StartClientConnectionSSL_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, void* user_parameters) {
+    return StartClientConnection(ESP8266, Conn, ESP8266_ConnectionType_SSL, "SSL", name, location, port, 0, user_parameters, 1);
 }
 
 ESP8266_Result_t ESP8266_SetSSLBufferSize(ESP8266_t* ESP8266, uint16_t buffersize) {
