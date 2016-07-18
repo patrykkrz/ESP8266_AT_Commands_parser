@@ -122,7 +122,7 @@ static uint32_t ESP8266_Baudrate[] = {
 /* Check IDLE */
 #define ESP8266_CHECK_IDLE(ESP8266)                         \
 do {                                                        \
-    if ((ESP8266)->ActiveCommand != ESP8266_COMMAND_IDLE) { \
+    if ((ESP8266)->ActiveCommand != ESP8266_COMMAND_IDLE ||(ESP8266)->IPD.InIPD) { \
         ESP8266_Update(ESP8266);                            \
         ESP8266_RETURNWITHSTATUS(ESP8266, ESP_BUSY);        \
     }                                                       \
@@ -908,6 +908,7 @@ uint32_t ParseReceived(ESP8266_t* ESP8266, char* Received, uint16_t bufflen, uin
         uint16_t blength2 = bufflen;
         uint16_t ipd_ptr_org;
         
+        /* +IPD statement here should have data till colon character without actual data for function */
         ESP8266->IPD.InIPD = 1;                   			/* If we are not in IPD mode already, go to IPD mode */
         ESP8266->IPD.USART_Buffer = from_usart_buffer;      /* Save IPD buffer location */
         
@@ -940,23 +941,25 @@ uint32_t ParseReceived(ESP8266_t* ESP8266, char* Received, uint16_t bufflen, uin
         }
         ipd_ptr++;
         ipd_ptr_org = ipd_ptr;
-        if ((blength - ipd_ptr) > Conn->BytesReceived) {    /* Calculate size of buffer */
-            blength = Conn->BytesReceived + ipd_ptr;
-        }
-        
-        memcpy((uint8_t *)Conn->Data, (uint8_t *)&Received[ipd_ptr], blength - ipd_ptr);    /* Copy content to beginning of buffer */
-        ipd_ptr_org += blength - ipd_ptr;
-        
-        if ((blength - ipd_ptr) > Conn->BytesReceived) {    /* Check for length */
-            Conn->Data[Conn->BytesReceived] = 0;            /* Add zero at the end of string */
-        }
-        ESP8266->IPD.InPtr = ESP8266->IPD.PtrTotal = blength - ipd_ptr; /* Calculate remaining bytes */
-        if (ESP8266->IPD.PtrTotal >= Conn->BytesReceived) { /* Check remaining data */
-            ESP8266->IPD.InIPD = 0;                         /* Not in IPD anymore */
-            Conn->DataSize = ipd_ptr;                       /* Set package data size */
-            Conn->Flags.F.LastPart = 1;
-            Conn->Flags.F.CallDataReceived = 1;             /* Enable flag to call received data callback */
-        }
+        ESP8266->IPD.InPtr = ESP8266->IPD.PtrTotal = ipd_ptr_org;
+//        if ((blength - ipd_ptr) > Conn->BytesReceived) {    /* Calculate size of buffer */
+//            blength = Conn->BytesReceived + ipd_ptr;
+//        }
+//        ipd_ptr_org += blength - ipd_ptr;
+//
+//        memcpy((uint8_t *)Conn->Data, (uint8_t *)&Received[ipd_ptr], blength - ipd_ptr);    /* Copy content to beginning of buffer */
+//        //ipd_ptr_org += blength - ipd_ptr;
+//        
+//        if ((blength - ipd_ptr) > Conn->BytesReceived) {    /* Check for length */
+//            Conn->Data[Conn->BytesReceived] = 0;            /* Add zero at the end of string */
+//        }
+//        ESP8266->IPD.InPtr = ESP8266->IPD.PtrTotal = blength - ipd_ptr; /* Calculate remaining bytes */
+//        if (ESP8266->IPD.PtrTotal >= Conn->BytesReceived) { /* Check remaining data */
+//            ESP8266->IPD.InIPD = 0;                         /* Not in IPD anymore */
+//            Conn->DataSize = ipd_ptr;                       /* Set package data size */
+//            Conn->Flags.F.LastPart = 1;
+//            Conn->Flags.F.CallDataReceived = 1;             /* Enable flag to call received data callback */
+//        }
         return blength2 - (ipd_ptr_org);                    /* Return number of bytes we didn't process in this request */
     }
     
@@ -1353,6 +1356,22 @@ ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266) {
         }
     }
     
+    if (!ESP8266->IPD.InIPD) {                              /* Manually check for IPD statements, +IPD format: +IPD,a,bbbb,ccc.ccc.ccc.ccc,ddddd: */
+        int32_t ipd_pos;
+        
+        if (USART_Buffer.Buffer[USART_Buffer.Out] == '+') { /* Check if first character to read is plus sign, small optimization to prevent buffer search all the time */
+            ipd_pos = BUFFER_Find(&USART_Buffer, (uint8_t *)"+IPD,", 5);    /* Try to find +IPD statement in buffer */
+            if (ipd_pos == 0) {                             /* +IPD is on start of buffer read operations */
+                ipd_pos = BUFFER_Find(&USART_Buffer, (uint8_t *)":", 1);
+                if (ipd_pos > 0 &&  ipd_pos < 35) {         /* Check if colon exists and is in valid range */
+                    stringlength = BUFFER_Read(&USART_Buffer, (uint8_t *)Received, ipd_pos + 1);    /* Read from buffer until colon is received */
+                    Received[stringlength] = 0;             /* Add zero to the end of read string */
+                    ParseReceived(ESP8266, Received, stringlength, 1);    /* Start parsing +IPD statement */
+                }
+            }
+        }
+    }
+    
     if (ESP8266->ActiveCommand == ESP8266_COMMAND_SENDDATA) {   /* We are waiting to send data */
         if (ESP8266->Flags.F.WaitForWrapper) {              /* Check what we are searching for */
             int16_t found;
@@ -1421,22 +1440,6 @@ ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266) {
         receivedleft = ParseReceived(ESP8266, Received, stringlength, 0);   /* Parse received string */
         if (receivedleft > 0) {
             BUFFER_WriteToTop(&TMP_Buffer, (uint8_t *)&Received[stringlength - receivedleft], receivedleft);    /* Write data to top of buffer */
-        }
-    }
-    
-    if (!ESP8266->IPD.InIPD) {                              /* Manually check for IPD statements, +IPD format: +IPD,a,bbbb,ccc.ccc.ccc.ccc,ddddd: */
-        int32_t ipd_pos;
-        
-        if (USART_Buffer.Buffer[USART_Buffer.Out] == '+') { /* Check if first character to read is plus sign, small optimization to prevent buffer search all the time */
-            ipd_pos = BUFFER_Find(&USART_Buffer, (uint8_t *)"+IPD,", 5);    /* Try to find +IPD statement in buffer */
-            if (ipd_pos == 0) {                             /* +IPD is on start of buffer read operations */
-                ipd_pos = BUFFER_Find(&USART_Buffer, (uint8_t *)":", 1);
-                if (ipd_pos > 0 &&  ipd_pos < 35) {         /* Check if colon exists and is in valid range */
-                    stringlength = BUFFER_Read(&USART_Buffer, (uint8_t *)Received, ipd_pos + 1);    /* Read from buffer until colon is received */
-                    Received[stringlength] = 0;             /* Add zero to the end of read string */
-                    ParseReceived(ESP8266, Received, stringlength, 1);    /* Start parsing +IPD statement */
-                }
-            }
         }
     }
     
