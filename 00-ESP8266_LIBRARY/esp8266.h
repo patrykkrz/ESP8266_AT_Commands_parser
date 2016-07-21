@@ -101,7 +101,7 @@ extern "C" {
 
 /* Check debug */
 #ifndef ESP8266_ECHO
-#define ESP8266_ECHO           0
+#define ESP8266_ECHO           1
 #endif
 
 /**
@@ -118,121 +118,133 @@ extern "C" {
  * \brief  ESP8266 library possible return statements on function calls
  */
 typedef enum {
-	ESP_OK = 0x00,          /*!< Everything is OK */
-	ESP_ERROR,              /*!< An error occurred */
-	ESP_DEVICENOTCONNECTED, /*!< Device is not connected to UART */
-	ESP_TIMEOUT,            /*!< Timeout was detected when sending command to ESP module */
-	ESP_NOHEAP,             /*!< Heap memory is not available */
-	ESP_WIFINOTCONNECTED,   /*!< Wifi is not connected to network */
-	ESP_BUSY,               /*!< Device is busy, new command is not possible */
-	ESP_INVALIDPARAMETERS   /*!< Parameters for functions are invalid */
+	ESP_OK = 0x00,                                      /*!< Everything is OK */
+	ESP_ERROR,                                          /*!< An error occurred */
+	ESP_DEVICENOTCONNECTED,                             /*!< Device is not connected to UART */
+	ESP_TIMEOUT,                                        /*!< Timeout was detected when sending command to ESP module */
+	ESP_NOHEAP,                                         /*!< Heap memory is not available */
+	ESP_WIFINOTCONNECTED,                               /*!< Wifi is not connected to network */
+	ESP_BUSY,                                           /*!< Device is busy, new command is not possible */
+	ESP_INVALIDPARAMETERS                               /*!< Parameters for functions are invalid */
 } ESP8266_Result_t;
 
 /**
  * \brief  ESP8266 modes of operation enumeration
  */
 typedef enum {
-	ESP8266_Mode_STA = 0x01,   /*!< ESP in station mode */
-	ESP8266_Mode_AP = 0x02,    /*!< ESP as software Access Point mode */
-	ESP8266_Mode_STA_AP = 0x03 /*!< ESP in both modes */
+	ESP8266_Mode_STA = 0x01,                            /*!< ESP in station mode */
+	ESP8266_Mode_AP = 0x02,                             /*!< ESP as software Access Point mode */
+	ESP8266_Mode_STA_AP = 0x03                          /*!< ESP in both modes */
 } ESP8266_Mode_t;
 
 /**
  * \brief  Security settings for wifi network
  */
 typedef enum {
-	ESP8266_Ecn_OPEN = 0x00,         /*!< Wifi is open */
-	ESP8266_Ecn_WEP = 0x01,          /*!< Wired Equivalent Privacy option for wifi security. \note This mode can't be used when setting up ESP8266 wifi */
-	ESP8266_Ecn_WPA_PSK = 0x02,      /*!< Wi-Fi Protected Access */
-	ESP8266_Ecn_WPA2_PSK = 0x03,     /*!< Wi-Fi Protected Access 2 */
-	ESP8266_Ecn_WPA_WPA2_PSK = 0x04, /*!< Wi-Fi Protected Access with both modes */
+	ESP8266_Ecn_OPEN = 0x00,                            /*!< Wifi is open */
+	ESP8266_Ecn_WEP = 0x01,                             /*!< Wired Equivalent Privacy option for wifi security. \note This mode can't be used when setting up ESP8266 wifi */
+	ESP8266_Ecn_WPA_PSK = 0x02,                         /*!< Wi-Fi Protected Access */
+	ESP8266_Ecn_WPA2_PSK = 0x03,                        /*!< Wi-Fi Protected Access 2 */
+	ESP8266_Ecn_WPA_WPA2_PSK = 0x04,                    /*!< Wi-Fi Protected Access with both modes */
 } ESP8266_Ecn_t;
 
 /**
  * \brief  Wifi connection error enumeration
  */
 typedef enum {
-	ESP8266_WifiConnectError_Timeout = 0x01,       /*!< Connection timeout */
-	ESP8266_WifiConnectError_WrongPassword = 0x02, /*!< Wrong password for AP */
-	ESP8266_WifiConnectError_APNotFound = 0x03,    /*!< AP was not found */
-	ESP8266_WifiConnectError_Fail = 0x04           /*!< Connection failed with unknown cause */
+	ESP8266_WifiConnectError_Timeout = 0x01,            /*!< Connection timeout */
+	ESP8266_WifiConnectError_WrongPassword = 0x02,      /*!< Wrong password for AP */
+	ESP8266_WifiConnectError_APNotFound = 0x03,         /*!< AP was not found */
+	ESP8266_WifiConnectError_Fail = 0x04                /*!< Connection failed with unknown cause */
 } ESP8266_WifiConnectError_t;
 
 /**
  * \brief  Firmware update statuses
  */
 typedef enum {
-	ESP8266_FirmwareUpdate_ServerFound = 0x01, /*!< Server for update has been found */
-	ESP8266_FirmwareUpdate_Connected = 0x02,   /*!< We are connected to server for firmware */
-	ESP8266_FirmwareUpdate_GotEdition = 0x03,  /*!< We have firmware edition to download */
-	ESP8266_FirmwareUpdate_StartUpdate = 0x04, /*!< Update has started */
+	ESP8266_FirmwareUpdate_ServerFound = 0x01,          /*!< Server for update has been found */
+	ESP8266_FirmwareUpdate_Connected = 0x02,            /*!< We are connected to server for firmware */
+	ESP8266_FirmwareUpdate_GotEdition = 0x03,           /*!< We have firmware edition to download */
+	ESP8266_FirmwareUpdate_StartUpdate = 0x04,          /*!< Update has started */
 } ESP8266_FirmwareUpdate_t;
 
 /**
  * \brief  Sleep mode enumeration
  */
 typedef enum {
-	ESP8266_SleepMode_Disable = 0x00, /*!< Sleep mode disabled */
-	ESP8266_SleepMode_Light = 0x01,   /*!< Light sleep mode */
-	ESP8266_SleepMode_Modem = 0x02    /*!< Model sleep mode */
+	ESP8266_SleepMode_Disable = 0x00,                   /*!< Sleep mode disabled */
+	ESP8266_SleepMode_Light = 0x01,                     /*!< Light sleep mode */
+	ESP8266_SleepMode_Modem = 0x02                      /*!< Model sleep mode */
 } ESP8266_SleepMode_t;
 
 /**
  * \brief  IPD network data structure
  */
 typedef struct {
-	uint8_t InIPD;        /*!< Set to 1 when ESP is in IPD mode with data */
-	uint16_t InPtr;       /*!< Input pointer to save data to buffer */
-	uint16_t PtrTotal;    /*!< Total pointer to count all received data */
-	uint8_t ConnNumber;   /*!< Connection number where IPD is active */
-	uint8_t USART_Buffer; /*!< Set to 1 when data are read from USART buffer or 0 if from temporary buffer */
+	uint8_t InIPD;                                      /*!< Set to 1 when ESP is in IPD mode with data */
+	uint16_t InPtr;                                     /*!< Input pointer to save data to buffer */
+	uint16_t PtrTotal;                                  /*!< Total pointer to count all received data */
+	uint8_t ConnNumber;                                 /*!< Connection number where IPD is active */
+	uint8_t USART_Buffer;                               /*!< Set to 1 when data are read from USART buffer or 0 if from temporary buffer */
 } ESP8266_IPD_t;
 
 /**
  * \brief  Connection type
  */
 typedef enum {
-	ESP8266_ConnectionType_TCP = 0x00, /*!< Connection type is TCP */
-	ESP8266_ConnectionType_UDP = 0x01, /*!< Connection type is UDP */
-	ESP8266_ConnectionType_SSL = 0x02  /*!< Connection type is SSL */
+	ESP8266_ConnectionType_TCP = 0x00,                  /*!< Connection type is TCP */
+	ESP8266_ConnectionType_UDP = 0x01,                  /*!< Connection type is UDP */
+	ESP8266_ConnectionType_SSL = 0x02                   /*!< Connection type is SSL */
 } ESP8266_ConnectionType_t;
 
 /**
  * \brief  Connection structure
  */
 typedef struct {
-	uint8_t Number;              /*!< Connection number */
-	uint16_t RemotePort;         /*!< Remote PORT number */
-	uint8_t RemoteIP[4];         /*!< IP address of device */
-	ESP8266_ConnectionType_t Type; /*!< Connection type. Parameter is valid only if connection is made as client */
-	uint32_t BytesReceived;      /*!< Number of bytes received in current +IPD data package. U
-                                        Use @arg DataSize to detect how many data bytes are in current package when callback function is called for received data */
-	uint32_t TotalBytesReceived; /*!< Number of bytes received in entire connection lifecycle */
+	uint8_t Number;                                     /*!< Connection number */
+	uint16_t RemotePort;                                /*!< Remote PORT number */
+	uint8_t RemoteIP[4];                                /*!< IP address of device */
+	ESP8266_ConnectionType_t Type;                      /*!< Connection type. Parameter is valid only if connection is made as client */
+	uint32_t BytesReceived;                             /*!< Number of bytes received in current +IPD data package. U
+                                                                Use @arg DataSize to detect how many data bytes are in current package when callback function is called for received data */
+	uint32_t TotalBytesReceived;                        /*!< Number of bytes received in entire connection lifecycle */
 #if ESP8266_USE_SINGLE_CONNECTION_BUFFER == 1
-	char* Data;                  /*<! Use pointer to data array */
+	char* Data;                                         /*<! Use pointer to data array */
 #else
-	char Data[ESP8266_CONNECTION_BUFFER_SIZE + 1]; /*!< Data array for connection */
+	char Data[ESP8266_CONNECTION_BUFFER_SIZE + 1];      /*!< Data array for connection */
 #endif
-	uint16_t DataSize;           /*!< Number of bytes in current data package.
-                                        Becomes useful, when we have buffer size for data less than ESP8266 IPD statement has data for us.
-                                        In this case, big packet from ESP8266 is split into several packages and this argument represent package size */
-	uint32_t ContentLength;      /*!< Value of "Content-Length" header if it exists in +IPD data packet */
-	char* Name;                  /*!< Pointer to connection name, useful when using as client */
-	void* UserParameters;        /*!< User parameters pointer. Useful when user wants to pass custom data which can later be used in callbacks */
+	uint16_t DataSize;                                  /*!< Number of bytes in current data package.
+                                                                Becomes useful, when we have buffer size for data less than ESP8266 IPD statement has data for us.
+                                                                In this case, big packet from ESP8266 is split into several packages and this argument represent package size */
+	uint32_t ContentLength;                             /*!< Value of "Content-Length" header if it exists in +IPD data packet */
+	char* Name;                                         /*!< Pointer to connection name, useful when using as client */
+	void* UserParameters;                               /*!< User parameters pointer. Useful when user wants to pass custom data which can later be used in callbacks */
 	union {
 		struct {
-			uint8_t Active:1;              /*!< Status if connection is active */
-			uint8_t Client:1;              /*!< Set to 1 if connection was made as client */
-			uint8_t WaitingSentRespond:1;  /*!< Set to 1 when we have sent data and we are waiting respond */
-			uint8_t CallDataReceived:1;    /*!< Set to 1 when we are waiting for commands to be inactive before we call callback function */
-			uint8_t LastPart:1;            /*!< When connection buffer is less than ESP8266 max +IPD possible data length,
-												this parameter can be used if received part of data is last on one +IPD packet.
-												When data buffer is bigger, this parameter is always set to 1 */
-			uint8_t HeadersDone:1;         /*!< User option flag to set when headers has been found in response */
-			uint8_t FirstPacket:1;         /*!< Set to 1 when if first packet in connection received */
-            uint8_t Blocking:1;            /*!< Set to 1 when connection is blocking. This can only be achieved when using client mode */
-		} F;
-		uint8_t Value;
+			uint8_t Active:1;                           /*!< Status if connection is active */
+			uint8_t Client:1;                           /*!< Set to 1 if connection was made as client */
+			uint8_t WaitingSentRespond:1;               /*!< Set to 1 when we have sent data and we are waiting respond */
+			uint8_t LastPart:1;                         /*!< When connection buffer is less than ESP8266 max +IPD possible data length,
+                                                                this parameter can be used if received part of data is last on one +IPD packet.
+                                                                When data buffer is bigger, this parameter is always set to 1 */
+			uint8_t HeadersDone:1;                      /*!< User option flag to set when headers has been found in response */
+			uint8_t FirstPacket:1;                      /*!< Set to 1 when if first packet in connection received */
+            uint8_t Blocking:1;                         /*!< Set to 1 when connection is blocking. This can only be achieved when using client mode */
+		
+            uint8_t Call_DataReceived:1;                /*!< Set to 1 when we are waiting for commands to be inactive before we call callback function */
+			
+            uint8_t Call_ClientConnectionDataSent:1;
+            uint8_t Call_ClientConnectionDataSentError:1;
+            uint8_t Call_ClientConnectionClosed:1;
+            uint8_t Call_ClientConnectionConnected:1;
+            uint8_t Call_ClientConnectionError:1;
+            
+            uint8_t Call_ServerConnectionDataSent:1;
+            uint8_t Call_ServerConnectionDataSentError:1;
+            uint8_t Call_ServerConnectionActive:1;
+            uint8_t Call_ServerConnectionClosed:1;
+        } F;
+		uint16_t Value;
 	} Flags;
     char* BlockingData;
     uint16_t BlockingDataLength;
@@ -252,29 +264,29 @@ typedef struct {
  * \brief  AP station structure to use when searching for network
  */
 typedef struct {
-	uint8_t Ecn;                          /*!< Security of Wi-Fi spot. This parameter has a value of \ref ESP8266_Ecn_t enumeration */
-	char SSID[ESP8266_MAX_SSID_NAME + 1]; /*!< Service Set Identifier value. Wi-Fi spot name */
-	int16_t RSSI;                         /*!< Signal strength of Wi-Fi spot */
-	uint8_t MAC[6];                       /*!< MAC address of spot */
-	uint8_t Channel;                      /*!< Wi-Fi channel */
-	uint8_t Offset;                       /*!< Frequency offset from base 2.4GHz in kHz */
-	uint8_t Calibration;                  /*!< Frequency offset calibration */
+	uint8_t Ecn;                                        /*!< Security of Wi-Fi spot. This parameter has a value of \ref ESP8266_Ecn_t enumeration */
+	char SSID[ESP8266_MAX_SSID_NAME + 1];               /*!< Service Set Identifier value. Wi-Fi spot name */
+	int16_t RSSI;                                       /*!< Signal strength of Wi-Fi spot */
+	uint8_t MAC[6];                                     /*!< MAC address of spot */
+	uint8_t Channel;                                    /*!< Wi-Fi channel */
+	uint8_t Offset;                                     /*!< Frequency offset from base 2.4GHz in kHz */
+	uint8_t Calibration;                                /*!< Frequency offset calibration */
 } ESP8266_AP_t;
 
 /**
  * \brief  List of AP stations found on network search
  */
 typedef struct {
-	ESP8266_AP_t AP[ESP8266_MAX_DETECTED_AP]; /*!< Each AP point data */
-	uint8_t Count;                            /*!< Number of valid AP stations */
+	ESP8266_AP_t AP[ESP8266_MAX_DETECTED_AP];           /*!< Each AP point data */
+	uint8_t Count;                                      /*!< Number of valid AP stations */
 } ESP8266_APs_t;
 
 /**
  * \brief  Structure for connected station to softAP to ESP module
  */
 typedef struct {
-	uint8_t IP[4];  /*!< IP address of connected station */
-	uint8_t MAC[6]; /*!< MAC address of connected station */
+	uint8_t IP[4];                                      /*!< IP address of connected station */
+	uint8_t MAC[6];                                     /*!< MAC address of connected station */
 } ESP8266_ConnectedStation_t;
 
 /**
@@ -289,37 +301,37 @@ typedef struct {
  * \brief  Access point configuration
  */
 typedef struct {
-	char SSID[20];          /*!< Network public name for ESP AP mode */
-	char Pass[20];          /*!< Network password for ESP AP mode */
-	ESP8266_Ecn_t Ecn;      /*!< Security of Wi-Fi spot. This parameter can be a value of \ref ESP8266_Ecn_t enumeration */
-	uint8_t Channel;        /*!< Channel Wi-Fi is operating at */
-	uint8_t MaxConnections; /*!< Max number of stations that are allowed to connect to ESP AP, between 1 and 4 */
-	uint8_t Hidden;         /*!< Set to 1 if network is hidden (not broadcast) or zero if noz */
+	char SSID[20];                                      /*!< Network public name for ESP AP mode */
+	char Pass[20];                                      /*!< Network password for ESP AP mode */
+	ESP8266_Ecn_t Ecn;                                  /*!< Security of Wi-Fi spot. This parameter can be a value of \ref ESP8266_Ecn_t enumeration */
+	uint8_t Channel;                                    /*!< Channel Wi-Fi is operating at */
+	uint8_t MaxConnections;                             /*!< Max number of stations that are allowed to connect to ESP AP, between 1 and 4 */
+	uint8_t Hidden;                                     /*!< Set to 1 if network is hidden (not broadcast) or zero if noz */
 } ESP8266_APConfig_t;
 
 /**
  * \brief  Ping structure
  */
 typedef struct {
-	char* Address;   /*!< Pointer to domain or IP to ping */
-	uint32_t Time;   /*!< Time in milliseconds needed for pinging */
-	uint8_t Success; /*!< Status indicates if ping was successful */
+	char* Address;                                      /*!< Pointer to domain or IP to ping */
+	uint32_t Time;                                      /*!< Time in milliseconds needed for pinging */
+	uint8_t Success;                                    /*!< Status indicates if ping was successful */
 } ESP8266_Ping_t;
 
 /**
  * \brief  WPS functionality
  */
 typedef enum {
-	ESP8266_WPS_Off = 0x00, /*!< Disables WPS functionality */
-	ESP8266_WPS_On = 0x01   /*!< Enables WPS functionality */
+	ESP8266_WPS_Off = 0x00,                             /*!< Disables WPS functionality */
+	ESP8266_WPS_On = 0x01                               /*!< Enables WPS functionality */
 } ESP8266_WPS_t;
 
 /**
  * \brief  Automatic connection to saved AP on power up
  */
 typedef enum {
-	ESP8266_AutoConnect_Off = 0x00, /*!< Disables automatic connection to AP on power up */
-	ESP8266_AutoConnect_On = 0x01   /*!< Enables automatic connection to AP on power up */
+	ESP8266_AutoConnect_Off = 0x00,                     /*!< Disables automatic connection to AP on power up */
+	ESP8266_AutoConnect_On = 0x01                       /*!< Enables automatic connection to AP on power up */
 } ESP8266_AutoConnect_t;
 
 /**
@@ -367,7 +379,10 @@ typedef struct {
 #endif
 	uint32_t TotalBytesReceived;                              /*!< Total number of bytes ESP8266 module has received from network and sent to our stack */
 	uint32_t TotalBytesSent;                                  /*!< Total number of network data bytes we have sent to ESP8266 module for transmission */
-	ESP8266_Connection_t* LastConnection    ;                 /*!< Pointer to currently active connection to operate */
+	ESP8266_Connection_t* LastConnection;                     /*!< Pointer to currently active connection to operate */
+#if ESP8266_USE_FIRMWAREUPDATE == 1
+    ESP8266_FirmwareUpdate_t FirmwareUpdateStatus;
+#endif
 	union {
 		struct {
 			uint8_t STAIPIsSet:1;                             /*!< IP is set */
@@ -382,9 +397,38 @@ typedef struct {
 			uint8_t LastOperationStatus:1;                    /*!< Last operations status was OK */
 			uint8_t WifiConnected:1;                          /*!< Wifi is connected to network */
 			uint8_t WifiGotIP:1;                              /*!< Wifi got IP address from network */
+            uint8_t InUpdate:1;                               /*!< Flag for status if we are in update function, thread safe access */
+            
+            uint8_t Call_DeviceReady:1;
+            uint8_t Call_WatchdogReset:1;
+            uint8_t Call_WifiConnected:1;
+            uint8_t Call_WifiDisconnected:1;
+            uint8_t Call_WifiConnectFailed:1;
+            uint8_t Call_WifiGotIP:1;
+            uint8_t Call_WifiIPSet:1;
+            uint8_t Call_DHCPTimeout:1;
+#if ESP8266_USE_APSEARCH
+            uint8_t Call_WifiDetected:1;
+#endif
+#if ESP8266_USE_PING == 1
+            uint8_t Call_PingFinished:1;
+#endif
+#if ESP8266_USE_FIRMWAREUPDATE == 1
+            uint8_t Call_FirmwareUpdateStatus:1;
+            uint8_t Call_FirmwareUpdateSuccess:1;
+            uint8_t Call_FirmwareUpdateError:1;
+#endif
+#if ESP8266_USE_CONNECTED_STATIONS
+            uint8_t Call_ConnectedStationsDetected:1;
+#endif
+#if ESP8266_USE_SNTP
+            uint8_t Call_SNTPOk:1;
+            uint8_t Call_SNTPError:1;
+#endif
 		} F;
 		uint32_t Value;
 	} Flags;
+    uint16_t InUpdateTimeout;                                 /*!< Timeout for waiting in update process */
 	ESP8266_Result_t Result;                                  /*!< Result status as returned from last function call. This parameter can be a value of \ref ESP8266_Result_t enumeration */
 } ESP8266_t;
 
