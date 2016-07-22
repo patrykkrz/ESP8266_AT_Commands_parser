@@ -1070,24 +1070,7 @@ uint32_t ParseReceived(ESP8266_t* ESP8266, char* Received, uint16_t bufflen, uin
         ipd_ptr++;
         ipd_ptr_org = ipd_ptr;
         ESP8266->IPD.InPtr = ESP8266->IPD.PtrTotal = 0;     /* Reset values */
-//        if ((blength - ipd_ptr) > Conn->BytesReceived) {    /* Calculate size of buffer */
-//            blength = Conn->BytesReceived + ipd_ptr;
-//        }
-//        ipd_ptr_org += blength - ipd_ptr;
-//
-//        memcpy((uint8_t *)Conn->Data, (uint8_t *)&Received[ipd_ptr], blength - ipd_ptr);    /* Copy content to beginning of buffer */
-//        //ipd_ptr_org += blength - ipd_ptr;
-//        
-//        if ((blength - ipd_ptr) > Conn->BytesReceived) {    /* Check for length */
-//            Conn->Data[Conn->BytesReceived] = 0;            /* Add zero at the end of string */
-//        }
-//        ESP8266->IPD.InPtr = ESP8266->IPD.PtrTotal = blength - ipd_ptr; /* Calculate remaining bytes */
-//        if (ESP8266->IPD.PtrTotal >= Conn->BytesReceived) { /* Check remaining data */
-//            ESP8266->IPD.InIPD = 0;                         /* Not in IPD anymore */
-//            Conn->DataSize = ipd_ptr;                       /* Set package data size */
-//            Conn->Flags.F.LastPart = 1;
-//            Conn->Flags.F.CallDataReceived = 1;             /* Enable flag to call received data callback */
-//        }
+
         return blength2 - (ipd_ptr_org);                    /* Return number of bytes we didn't process in this request */
     }
     
@@ -1178,6 +1161,17 @@ uint32_t ParseReceived(ESP8266_t* ESP8266, char* Received, uint16_t bufflen, uin
                 ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;  /* Reset active command */
                 ESP8266_RESET_CONNECTION(ESP8266, ESP8266->LastConnection);   /* Reset connection */
                 ESP8266->LastConnection->Flags.F.Call_ClientConnectionError = 1;
+            }
+            break;
+        case ESP8266_COMMAND_CIPDOMAIN:
+            if (strncmp(Received, "+CIPDOMAIN:", 11) == 0) {
+                ParseIP(&Received[11], ESP8266->DomainIP, NULL);
+            }
+            if (strcmp(Received, ESP8266_RESPONSE_OK) == 0) {
+                ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;  /* Reset active command */
+            }
+            if (strcmp(Received, ESP8266_RESPONSE_ERROR) == 0) {    
+                ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;  /* Reset active command */
             }
             break;
         case ESP8266_COMMAND_CIPMUX:
@@ -2307,6 +2301,29 @@ ESP8266_Result_t ESP8266_SetSSLBufferSize(ESP8266_t* ESP8266, uint16_t buffersiz
     SendCommand(ESP8266, ESP8266_COMMAND_SSLBUFFERSIZE, NULL, NULL);    /* Send command */
     
     return ESP8266_WaitReady(ESP8266);                      /* Wait response */
+}
+
+/******************************************/
+/*               CIP DOMAIN               */
+/******************************************/
+ESP8266_Result_t ESP8266_GetDomainIP(ESP8266_t* ESP8266, const char* domain) {   
+    ESP8266_CHECK_IDLE(ESP8266);                            /* Check idle state */
+    ESP8266->ActiveCommand = ESP8266_COMMAND_CIPDOMAIN;     /* Lock active command */
+    
+    ESP8266_USARTSENDSTRING("AT+CIPDOMAIN=\"");             /* Format command and send */
+    ESP8266_USARTSENDSTRING(domain);
+    ESP8266_USARTSENDSTRING("\"");
+    ESP8266_USARTSENDSTRING(ESP8266_CRLF);
+    
+    if (SendCommand(ESP8266, ESP8266_COMMAND_CIPDOMAIN, NULL, "+CIPDOMAIN") != ESP_OK) {    /* Send command */
+        return ESP8266->Result;
+    }
+    
+    ESP8266_WaitReady(ESP8266);
+    if (ESP8266->Flags.F.LastOperationStatus) {
+        ESP8266_RETURNWITHSTATUS(ESP8266, ESP_OK);
+    }
+    ESP8266_RETURNWITHSTATUS(ESP8266, ESP_ERROR);
 }
 
 /******************************************/

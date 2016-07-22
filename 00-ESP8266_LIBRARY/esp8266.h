@@ -383,6 +383,7 @@ typedef struct {
 #if ESP8266_USE_FIRMWAREUPDATE == 1
     ESP8266_FirmwareUpdate_t FirmwareUpdateStatus;
 #endif
+    uint8_t DomainIP[4];                                      /*!< Domain IP from CIPDOMAIN response */
 	union {
 		struct {
 			uint8_t STAIPIsSet:1;                             /*!< IP is set */
@@ -918,6 +919,15 @@ ESP8266_Result_t ESP8266_RequestSendData_Blocking(ESP8266_t* ESP8266, ESP8266_Co
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_GetConnectedStations(ESP8266_t* ESP8266);
+
+/**
+ * \brief  Gets IP address of domain name
+ * \note   On function success, DomainIP part in \ref ESP8266_t structure has valid IP address for requested domain
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \param  *domain: Domain to get IP for
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_GetDomainIP(ESP8266_t* ESP8266, const char* domain);
 
 /**
  * \brief  Sets server for SNTP datetime retrieving
