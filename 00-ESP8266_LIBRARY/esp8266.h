@@ -342,6 +342,15 @@ typedef struct {
 } ESP8266_SNTP_t;
 
 /**
+ * \brief  DNS structure
+ */
+typedef struct {
+    const char* Domain;                                 /*!< Domain name for IP */
+    uint8_t IP[4];                                      /*!< IP for domain */
+    uint8_t Successful;                                 /*!< Status flag */
+} ESP8266_Domain_t;
+
+/**
  * \brief  Main ESP8266 working structure
  */
 typedef struct {
@@ -383,7 +392,7 @@ typedef struct {
 #if ESP8266_USE_FIRMWAREUPDATE == 1
     ESP8266_FirmwareUpdate_t FirmwareUpdateStatus;
 #endif
-    uint8_t DomainIP[4];                                      /*!< Domain IP from CIPDOMAIN response */
+    ESP8266_Domain_t Domain;                                  /*!< Domain IP from CIPDOMAIN response */
 	union {
 		struct {
 			uint8_t STAIPIsSet:1;                             /*!< IP is set */
@@ -408,6 +417,7 @@ typedef struct {
             uint8_t Call_WifiGotIP:1;
             uint8_t Call_WifiIPSet:1;
             uint8_t Call_DHCPTimeout:1;
+            uint8_t Call_Domain:1;
 #if ESP8266_USE_APSEARCH
             uint8_t Call_WifiDetected:1;
 #endif
@@ -922,7 +932,6 @@ ESP8266_Result_t ESP8266_GetConnectedStations(ESP8266_t* ESP8266);
 
 /**
  * \brief  Gets IP address of domain name
- * \note   On function success, DomainIP part in \ref ESP8266_t structure has valid IP address for requested domain
  * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
  * \param  *domain: Domain to get IP for
  * \retval Member of \ref ESP8266_Result_t enumeration
@@ -1022,7 +1031,6 @@ void ESP8266_Callback_WifiConnectFailed(ESP8266_t* ESP8266);
  * \note   With weak parameter to prevent link errors if not defined by user
  */
 void ESP8266_Callback_WifiGotIP(ESP8266_t* ESP8266);
-
  
 /**
  * \brief  Device has received station IP.
@@ -1260,6 +1268,14 @@ void ESP8266_Callback_SNTPOk(ESP8266_t* ESP8266, ESP8266_SNTP_t* SNTP);
  * \note   With weak parameter to prevent link errors if not defined by user
  */
 void ESP8266_Callback_SNTPError(ESP8266_t* ESP8266);
+
+/**
+ * \brief  ESP8266 returns data with IP for specific domain (DNS)
+ * \param  *ESP8266: Pointer to \ref ESP8266_t structure
+ * \param  *Domain: Pointer to \ref ESP8266_Domain_t structure
+ * \retval None
+ */
+void ESP8266_Callback_DomainIP(ESP8266_t* ESP8266, ESP8266_Domain_t* Domain);
 
 /**
  * \}

@@ -3,7 +3,7 @@
  * @email   tilen@majerle.eu
  * @website http://esp8266at.com
  * @license MIT
- * @brief   Generic cyclic buffer library used in ESP module
+ * @brief   Generic cyclic buffer library
  *	
 \verbatim
    ----------------------------------------------------------------------
@@ -40,8 +40,8 @@ extern "C" {
 #endif
 
 /**
- * @defgroup ESP8266_BUFFER
- * @brief    Generic cyclic buffer library used in ESP module
+ * @defgroup BUFFER
+ * @brief    Generic cyclic buffer library
  * @{
  *
  * This buffer does not only feature basic read/write operations for cyclic buffers, it also has feature to read strings from buffer if needed.

@@ -26,7 +26,7 @@
 #include "buffer.h"
 
 uint8_t BUFFER_Init(BUFFER_t* Buffer, uint32_t Size, uint8_t* BufferPtr) {
-	if (Buffer == NULL) {											/* Check buffer structure */
+	if (Buffer == NULL) {									/* Check buffer structure */
 		return 1;
 	}
 	memset(Buffer, 0, sizeof(BUFFER_t));        			/* Set buffer values to all zeros */
