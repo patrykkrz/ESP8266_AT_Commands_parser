@@ -361,7 +361,7 @@ void ParseCWLAP(ESP8266_t* ESP8266, char* Buffer) {
     uint8_t pos = 7, num = 0;
     char* ptr;
     
-    if (ESP8266_APs.Count >= ESP8266_MAX_CONNECTIONS) {    	/* Check if we have memory available first */
+    if (ESP8266_APs.Count >= ESP8266_MAX_DETECTED_AP) {    	/* Check if we have memory available first */
         return;
     }
     
