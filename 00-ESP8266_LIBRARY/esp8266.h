@@ -790,6 +790,35 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char
  * \param  port: Port to connect to
  * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
  * \retval Member of \ref ESP8266_Result_t enumeration
+ *
+\code
+ESP8266_Connection_t* Connection;
+if (ESP8266_StartClientConnectionTCP_Blocking(&ESP8266, &Connection, "examplecom", "example.com", 80, NULL) == ESP_OK) {
+    char Buffer[256];
+    
+    //Format request or send custom data to server
+    sprintf(Buffer, "GET /com/example HTTP/1.1\r\n");
+    strcat(Buffer, "Host: example.com\r\n");
+    strcat(Buffer, "Connection: close\r\n");
+    strcat(Buffer, "\r\n");
+    
+    //Send data to server blocking
+    if (ESP8266_RequestSendData_Blocking(&ESP8266, Connection, Buffer, strlen(Buffer)) == ESP_OK) {
+        printf("Data sent\r\n");
+    }
+    
+    //Wait connection to close by remote server, use 3000 ms timeout
+    ESP8266_WaitClosedConnection(&ESP8266, Connection, 3000);
+    printf("Wait closed status: %d\r\n", ESP8266.Result);
+    
+    //Try to close connection blocking
+    if (ESP8266_CloseConnection_Blocking(&ESP8266, Connection) == ESP_OK) {
+        printf("Connection closed!\r\n");
+    } else {
+        printf("Close connection failed with status: %d\r\n", ESP8266.Result);
+    }
+}
+\endcode
  */
 ESP8266_Result_t ESP8266_StartClientConnectionTCP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, void* user_parameters);
 
