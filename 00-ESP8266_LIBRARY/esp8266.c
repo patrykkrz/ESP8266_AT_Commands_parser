@@ -265,12 +265,13 @@ uint32_t ParseHexNumber(char* ptr, uint8_t* cnt) {
 static                                                		/* Parses IP string */
 void ParseIP(char* ip_str, uint8_t* arr, uint8_t* cnt) {
     char* token;
+    char* saveptr;
     uint8_t i = 0, x = 0, c;
     char Data[16];
     
     memcpy(Data, ip_str, sizeof(Data) - 1);           		/* Make a string copy first */
     Data[sizeof(Data) - 1] = 0;    
-    token = strtok(Data, ".");                        		/* Parse numbers, skip :" */
+    token = strtok_r(Data, ".", &saveptr);             		/* Parse numbers, skip :" */
     while (token != NULL) {
         arr[x++] = ParseNumber(token, &c);
         i += c;
@@ -278,7 +279,7 @@ void ParseIP(char* ip_str, uint8_t* arr, uint8_t* cnt) {
             break;
         }
         i++;
-        token = strtok(NULL, ".");
+        token = strtok_r(NULL, ".", &saveptr);
     }
     
     if (cnt != NULL) {
@@ -289,9 +290,10 @@ void ParseIP(char* ip_str, uint8_t* arr, uint8_t* cnt) {
 static                                                		/* Parses MAC string */
 void ParseMAC(char* ptr, uint8_t* arr, uint8_t* cnt) {
     char* hexptr;
+    char* saveptr;
     uint8_t hexnum = 0, tmpcnt = 0, sum = 0;
     
-    hexptr = strtok(ptr, ":");                        		/* Get token */
+    hexptr = strtok_r(ptr, ":", &saveptr);            		/* Get token */
     while (hexptr != NULL) {                        		/* Do it till NULL */
         arr[hexnum++] = ParseHexNumber(hexptr, &tmpcnt);
         sum += tmpcnt;
@@ -299,7 +301,7 @@ void ParseMAC(char* ptr, uint8_t* arr, uint8_t* cnt) {
             break;
         }
         sum++;
-        hexptr = strtok(NULL, ":");
+        hexptr = strtok_r(NULL, ":", &saveptr);
     }
     
     if (cnt) {
@@ -360,6 +362,7 @@ static
 void ParseCWLAP(ESP8266_t* ESP8266, char* Buffer) {
     uint8_t pos = 7, num = 0;
     char* ptr;
+    char* saveptr;
     
     if (ESP8266_APs.Count >= ESP8266_MAX_DETECTED_AP) {    	/* Check if we have memory available first */
         return;
@@ -368,7 +371,7 @@ void ParseCWLAP(ESP8266_t* ESP8266, char* Buffer) {
     if (Buffer[pos] == '(') {                        		/* Get start pointer */
         pos++;
     }
-    ptr = strtok(&Buffer[pos], ",");                		/* Get token */
+    ptr = strtok_r(&Buffer[pos], ",", &saveptr);      		/* Get token */
     while (ptr != NULL) {                            		/* Do it until token != NULL */
         switch (num++) {                            		/* Get positions */
             case 0: 
@@ -398,7 +401,7 @@ void ParseCWLAP(ESP8266_t* ESP8266, char* Buffer) {
                 break;
             default: break;
         }        
-        ptr = strtok(NULL, ",");                    		/* Get new token */
+        ptr = strtok_r(NULL, ",", &saveptr);           		/* Get new token */
     }
     ESP8266_APs.Count++;                            		/* Increase count */
 }
