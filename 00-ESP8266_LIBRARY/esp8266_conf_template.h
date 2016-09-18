@@ -180,6 +180,13 @@
 #define ESP8266_USE_SNTP                          0
 
 /**
+ * \brief   Enables (1) or disables (0) RTOS support for ESP8266 library.
+ * 
+ *          When this feature is enabled, there has to be a separate task for ESP stack which uses \ref ESP8266_Update function only from there.
+ */
+#define ESP8266_RTOS                              1
+
+/**
  * \}
  */
 

@@ -2,7 +2,7 @@
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
  * \website http://esp8266at.com
- * \version v1.1
+ * \version v1.2
  * \license MIT
  * \brief   Library for ESP8266 module using AT commands for embedded systems
  *	
@@ -33,7 +33,7 @@
 \endverbatim
  */
 #ifndef ESP8266_H
-#define ESP8266_H 110
+#define ESP8266_H 120
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -230,7 +230,11 @@ typedef struct {
 			uint8_t HeadersDone:1;                      /*!< User option flag to set when headers has been found in response */
 			uint8_t FirstPacket:1;                      /*!< Set to 1 when if first packet in connection received */
             uint8_t Blocking:1;                         /*!< Set to 1 when connection is blocking. This can only be achieved when using client mode */
-		
+        } F;
+		uint8_t Value;
+	} Flags;
+    union {
+        struct {
             uint8_t Call_DataReceived:1;                /*!< Set to 1 when we are waiting for commands to be inactive before we call callback function */
 			
             uint8_t Call_ClientConnectionDataSent:1;
@@ -244,8 +248,8 @@ typedef struct {
             uint8_t Call_ServerConnectionActive:1;
             uint8_t Call_ServerConnectionClosed:1;
         } F;
-		uint16_t Value;
-	} Flags;
+        uint16_t Value;
+    } CallbackFlags;
     char* BlockingData;
     uint16_t BlockingDataLength;
 } ESP8266_Connection_t;
@@ -408,7 +412,11 @@ typedef struct {
 			uint8_t WifiConnected:1;                          /*!< Wifi is connected to network */
 			uint8_t WifiGotIP:1;                              /*!< Wifi got IP address from network */
             uint8_t InUpdate:1;                               /*!< Flag for status if we are in update function, thread safe access */
-            
+		} F;
+		uint16_t Value;
+	} Flags;
+    union {
+        struct {
             uint8_t Call_DeviceReady:1;
             uint8_t Call_WatchdogReset:1;
             uint8_t Call_WifiConnected:1;
@@ -436,9 +444,9 @@ typedef struct {
             uint8_t Call_SNTPOk:1;
             uint8_t Call_SNTPError:1;
 #endif
-		} F;
-		uint32_t Value;
-	} Flags;
+        } F;
+        uint32_t Value;
+    } CallbackFlags;
     uint16_t InUpdateTimeout;                                 /*!< Timeout for waiting in update process */
 	ESP8266_Result_t Result;                                  /*!< Result status as returned from last function call. This parameter can be a value of \ref ESP8266_Result_t enumeration */
 } ESP8266_t;
@@ -474,6 +482,14 @@ ESP8266_Result_t ESP8266_DeInit(ESP8266_t* ESP8266);
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
 ESP8266_Result_t ESP8266_WaitReady(ESP8266_t* ESP8266);
+
+/**
+ * \brief  Waits for ESP8266 to be ready to accept new command from the same thread as ESP thread uses
+ * \note   This is for RTOS purpose and its usage should be in callbacks when necessary.
+ * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
+ * \retval Member of \ref ESP8266_Result_t enumeration
+ */
+ESP8266_Result_t ESP8266_WaitReadyFromESPThread(ESP8266_t* ESP8266);
 
 /**
  * \brief  Checks if ESP module can accept new AT command

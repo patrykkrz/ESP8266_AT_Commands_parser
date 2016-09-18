@@ -1398,3 +1398,12 @@ static void TM_USART_INT_ClearAllFlags(USART_TypeDef* USARTx, IRQn_Type irq) {
 	HAL_NVIC_ClearPendingIRQ(irq);
 }
 
+
+__weak void TM_USART1_ReceiveHandler(uint8_t c) {}
+__weak void TM_USART2_ReceiveHandler(uint8_t c) {}
+__weak void TM_USART3_ReceiveHandler(uint8_t c) {}
+__weak void TM_UART4_ReceiveHandler(uint8_t c) {}
+__weak void TM_UART5_ReceiveHandler(uint8_t c) {}
+__weak void TM_USART6_ReceiveHandler(uint8_t c) {}
+__weak void TM_UART7_ReceiveHandler(uint8_t c) {}
+__weak void TM_UART8_ReceiveHandler(uint8_t c) {}

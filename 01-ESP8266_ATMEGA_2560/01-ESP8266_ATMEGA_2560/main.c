@@ -290,10 +290,10 @@ void ESP8266_Callback_ClientConnectionDataSentError(ESP8266_t* ESP8266, ESP8266_
 void ESP8266_Callback_ClientConnectionDataReceived(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection, char* Buffer) {
 	/* Data received from server back to client */
 	printf("Data received from server on connection: %s; Number of bytes received: %lu; %lu / %lu;\r\n",
-	Connection->Name,
-	Connection->BytesReceived,
-	Connection->TotalBytesReceived,
-	Connection->ContentLength
+		Connection->Name,
+		Connection->BytesReceived,
+		Connection->TotalBytesReceived,
+		Connection->ContentLength
 	);
 	
 	/* Print message when first packet */
