@@ -1179,10 +1179,10 @@ uint32_t ParseReceived(ESP8266_t* ESP8266, char* Received, uint16_t bufflen, uin
                 ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;  /* Reset active command */
                 ESP8266->LastConnection->CallbackFlags.F.Call_ClientConnectionConnected = 1;
             }
-            if (is_error == 0) {    
+            if (is_error) {    
                 ESP8266->ActiveCommand = ESP8266_COMMAND_IDLE;  /* Reset active command */
-                ESP8266_RESET_CONNECTION(ESP8266, ESP8266->LastConnection);   /* Reset connection */
-                ESP8266->LastConnection->CallbackFlags.F.Call_ClientConnectionError = 1;
+                //ESP8266_RESET_CONNECTION(ESP8266, ESP8266->LastConnection);   /* Reset connection */
+                //ESP8266->LastConnection->CallbackFlags.F.Call_ClientConnectionError = 1;
             }
             break;
         case ESP8266_COMMAND_CIPDOMAIN:
