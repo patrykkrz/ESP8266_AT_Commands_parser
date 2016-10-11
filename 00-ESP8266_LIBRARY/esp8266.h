@@ -795,7 +795,7 @@ ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, const char* addr);
  * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, void* user_parameters);
+ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, void* user_parameters);
 
 /**
  * \brief  Starts new TCP connection as ESP client and connects to given address and port and waits for response

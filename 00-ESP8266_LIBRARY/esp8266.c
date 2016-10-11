@@ -2305,7 +2305,7 @@ ESP8266_Result_t ESP8266_SetAutoConnect(ESP8266_t* ESP8266, ESP8266_AutoConnect_
 /******************************************/
 /*               TCP CLIENT               */
 /******************************************/
-ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, void* user_parameters) {
+ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, void* user_parameters) {
     return StartClientConnection(ESP8266, NULL, ESP8266_ConnectionType_TCP, "TCP", name, location, port, 0, user_parameters, 0);
 }
 
