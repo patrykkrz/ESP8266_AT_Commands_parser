@@ -836,7 +836,7 @@ if (ESP8266_StartClientConnectionTCP_Blocking(&ESP8266, &Connection, "examplecom
 }
 \endcode
  */
-ESP8266_Result_t ESP8266_StartClientConnectionTCP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, void* user_parameters);
+ESP8266_Result_t ESP8266_StartClientConnectionTCP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, const char* location, uint16_t port, void* user_parameters);
 
 /**
  * \brief  Starts new UDP connection as ESP client and connects to given address and port
@@ -848,7 +848,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP_Blocking(ESP8266_t* ESP8266, E
  * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters);
+ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, uint16_t local_port, void* user_parameters);
 
 /**
  * \brief  Starts new UDP connection as ESP client and connects to given address and port and waits for response
@@ -860,7 +860,7 @@ ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char
  * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
  * \retval Member of \ref ESP8266_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_StartClientConnectionUDP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters);
+ESP8266_Result_t ESP8266_StartClientConnectionUDP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, const char* location, uint16_t port, uint16_t local_port, void* user_parameters);
 
 /**
  * \brief  Starts new SSL connection as ESP client and connects to given address and port
