@@ -2309,18 +2309,18 @@ ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char
     return StartClientConnection(ESP8266, NULL, ESP8266_ConnectionType_TCP, "TCP", name, location, port, 0, user_parameters, 0);
 }
 
-ESP8266_Result_t ESP8266_StartClientConnectionTCP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, void* user_parameters) {
+ESP8266_Result_t ESP8266_StartClientConnectionTCP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, const char* location, uint16_t port, void* user_parameters) {
     return StartClientConnection(ESP8266, Conn, ESP8266_ConnectionType_TCP, "TCP", name, location, port, 0, user_parameters, 1);
 }
 
 /******************************************/
 /*               UDP CLIENT               */
 /******************************************/
-ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters) {
+ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, uint16_t local_port, void* user_parameters) {
     return StartClientConnection(ESP8266, NULL, ESP8266_ConnectionType_UDP, "UDP", name, location, port, local_port, user_parameters, 0);
 }
 
-ESP8266_Result_t ESP8266_StartClientConnectionUDP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters) {
+ESP8266_Result_t ESP8266_StartClientConnectionUDP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, const char* location, uint16_t port, uint16_t local_port, void* user_parameters) {
     return StartClientConnection(ESP8266, Conn, ESP8266_ConnectionType_UDP, "UDP", name, location, port, local_port, user_parameters, 1);
 }
 
