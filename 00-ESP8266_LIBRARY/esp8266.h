@@ -1,8 +1,8 @@
 /**
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
- * \website http://esp8266at.com
- * \version v1.2
+ * \website https://majerle.eu/projects/esp8266-at-commands-parser-for-embedded-systems
+ * \version v2.0
  * \license MIT
  * \brief   Library for ESP8266 module using AT commands for embedded systems
  *	
@@ -32,8 +32,8 @@
    ----------------------------------------------------------------------
 \endverbatim
  */
-#ifndef ESP8266_H
-#define ESP8266_H 120
+#ifndef ESP_H
+#define ESP_H 200
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -41,26 +41,12 @@ extern "C" {
 #endif
  
 /**
- * \defgroup ESP8266_API
+ * \defgroup ESP
  * \brief    High level, application part of module
  * \{
  *
- * \par Platform dependant implementation
+ * Application layer for user use.
  *
- * Library itself is platform independent, however, USART and GPIO things must be implemented by user.
- * 
- * Please follow instructions provided in \ref ESP8266_LL page.
- *
- * \par Dependencies
- *
-\verbatim
- - string.h
- - stdio.h
- - stdint.h
- - buffer.h
- - esp8266_ll.h
- - esp8266_conf.h
-\endverbatim
  */
 
 /* Standard C libraries */
@@ -72,44 +58,52 @@ extern "C" {
 #include "esp8266_ll.h"
 
 /* Include configuration */
-#include "esp8266_conf.h"
+#include "esp8266_config.h"
 
 /* Buffer implementation */
 #include "buffer.h"
 
+/* Buffer implementation */
+#include "pt/pt.h"
+
+/* When RTOS is enabled */
+#if ESP_RTOS
+#include "esp8266_sys.h"
+#endif
+
 /* Check values */
-#if !defined(ESP8266_CONF_H) || ESP8266_CONF_H != ESP8266_H
+#if !defined(ESP_CONF_H) || ESP_CONF_H != ESP_H
 //#error Wrong configuration file!
 #endif
 
 /**
- * \defgroup ESP8266_Macros
+ * \defgroup ESP_Macros
  * \brief    Library defines
  * \{
  */
 
 /* This settings should not be modified */
-#define ESP8266_MAX_CONNECTIONS        5  /*!< Number of maximum active connections on ESP */
-#define ESP8266_MAX_CONNECTEDSTATIONS  10 /*!< Number of AP stations saved to received data array */
+#define ESP_MAX_CONNECTIONS        5  /*!< Number of maximum active connections on ESP */
+#define ESP_MAX_CONNECTEDSTATIONS  10 /*!< Number of AP stations saved to received data array */
 
-/* Check for GNUC */
-#ifndef __weak	
-#if defined (__GNUC__)	
-#define __weak   	__attribute__((weak))
-#endif
-#endif	/* Weak attribute */
+#define evol                        volatile
+#define estatic                     static
 
 /* Check debug */
-#ifndef ESP8266_ECHO
-#define ESP8266_ECHO           1
+#ifndef ESP_ECHO
+#define ESP_ECHO                    1
 #endif
+
+/* Public defines */
+#define ESP_MIN_BAUDRATE            (110UL)             /*!< Minimum baud for UART communication */
+#define ESP_MAX_BAUDRATE            (4608000UL)         /*!< Maximum baud for UART communication */
 
 /**
  * \}
  */
  
 /**
- * \defgroup ESP8266_Typedefs
+ * \defgroup ESP_Typedefs
  * \brief    Library Typedefs
  * \{
  */
@@ -117,1210 +111,758 @@ extern "C" {
 /**
  * \brief  ESP8266 library possible return statements on function calls
  */
-typedef enum {
-	ESP_OK = 0x00,                                      /*!< Everything is OK */
-	ESP_ERROR,                                          /*!< An error occurred */
-	ESP_DEVICENOTCONNECTED,                             /*!< Device is not connected to UART */
-	ESP_TIMEOUT,                                        /*!< Timeout was detected when sending command to ESP module */
-	ESP_NOHEAP,                                         /*!< Heap memory is not available */
-	ESP_WIFINOTCONNECTED,                               /*!< Wifi is not connected to network */
-	ESP_BUSY,                                           /*!< Device is busy, new command is not possible */
-	ESP_INVALIDPARAMETERS                               /*!< Parameters for functions are invalid */
-} ESP8266_Result_t;
+typedef enum _ESP_Result_t {
+	espOK = 0x00,                                       /*!< Everything is OK */
+	espERROR,                                           /*!< An error occurred */
+    espLLERROR,                                         /*!< Low-level error */
+    espSYSERROR,                                        /*!< System call error */
+    espPARERROR,                                        /*!< Parameter error */
+	espDEVICENOTCONNECTED,                              /*!< Device is not connected to UART */
+	espTIMEOUT,                                         /*!< Timeout was detected when sending command to ESP module */
+	espNOHEAP,                                          /*!< Heap memory is not available */
+	espWIFINOTCONNECTED,                                /*!< Wifi is not connected to network */
+	espBUSY,                                            /*!< Device is busy, new command is not possible */
+	espINVALIDPARAMETERS,                               /*!< Parameters for functions are invalid */
+    espSENDERROR,                                       /*!< Error trying to send data on connection */
+    
+    espAPNOTFOUND,                                      /*!< AP was not found to connect to */
+    espWRONGPASSWORD                                    /*!< Password is wrong */
+} ESP_Result_t;
 
 /**
  * \brief  ESP8266 modes of operation enumeration
  */
-typedef enum {
-	ESP8266_Mode_STA = 0x01,                            /*!< ESP in station mode */
-	ESP8266_Mode_AP = 0x02,                             /*!< ESP as software Access Point mode */
-	ESP8266_Mode_STA_AP = 0x03                          /*!< ESP in both modes */
-} ESP8266_Mode_t;
+typedef enum _ESP_Mode_t {
+	ESP_Mode_STA = 0x01,                                /*!< ESP in station mode */
+	ESP_Mode_AP = 0x02,                                 /*!< ESP as software Access Point mode */
+	ESP_Mode_STA_AP = 0x03                              /*!< ESP in both modes */
+} ESP_Mode_t;
 
 /**
  * \brief  Security settings for wifi network
  */
-typedef enum {
-	ESP8266_Ecn_OPEN = 0x00,                            /*!< Wifi is open */
-	ESP8266_Ecn_WEP = 0x01,                             /*!< Wired Equivalent Privacy option for wifi security. \note This mode can't be used when setting up ESP8266 wifi */
-	ESP8266_Ecn_WPA_PSK = 0x02,                         /*!< Wi-Fi Protected Access */
-	ESP8266_Ecn_WPA2_PSK = 0x03,                        /*!< Wi-Fi Protected Access 2 */
-	ESP8266_Ecn_WPA_WPA2_PSK = 0x04,                    /*!< Wi-Fi Protected Access with both modes */
-} ESP8266_Ecn_t;
-
-/**
- * \brief  Wifi connection error enumeration
- */
-typedef enum {
-	ESP8266_WifiConnectError_Timeout = 0x01,            /*!< Connection timeout */
-	ESP8266_WifiConnectError_WrongPassword = 0x02,      /*!< Wrong password for AP */
-	ESP8266_WifiConnectError_APNotFound = 0x03,         /*!< AP was not found */
-	ESP8266_WifiConnectError_Fail = 0x04                /*!< Connection failed with unknown cause */
-} ESP8266_WifiConnectError_t;
+typedef enum _ESP_Ecn_t {
+	ESP_Ecn_OPEN = 0x00,                                /*!< Wifi is open */
+	ESP_Ecn_WEP = 0x01,                                 /*!< Wired Equivalent Privacy option for wifi security. \note This mode can't be used when setting up ESP8266 wifi */
+	ESP_Ecn_WPA_PSK = 0x02,                             /*!< Wi-Fi Protected Access */
+	ESP_Ecn_WPA2_PSK = 0x03,                            /*!< Wi-Fi Protected Access 2 */
+	ESP_Ecn_WPA_WPA2_PSK = 0x04,                        /*!< Wi-Fi Protected Access with both modes */
+} ESP_Ecn_t;
 
 /**
  * \brief  Firmware update statuses
  */
-typedef enum {
-	ESP8266_FirmwareUpdate_ServerFound = 0x01,          /*!< Server for update has been found */
-	ESP8266_FirmwareUpdate_Connected = 0x02,            /*!< We are connected to server for firmware */
-	ESP8266_FirmwareUpdate_GotEdition = 0x03,           /*!< We have firmware edition to download */
-	ESP8266_FirmwareUpdate_StartUpdate = 0x04,          /*!< Update has started */
-} ESP8266_FirmwareUpdate_t;
+typedef enum _ESP_FirmwareUpdate_t {
+	ESP_FirmwareUpdate_ServerFound = 0x01,              /*!< Server for update has been found */
+	ESP_FirmwareUpdate_Connected = 0x02,                /*!< We are connected to server for firmware */
+	ESP_FirmwareUpdate_GotEdition = 0x03,               /*!< We have firmware edition to download */
+	ESP_FirmwareUpdate_StartUpdate = 0x04,              /*!< Update has started */
+} ESP_FirmwareUpdate_t;
 
 /**
  * \brief  Sleep mode enumeration
  */
-typedef enum {
-	ESP8266_SleepMode_Disable = 0x00,                   /*!< Sleep mode disabled */
-	ESP8266_SleepMode_Light = 0x01,                     /*!< Light sleep mode */
-	ESP8266_SleepMode_Modem = 0x02                      /*!< Model sleep mode */
-} ESP8266_SleepMode_t;
-
-/**
- * \brief  IPD network data structure
- */
-typedef struct {
-	uint8_t InIPD;                                      /*!< Set to 1 when ESP is in IPD mode with data */
-	uint16_t InPtr;                                     /*!< Input pointer to save data to buffer */
-	uint16_t PtrTotal;                                  /*!< Total pointer to count all received data */
-	uint8_t ConnNumber;                                 /*!< Connection number where IPD is active */
-	uint8_t USART_Buffer;                               /*!< Set to 1 when data are read from USART buffer or 0 if from temporary buffer */
-} ESP8266_IPD_t;
+typedef enum _ESP_SleepMode_t {
+	ESP_SleepMode_Disable = 0x00,                       /*!< Sleep mode disabled */
+	ESP_SleepMode_Light = 0x01,                         /*!< Light sleep mode */
+	ESP_SleepMode_Modem = 0x02                          /*!< Model sleep mode */
+} ESP_SleepMode_t;
 
 /**
  * \brief  Connection type
  */
-typedef enum {
-	ESP8266_ConnectionType_TCP = 0x00,                  /*!< Connection type is TCP */
-	ESP8266_ConnectionType_UDP = 0x01,                  /*!< Connection type is UDP */
-	ESP8266_ConnectionType_SSL = 0x02                   /*!< Connection type is SSL */
-} ESP8266_ConnectionType_t;
+typedef enum _ESP_CONN_Type_t {
+	ESP_CONN_Type_TCP = 0x00,                           /*!< Connection type is TCP */
+	ESP_CONN_Type_UDP = 0x01,                           /*!< Connection type is UDP */
+	ESP_CONN_Type_SSL = 0x02                            /*!< Connection type is SSL */
+} ESP_CONN_Type_t;
 
 /**
  * \brief  Connection structure
  */
-typedef struct {
+typedef struct _ESP_CONN_t {
 	uint8_t Number;                                     /*!< Connection number */
 	uint16_t RemotePort;                                /*!< Remote PORT number */
 	uint8_t RemoteIP[4];                                /*!< IP address of device */
-	ESP8266_ConnectionType_t Type;                      /*!< Connection type. Parameter is valid only if connection is made as client */
-	uint32_t BytesReceived;                             /*!< Number of bytes received in current +IPD data package. U
-                                                                Use @arg DataSize to detect how many data bytes are in current package when callback function is called for received data */
-	uint32_t TotalBytesReceived;                        /*!< Number of bytes received in entire connection lifecycle */
-#if ESP8266_USE_SINGLE_CONNECTION_BUFFER == 1
-	char* Data;                                         /*<! Use pointer to data array */
+	ESP_CONN_Type_t Type;                               /*!< Connection type. Parameter is valid only if connection is made as client */
+#if ESP_CONN_SINGLEBUFFER
+    uint8_t* Data;                                      /*!< Pointer to data array */
 #else
-	char Data[ESP8266_CONNECTION_BUFFER_SIZE + 1];      /*!< Data array for connection */
+    uint8_t Data[ESP_CONNBUFFER_SIZE + 1];              /*!< Received data on connection */
 #endif
-	uint16_t DataSize;                                  /*!< Number of bytes in current data package.
-                                                                Becomes useful, when we have buffer size for data less than ESP8266 IPD statement has data for us.
-                                                                In this case, big packet from ESP8266 is split into several packages and this argument represent package size */
-	uint32_t ContentLength;                             /*!< Value of "Content-Length" header if it exists in +IPD data packet */
-	char* Name;                                         /*!< Pointer to connection name, useful when using as client */
-	void* UserParameters;                               /*!< User parameters pointer. Useful when user wants to pass custom data which can later be used in callbacks */
+    uint16_t DataLength;                                /*!< Number of bytes received in connection packet */
 	union {
 		struct {
 			uint8_t Active:1;                           /*!< Status if connection is active */
 			uint8_t Client:1;                           /*!< Set to 1 if connection was made as client */
-			uint8_t WaitingSentRespond:1;               /*!< Set to 1 when we have sent data and we are waiting respond */
-			uint8_t LastPart:1;                         /*!< When connection buffer is less than ESP8266 max +IPD possible data length,
-                                                                this parameter can be used if received part of data is last on one +IPD packet.
-                                                                When data buffer is bigger, this parameter is always set to 1 */
-			uint8_t HeadersDone:1;                      /*!< User option flag to set when headers has been found in response */
-			uint8_t FirstPacket:1;                      /*!< Set to 1 when if first packet in connection received */
-            uint8_t Blocking:1;                         /*!< Set to 1 when connection is blocking. This can only be achieved when using client mode */
         } F;
-		uint8_t Value;
-	} Flags;
+		uint8_t Value;                                  /*!< Value of entire union */
+	} Flags;                                            /*!< Connection flags management */
     union {
         struct {
-            uint8_t Call_DataReceived:1;                /*!< Set to 1 when we are waiting for commands to be inactive before we call callback function */
-			
-            uint8_t Call_ClientConnectionDataSent:1;
-            uint8_t Call_ClientConnectionDataSentError:1;
-            uint8_t Call_ClientConnectionClosed:1;
-            uint8_t Call_ClientConnectionConnected:1;
-            uint8_t Call_ClientConnectionError:1;
-            
-            uint8_t Call_ServerConnectionDataSent:1;
-            uint8_t Call_ServerConnectionDataSentError:1;
-            uint8_t Call_ServerConnectionActive:1;
-            uint8_t Call_ServerConnectionClosed:1;
+            uint8_t Connect:1;                          /*!< Connection was just connected, client or server */
+            uint8_t Closed:1;                           /*!< Connection was just disconnected, client or server */
+            uint8_t DataSent:1;                         /*!< Data were sent successfully */
+            uint8_t DataError:1;                        /*!< Error trying to send data */
+            uint8_t CallLastPartOfPacketReceived:1;     /*!< Data are processed synchronously. When there is last part of packet received and command is not idle, we must save notification for callback */
         } F;
-        uint16_t Value;
-    } CallbackFlags;
-    char* BlockingData;
-    uint16_t BlockingDataLength;
-} ESP8266_Connection_t;
+        uint8_t Value;
+    } Callback;                                         /*!< Flags for callback management */
+} ESP_CONN_t;
 
 /**
- * \brief  Connected network structure
+ * \brief  IPD network data structure
  */
-typedef struct {
-	char SSID[ESP8266_MAX_CONNECTED_SSID_NAME_LENGTH]; /*!< SSID network name */
-	uint8_t MAC[6];                                    /*!< MAC address of network */
-	uint8_t Channel;                                   /*!< Network channel */
-	int16_t RSSI;                                      /*!< Signal strength */
-} ESP8266_ConnectedWifi_t;
+typedef struct _ESP_IPD_t {
+	uint8_t InIPD;                                      /*!< Set to 1 when ESP is in IPD mode with data */
+	ESP_CONN_t* Conn;                                   /*!< Connection number where IPD is active */
+    uint16_t BytesRemaining;                            /*!< Remaining bytes to read from entire IPD statement */
+    uint16_t BytesRead;                                 /*!< Bytes read in current packet */
+} ESP_IPD_t;
+
+/**
+ * \brief  Connected AP structure
+ */
+typedef struct _ESP_ConnectedAP_t {
+	char SSID[20 + 1];                                  /*!< SSID network name */
+	uint8_t MAC[6];                                     /*!< MAC address of network */
+	uint8_t Channel;                                    /*!< Network channel */
+	int16_t RSSI;                                       /*!< Signal strength */
+} ESP_ConnectedAP_t;
 
 /**
  * \brief  AP station structure to use when searching for network
  */
-typedef struct {
-	uint8_t Ecn;                                        /*!< Security of Wi-Fi spot. This parameter has a value of \ref ESP8266_Ecn_t enumeration */
-	char SSID[ESP8266_MAX_SSID_NAME + 1];               /*!< Service Set Identifier value. Wi-Fi spot name */
+typedef struct _ESP_AP_t {
+	uint8_t Ecn;                                        /*!< Security of Wi-Fi spot. This parameter has a value of \ref ESP_Ecn_t enumeration */
+	char SSID[20 + 1];                                  /*!< Service Set Identifier value. Wi-Fi spot name */
 	int16_t RSSI;                                       /*!< Signal strength of Wi-Fi spot */
 	uint8_t MAC[6];                                     /*!< MAC address of spot */
 	uint8_t Channel;                                    /*!< Wi-Fi channel */
-	uint8_t Offset;                                     /*!< Frequency offset from base 2.4GHz in kHz */
+	int8_t Offset;                                      /*!< Frequency offset from base 2.4GHz in kHz */
 	uint8_t Calibration;                                /*!< Frequency offset calibration */
-} ESP8266_AP_t;
-
-/**
- * \brief  List of AP stations found on network search
- */
-typedef struct {
-	ESP8266_AP_t AP[ESP8266_MAX_DETECTED_AP];           /*!< Each AP point data */
-	uint8_t Count;                                      /*!< Number of valid AP stations */
-} ESP8266_APs_t;
+} ESP_AP_t;
 
 /**
  * \brief  Structure for connected station to softAP to ESP module
  */
-typedef struct {
+typedef struct _ESP_ConnectedStation_t {
 	uint8_t IP[4];                                      /*!< IP address of connected station */
 	uint8_t MAC[6];                                     /*!< MAC address of connected station */
-} ESP8266_ConnectedStation_t;
-
-/**
- * \brief  List of connected stations to softAP
- */
-typedef struct {
-	ESP8266_ConnectedStation_t Stations[ESP8266_MAX_CONNECTEDSTATIONS]; /*!< Array of connected stations to AP. Valid number of stations is in \ref Count variable */
-	uint8_t Count;                                                      /*!< Number of connected stations to AP */
-} ESP8266_ConnectedStations_t;
+} ESP_ConnectedStation_t;
 
 /**
  * \brief  Access point configuration
  */
-typedef struct {
+typedef struct _ESP_APConfig_t {
 	char SSID[20];                                      /*!< Network public name for ESP AP mode */
 	char Pass[20];                                      /*!< Network password for ESP AP mode */
-	ESP8266_Ecn_t Ecn;                                  /*!< Security of Wi-Fi spot. This parameter can be a value of \ref ESP8266_Ecn_t enumeration */
+	ESP_Ecn_t Ecn;                                      /*!< Security of Wi-Fi spot. This parameter can be a value of \ref ESP_Ecn_t enumeration */
 	uint8_t Channel;                                    /*!< Channel Wi-Fi is operating at */
 	uint8_t MaxConnections;                             /*!< Max number of stations that are allowed to connect to ESP AP, between 1 and 4 */
 	uint8_t Hidden;                                     /*!< Set to 1 if network is hidden (not broadcast) or zero if noz */
-} ESP8266_APConfig_t;
-
-/**
- * \brief  Ping structure
- */
-typedef struct {
-	char* Address;                                      /*!< Pointer to domain or IP to ping */
-	uint32_t Time;                                      /*!< Time in milliseconds needed for pinging */
-	uint8_t Success;                                    /*!< Status indicates if ping was successful */
-} ESP8266_Ping_t;
-
-/**
- * \brief  WPS functionality
- */
-typedef enum {
-	ESP8266_WPS_Off = 0x00,                             /*!< Disables WPS functionality */
-	ESP8266_WPS_On = 0x01                               /*!< Enables WPS functionality */
-} ESP8266_WPS_t;
-
-/**
- * \brief  Automatic connection to saved AP on power up
- */
-typedef enum {
-	ESP8266_AutoConnect_Off = 0x00,                     /*!< Disables automatic connection to AP on power up */
-	ESP8266_AutoConnect_On = 0x01                       /*!< Enables automatic connection to AP on power up */
-} ESP8266_AutoConnect_t;
-
-/**
- * \brief  SNTP structure for current time
- */
-typedef struct {
-	uint32_t Time;
-} ESP8266_SNTP_t;
+} ESP_APConfig_t;
 
 /**
  * \brief  DNS structure
  */
-typedef struct {
+typedef struct _ESP_Domain_t {
     const char* Domain;                                 /*!< Domain name for IP */
     uint8_t IP[4];                                      /*!< IP for domain */
     uint8_t Successful;                                 /*!< Status flag */
-} ESP8266_Domain_t;
+} ESP_Domain_t;
+
+/**
+ * \brief  Event enumeration for callback
+ */
+typedef enum _ESP_Event_t {
+    espEventIdle = 0x00,                                /*!< Stack went idle and is ready to accept new instruction */
+    espEventDataReceived,                               /*!< Data were received on connection */
+    espEventWifiConnected,                              /*!< Wifi has connected to network */
+    espEventWifiDisconnected,                           /*!< Wifi has disconnected to network */
+    espEventWifiGotIP,                                  /*!< Wifi got IP address */
+    espEventWifiDhcpTimeout,                            /*!< Wifi DHCP timeout to assing IP address */
+    espEventConnActive,                                 /*!< Connection is just active, either client or server mode */
+    espEventConnClosed,                                 /*!< Connection is just closed, either client or server mode */
+    espEventDataSent,                                   /*!< Data were sent on connection */
+    espEventDataSentError,                              /*!< Error trying to sent data on connection */
+} ESP_Event_t;
+
+/**
+ * \brief  Parameters for callback processing
+ */
+typedef struct _ESP_EventParams_t {
+    const void* CP1;                                    /*!< Constant void pointer number 1 */
+    const void* CP2;                                    /*!< Constant void pointer number 2 */
+    uint32_t UI;                                        /*!< Unsigned integer value */
+} ESP_EventParams_t;
+
+/**
+ * \brief  Callback function prototype
+ */
+typedef int (*ESP_EventCallback_t)(ESP_Event_t, ESP_EventParams_t *);
 
 /**
  * \brief  Main ESP8266 working structure
  */
-typedef struct {
-	uint32_t Baudrate;                                        /*!< Currently used baudrate for ESP module */
-	volatile uint32_t ActiveCommand;                          /*!< Currently active AT command for module */
-	char* ActiveCommandResponse;                              /*!< List of responses we expect with AT command */
-	volatile uint32_t StartTime;                              /*!< Time when command was sent */
-	volatile uint32_t Time;                                   /*!< Curent time in milliseconds */
-	volatile uint32_t LastReceivedTime;                       /*!< Time when last string was received from ESP module */
-	uint32_t Timeout;                                         /*!< Timeout in milliseconds for command to return response */
-	ESP8266_Connection_t Connection[ESP8266_MAX_CONNECTIONS]; /*!< Array of connections */
-	uint8_t STAIP[4];                                         /*!< Assigned IP address for station for ESP module */
-	uint8_t STAGateway[4];                                    /*!< Gateway address for station ESP is using */
-	uint8_t STANetmask[4];                                    /*!< Netmask address for station ESP is using */
-	uint8_t STAMAC[6];                                        /*!< MAC address for station of ESP module */
-	uint8_t APIP[4];                                          /*!< Assigned IP address for softAP for ESP module */
-	uint8_t APGateway[4];                                     /*!< Gateway address ESP for softAP is using */
-	uint8_t APNetmask[4];                                     /*!< Netmask address ESP for softAP is using */
-	uint8_t APMAC[6];                                         /*!< MAC address for softAP of ESP module */
-	ESP8266_Mode_t SentMode;                                  /*!< AP/STA mode we sent to module. This parameter can be a value of \ref ESP8266_Mode_t enumeration */
-	ESP8266_Mode_t Mode;                                      /*!< AT/STA mode which is currently active. This parameter can be a value of \ref ESP8266_Mode_t enumeration */
-	ESP8266_APConfig_t AP;                                    /*!< Configuration settings for ESP when using as Access point mode */
-	ESP8266_IPD_t IPD;                                        /*!< IPD status structure. Used when new data are available from module */
-#if ESP8266_USE_PING == 1
-	ESP8266_Ping_t Pinging;                                   /*!< Pinging structure */
+typedef struct _ESP_t {
+    evol uint32_t Time;                                 /*!< Current time in units of milliseconds */
+    evol ESP_Result_t RetVal;                           /*!< Return value */
+    
+    /*!< Low-Level management */
+    ESP_LL_t LL;                                        /*!< Structure for Low-Level communication */
+    
+    /*!< Active command informations */
+    evol uint16_t ActiveCmd;                            /*!< Current active command for execution */
+    evol uint16_t ActiveCmdSaved;                       /*!< Value of saved active CMD when necessary to change active command while processing one. */
+    const char* evol ActiveCmdResp;                     /*!< Pointer to active command response we are waiting for */
+    evol uint32_t ActiveCmdStart;                       /*!< Time when new command started with execution */
+    evol ESP_Result_t ActiveResult;                     /*!< Result to return from function */
+    evol uint32_t ActiveCmdTimeout;                     /*!< Timeout in units of MS for active command to finish */
+
+	uint32_t Timeout;                                   /*!< Timeout in milliseconds for command to return response */
+    
+    /*!< RTOS support */
+#if ESP_RTOS
+    ESP_RTOS_SYNC_t Sync;                               /*!< RTOS synchronization object */
 #endif
-	ESP8266_ConnectedWifi_t ConnectedWifi;                    /*!< Informations about currently connected wifi network */
-	ESP8266_WifiConnectError_t WifiConnectError;              /*!< Error code for connection to wifi network. This parameter can be a value of \ref ESP8266_WifiConnectError_t enumeration */
-	int8_t StartConnectionSent;                               /*!< Connection number which has active CIPSTART command and waits response */
-#if ESP8266_USE_CONNECTED_STATIONS == 1
-	ESP8266_ConnectedStations_t ConnectedStations;            /*!< Connected stations to ESP8266 module softAP */
-#endif
-#if ESP8266_USE_SNTP == 1
-	ESP8266_SNTP_t SNTP;                                      /*!< SNTP structure for current time */
-#endif
-	uint32_t TotalBytesReceived;                              /*!< Total number of bytes ESP8266 module has received from network and sent to our stack */
-	uint32_t TotalBytesSent;                                  /*!< Total number of network data bytes we have sent to ESP8266 module for transmission */
-	ESP8266_Connection_t* LastConnection;                     /*!< Pointer to currently active connection to operate */
-#if ESP8266_USE_FIRMWAREUPDATE == 1
-    ESP8266_FirmwareUpdate_t FirmwareUpdateStatus;
-#endif
-    ESP8266_Domain_t Domain;                                  /*!< Domain IP from CIPDOMAIN response */
+    
+    /*!< Station informations */
+	uint8_t STAIP[4];                                   /*!< Assigned IP address for station for ESP module */
+	uint8_t STAGateway[4];                              /*!< Gateway address for station ESP is using */
+	uint8_t STANetmask[4];                              /*!< Netmask address for station ESP is using */
+	uint8_t STAMAC[6];                                  /*!< MAC address for station of ESP module */
+    
+    /*!< Access Point informations */
+	uint8_t APIP[4];                                    /*!< Assigned IP address for softAP for ESP module */
+	uint8_t APGateway[4];                               /*!< Gateway address ESP for softAP is using */
+	uint8_t APNetmask[4];                               /*!< Netmask address ESP for softAP is using */
+	uint8_t APMAC[6];                                   /*!< MAC address for softAP of ESP module */
+    ESP_APConfig_t APConf;                              /*!< Soft AP configuration */
+    
+    /* Connections structure */
+	ESP_CONN_t Conn[ESP_MAX_CONNECTIONS];               /*!< Array of connections */
+    
+    /*!< Incoming data structure */
+    ESP_IPD_t IPD;                                      /*!< IPD network data structure */
+
 	union {
 		struct {
-			uint8_t STAIPIsSet:1;                             /*!< IP is set */
-			uint8_t STANetmaskIsSet:1;                        /*!< Netmask address is set */
-			uint8_t STAGatewayIsSet:1;                        /*!< Gateway address is set */
-			uint8_t STAMACIsSet:1;                            /*!< MAC address is set */
-			uint8_t APIPIsSet:1;                              /*!< IP is set */
-			uint8_t APNetmaskIsSet:1;                         /*!< Netmask address is set */
-			uint8_t APGatewayIsSet:1;                         /*!< Gateway address is set */
-			uint8_t APMACIsSet:1;                             /*!< MAC address is set */
-			uint8_t WaitForWrapper:1;                         /*!< We are waiting for wrapper */
-			uint8_t LastOperationStatus:1;                    /*!< Last operations status was OK */
-			uint8_t WifiConnected:1;                          /*!< Wifi is connected to network */
-			uint8_t WifiGotIP:1;                              /*!< Wifi got IP address from network */
-            uint8_t InUpdate:1;                               /*!< Flag for status if we are in update function, thread safe access */
+            uint8_t IsBlocking:1;                       /*!< Status whether action was called as blocking */
+            uint8_t Call_Idle:1;                        /*!< Status whether idle status event should be called before we can proceed with another action */
 		} F;
-		uint16_t Value;
-	} Flags;
+		uint32_t Value;
+	} Flags;                                            /*!< Flags for library purpose */
+    
+    /*!< Callback management */
     union {
         struct {
-            uint8_t Call_DeviceReady:1;
-            uint8_t Call_WatchdogReset:1;
-            uint8_t Call_WifiConnected:1;
-            uint8_t Call_WifiDisconnected:1;
-            uint8_t Call_WifiConnectFailed:1;
-            uint8_t Call_WifiGotIP:1;
-            uint8_t Call_WifiIPSet:1;
-            uint8_t Call_DHCPTimeout:1;
-            uint8_t Call_Domain:1;
-#if ESP8266_USE_APSEARCH
-            uint8_t Call_WifiDetected:1;
-#endif
-#if ESP8266_USE_PING == 1
-            uint8_t Call_PingFinished:1;
-#endif
-#if ESP8266_USE_FIRMWAREUPDATE == 1
-            uint8_t Call_FirmwareUpdateStatus:1;
-            uint8_t Call_FirmwareUpdateSuccess:1;
-            uint8_t Call_FirmwareUpdateError:1;
-#endif
-#if ESP8266_USE_CONNECTED_STATIONS
-            uint8_t Call_ConnectedStationsDetected:1;
-#endif
-#if ESP8266_USE_SNTP
-            uint8_t Call_SNTPOk:1;
-            uint8_t Call_SNTPError:1;
-#endif
+            uint8_t WifiConnected:1;                    /*!< Wifi just got connected */
+            uint8_t WifiDisconnected:1;                 /*!< Wifi just got disconnected */
+            uint8_t WifiGotIP:1;                        /*!< Wifi station just got IP address */
         } F;
         uint32_t Value;
-    } CallbackFlags;
-    uint16_t InUpdateTimeout;                                 /*!< Timeout for waiting in update process */
-	ESP8266_Result_t Result;                                  /*!< Result status as returned from last function call. This parameter can be a value of \ref ESP8266_Result_t enumeration */
-} ESP8266_t;
+    } CallbackFlags;                                    /*!< List of global flags for callback events */
+    ESP_EventCallback_t Callback;                       /*!< Pointer to callback function */
+    ESP_EventParams_t CallbackParams;                   /*!< Callback parameters */
+    
+    /*!< Events management with receive interaction */
+    union {
+        struct {
+            uint8_t RespOk:1;                           /*!< OK message response */
+            uint8_t RespError:1;                        /*!< Error message response */
+            uint8_t RespBracket:1;                      /*!< Bracket received (SMS messages) */
+            uint8_t RespReady:1;                        /*!< Ready statement was received */
+            
+            uint8_t RespConnectOk:1;                    /*!< n, CONNECT OK was returned from device */
+            uint8_t RespConnectFail:1;                  /*!< n, CONNECT FAIL was returned from device */
+            uint8_t RespConnectAlready:1;               /*!< n, ALREADY CONNECTED was returned from device */
+            uint8_t RespCloseOk:1;                      /*!< n, CLOSE OK was returned from device */
+            uint8_t RespSendOk:1;                       /*!< n, SEND OK was returned from device */
+            uint8_t RespSendFail:1;                     /*!< n, SEND FAIL was returned from device */
+            
+            uint8_t RespWifiConnected:1;
+            uint8_t RespWifiDisconnected:1;
+            uint8_t RespWifiGotIp:1;
+        } F;
+        uint32_t Value;                                 /*!< Value containing all the flags in single memory */
+    } Events;                                           /*!< Union holding all the required events for library internal processing */
+} ESP_t;
 
 /**
  * \}
  */
 
 /**
- * \defgroup ESP8266_Functions
- * \brief    Library Functions
+ * \defgroup ESP_Functions
+ * \brief    ESP Functions
  * \{
  */
 
 /**
- * \brief  Initializes ESP8266 module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  baudrate: USART baudrate for ESP8266 module
- * \retval Member of \ref ESP8266_Result_t enumeration
+ * \brief  Initializes ESP stack and prepares device to working state
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  baudrate: Baudrate for UART to communicate with ESP8266 module
+ * \param  callback: Pointer to callback function stack will use to notify user about updates
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_Init(ESP8266_t* ESP8266, uint32_t baudrate);
+ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t callback);
 
 /**
- * \brief  Deinitializes ESP8266 module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
+ * \brief  Deinitializes ESP stack
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_DeInit(ESP8266_t* ESP8266);
+ESP_Result_t ESP_DeInit(evol ESP_t* ESP);
 
 /**
- * \brief  Waits for ESP8266 to be ready to accept new command
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
+ * \brief  Waits stack to be ready
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  timeout: Timeout in units of milliseconds to wait for stack to be ready
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_WaitReady(ESP8266_t* ESP8266);
+ESP_Result_t ESP_WaitReady(evol ESP_t* ESP, uint32_t timeout);
 
 /**
- * \brief  Waits for ESP8266 to be ready to accept new command from the same thread as ESP thread uses
- * \note   This is for RTOS purpose and its usage should be in callbacks when necessary.
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
+ * \brief  Delay for amount of time
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  delay: Number of milliseconds to delay
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_WaitReadyFromESPThread(ESP8266_t* ESP8266);
+ESP_Result_t ESP_Delay(evol ESP_t* ESP, uint32_t delay);
 
 /**
- * \brief  Checks if ESP module can accept new AT command
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
+ * \brief  Checks if stack is ready
+ * \note   This checks only flag in library. When working with RTOS, this function may not return actual value
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_IsReady(ESP8266_t* ESP8266);
+ESP_Result_t ESP_IsReady(evol ESP_t* ESP);
 
 /**
- * \brief  Update function which does entire work.
- * \note   This function must be called periodically inside main loop to process all events
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
+ * \brief  Updates ESP stack
+ * \note   When RTOS is used, this should be used in separate thread
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_Update(ESP8266_t* ESP8266);
+ESP_Result_t ESP_Update(evol ESP_t* ESP);
 
 /**
- * \brief  Updates current time
- * \note   This function must be called periodically, best if from interrupt handler, like Systick or other timer based irq
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  time_increase: Number of milliseconds timer will be increased
- * \retval None
+ * \brief  Process callback calls
+ * \note   \li When in RTOS or ASYNC mode, user should use separate thread than one used for \ref ESP_Update
+ *         \li When in non-RTOS mode function is called from \ref ESP_Update function, user should not worry about it.
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-void ESP8266_TimeUpdate(ESP8266_t* ESP8266, uint32_t time_increase);
+ESP_Result_t ESP_ProcessCallbacks(evol ESP_t* ESP);
 
 /**
- * \brief  Restores default values from ESP8266 module flash memory
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
+ * \brief  Update time for stack from timer IRQ or any other time source
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  time_increase: Number of milliseconds to increase after last function call
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_RestoreDefault(ESP8266_t* ESP8266);
+void ESP_UpdateTime(evol ESP_t* ESP, uint32_t time_increase);
 
 /**
- * \brief  Sets radio frequency power output in steps by 0.25 dBm
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  pwr: Power in units of dBm. This parameter can be a value between 0 and 20.5 dBm
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
+ * \brief  Add new data to ESP receive buffer
+ * \note   Must be called from UART RXNE interrupt or any other input source of data from ESP
+ * \param  ch: Pointer to byte or array of bytes to add to stack's input buffer
+ * \param  count: Number of bytes to write to stack's input buffer
+ * \retval Number of bytes written to internal ESP buffer
  */
-ESP8266_Result_t ESP8266_SetRFPower(ESP8266_t* ESP8266, float pwr);
+uint16_t ESP_DataReceived(uint8_t* ch, uint16_t count);
 
 /**
- * \brief  Starts firmware module update over the air (OTA)
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
+ * \defgroup MISC_API
+ * \brief    
+ * \{
  */
-ESP8266_Result_t ESP8266_FirmwareUpdate(ESP8266_t* ESP8266);
 
 /**
- * \brief  Sets baudrate for ESP8266 module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  baudrate: Baudrate to use with module
- * \retval Member of \ref ESP8266_Result_t enumeration
+ * \brief  Set RF power for hardware
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  pwr: Power in units of dBm
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_SetUART(ESP8266_t* ESP8266, uint32_t baudrate);
+ESP_Result_t ESP_SetRFPower(evol ESP_t* ESP, float pwr, uint32_t blocking);
 
 /**
- * \brief  Sets baudrate for ESP8266 module and stores it to ESP flash for future use
- * \note   I don't recommend to use this feature. Use \ref ESP8266_SetUART to set new baudrate until ESP8266 will reset again.
- *             
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  baudrate: Baudrate to use with module
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
+ * \brief  Set current UART baudrate for ESP8266 device
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  baudrate: Baudrate in units of bauds for ESP8266 communication purpose
+ * \param  def: Status whether this IP should be stored to ESP flash or not
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_SetUARTDefault(ESP8266_t* ESP8266, uint32_t baudrate);
+ESP_Result_t ESP_SetUART(evol ESP_t* ESP, uint32_t baudrate, uint32_t def, uint32_t blocking);
 
 /**
- * \brief  Sets sleep mode for ESP8266 module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  SleepMode: Sleep mode type. This parameter can be a value of \ref ESP8266_SleepMode_t enumeration
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
+ * \brief  Restore ESP8266 flash settings to default values
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_SetSleepMode(ESP8266_t* ESP8266, ESP8266_SleepMode_t SleepMode);
+ESP_Result_t ESP_RestoreDefault(evol ESP_t* ESP, uint32_t blocking);
 
 /**
- * \brief  Puts ESP8266 to sleep for specific amount of milliseconds
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  Milliseconds: Number of milliseconds ESP will be in sleep mode
- * \retval Member of \ref ESP8266_Result_t enumeration
+ * \brief  Update ESP8266 firmware update with remote process
+ * \note   ESP8266 must be connected to network and have access to internet
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP8266_Result_t ESP8266_Sleep(ESP8266_t* ESP8266, uint32_t Milliseconds);
-
-/**
- * \brief  Connects to wifi network
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *ssid: SSID name to connect to
- * \param  *pass: Password for SSID. Set to "" if there is no password required
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_WifiConnect(ESP8266_t* ESP8266, const char* ssid, const char* pass);
-
-/**
- * \brief  Connects to wifi network and saves setting to internal flash of ESP for auto connect to network
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *ssid: SSID name to connect to
- * \param  *pass: Password for SSID. Set to "" if there is no password required
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_WifiConnectDefault(ESP8266_t* ESP8266, const char* ssid, const char* pass);
-
-/**
- * \brief  Gets AP settings of connected network
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure where data about AP will be stored
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_WifiGetConnected(ESP8266_t* ESP8266);
-
-/**
- * \brief  Disconnects from connected AP if any
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_WifiDisconnect(ESP8266_t* ESP8266);
-
-/**
- * \brief  Sets mode for ESP8266, either STA, AP or both
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  Mode: ESP8266 working mode. This parameter can be a value of \ref ESP8266_Mode_t enumeration
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetMode(ESP8266_t* ESP8266, ESP8266_Mode_t Mode);
-
-/**
- * \brief  Sets WPS mode for ESP8266
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  wps: WPS status. This parameter can be a value of \ref ESP8266_WPS_t enumeration
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetWPS(ESP8266_t* ESP8266, ESP8266_WPS_t wps);
-
-/**
- * \brief  Enables server mode on ESP8266 module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  port: Port number ESP will be visible on
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_ServerEnable(ESP8266_t* ESP8266, uint16_t port);
-
-/**
- * \brief  Disables server mode on ESP8266 module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_ServerDisable(ESP8266_t* ESP8266);
-
-/**
- * \brief  Sets server timeout value for connections waiting ESP to respond. This applies for all clients which connects to ESP module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  timeout: Timeout value in unit of seconds
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetServerTimeout(ESP8266_t* ESP8266, uint16_t timeout);
-
-/**
- * \brief  Gets current IP of ESP module connected to other wifi network as station
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_GetSTAIP(ESP8266_t* ESP8266);
-
-/**
- * \brief  Gets current IP of ESP module connected to other wifi network as station and waits for response from module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_GetSTAIPBlocking(ESP8266_t* ESP8266);
-
-/**
- * \brief  Gets ESP MAC address when acting like station
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_GetSTAMAC(ESP8266_t* ESP8266);
-
-/**
- * \brief  Sets ESP MAC address when acting like station
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *addr: 6-byts long MAX address
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetSTAMAC(ESP8266_t* ESP8266, uint8_t* addr);
-
-/**
- * \brief  Sets ESP MAC address when acting like station and stores value to ESP flash memory
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *addr: 6-byts long MAX address
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetSTAMACDefault(ESP8266_t* ESP8266, uint8_t* addr);
-
-/**
- * \brief  Gets current IP of ESP module acting like softAP
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_GetAPIP(ESP8266_t* ESP8266);
-
-/**
- * \brief  Gets current IP of ESP module acting like softAP and waits for response from module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_GetAPIPBlocking(ESP8266_t* ESP8266);
-
-/**
- * \brief  Gets ESP MAC address when acting like softAP
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_GetAPMAC(ESP8266_t* ESP8266);
-
-/**
- * \brief  Sets ESP MAC address when acting like softAP
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *addr: 6-bytes long MAC address
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetAPMAC(ESP8266_t* ESP8266, uint8_t* addr);
-
-/**
- * \brief  Sets ESP MAC address when acting like softAP and stores value to flash memory
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *addr: 6-bytes long MAC address
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetAPMACDefault(ESP8266_t* ESP8266, uint8_t* addr);
-
-/**
- * \brief  Lists for all available AP stations ESP can connect to
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_ListWifiStations(ESP8266_t* ESP8266);
-
-/**
- * \brief  Gets current AP settings of ESP module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_GetAP(ESP8266_t* ESP8266);
-
-/**
- * \brief  Sets automatic connection to AP on power up.
- * \note   For connection, saved AP is used, which can be saved to flash using \ref ESP8266_WifiConnectDefault
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  Autoconn: Autoconnection status. This parameter can be a value of \ref ESP8266_AutoConnect_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetAutoConnect(ESP8266_t* ESP8266, ESP8266_AutoConnect_t Autoconn);
-
-/**
- * \brief  Sets AP config values for ESP module
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *ESP8266_Config: Pointer to \ref ESP8266_APConfig_t structure with settings
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetAP(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_Config);
-
-/**
- * \brief  Sets AP config values for ESP module and stores it into ESP flash
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *ESP8266_Config: Pointer to \ref ESP8266_APConfig_t structure with settings
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetAPDefault(ESP8266_t* ESP8266, ESP8266_APConfig_t* ESP8266_Config);
-
-/**
- * \brief  Starts ping operation to another server
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *addr: Address to ping. Can be either domain name or IP address as string
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_Ping(ESP8266_t* ESP8266, const char* addr);
-
-/**
- * \brief  Wrapper for TCP connection.
- * \note   For more informations, take a look at \ref ESP8266_StartClientConnectionTCP
- */
-#define ESP8266_StartClientConnection ESP8266_StartClientConnectionTCP
-
-/**
- * \brief  Starts new TCP connection as ESP client and connects to given address and port
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *name: Identification connection name for callback functions to detect proper connection
- * \param  *location: Domain name or IP address to connect to as string
- * \param  port: Port to connect to
- * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_StartClientConnectionTCP(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, void* user_parameters);
-
-/**
- * \brief  Starts new TCP connection as ESP client and connects to given address and port and waits for response
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  **Conn: Pointer to pointer to \ref ESP8266_Connection_t to store connection information for future use
- * \param  *name: Identification connection name for callback functions to detect proper connection
- * \param  *location: Domain name or IP address to connect to as string
- * \param  port: Port to connect to
- * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
- * \retval Member of \ref ESP8266_Result_t enumeration
- *
-\code
-ESP8266_Connection_t* Connection;
-if (ESP8266_StartClientConnectionTCP_Blocking(&ESP8266, &Connection, "examplecom", "example.com", 80, NULL) == ESP_OK) {
-    char Buffer[256];
-    
-    //Format request or send custom data to server
-    sprintf(Buffer, "GET /com/example HTTP/1.1\r\n");
-    strcat(Buffer, "Host: example.com\r\n");
-    strcat(Buffer, "Connection: close\r\n");
-    strcat(Buffer, "\r\n");
-    
-    //Send data to server blocking
-    if (ESP8266_RequestSendData_Blocking(&ESP8266, Connection, Buffer, strlen(Buffer)) == ESP_OK) {
-        printf("Data sent\r\n");
-    }
-    
-    //Wait connection to close by remote server, use 3000 ms timeout
-    ESP8266_WaitClosedConnection(&ESP8266, Connection, 3000);
-    printf("Wait closed status: %d\r\n", ESP8266.Result);
-    
-    //Try to close connection blocking
-    if (ESP8266_CloseConnection_Blocking(&ESP8266, Connection) == ESP_OK) {
-        printf("Connection closed!\r\n");
-    } else {
-        printf("Close connection failed with status: %d\r\n", ESP8266.Result);
-    }
-}
-\endcode
- */
-ESP8266_Result_t ESP8266_StartClientConnectionTCP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, void* user_parameters);
-
-/**
- * \brief  Starts new UDP connection as ESP client and connects to given address and port
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *name: Identification connection name for callback functions to detect proper connection
- * \param  *location: Domain name or IP address to connect to as string
- * \param  port: Port to connect to
- * \param  local_port: ESP local port. This is optional and if not needed, set parameter to 0
- * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_StartClientConnectionUDP(ESP8266_t* ESP8266, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters);
-
-/**
- * \brief  Starts new UDP connection as ESP client and connects to given address and port and waits for response
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *name: Identification connection name for callback functions to detect proper connection
- * \param  *location: Domain name or IP address to connect to as string
- * \param  port: Port to connect to
- * \param  local_port: ESP local port. This is optional and if not needed, set parameter to 0
- * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_StartClientConnectionUDP_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, uint16_t local_port, void* user_parameters);
-
-/**
- * \brief  Starts new SSL connection as ESP client and connects to given address and port
- * \note   Only one connection can be made as SSL at a time
- * \note   Use \ref ESP8266_SetSSLBufferSize first before you start connection
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *name: Identification connection name for callback functions to detect proper connection
- * \param  *location: Domain name or IP address to connect to as string
- * \param  port: Port to connect to
- * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_StartClientConnectionSSL(ESP8266_t* ESP8266, const char* name, const char* location, uint16_t port, void* user_parameters);
-
-/**
- * \brief  Starts new SSL connection as ESP client and connects to given address and port and waits for response
- * \note   Only one connection can be made as SSL at a time
- * \note   Use \ref ESP8266_SetSSLBufferSize first before you start connection
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  **Conn: Pointer to pointer to \ref ESP8266_Connection_t to store connection information for future use
- * \param  *name: Identification connection name for callback functions to detect proper connection
- * \param  *location: Domain name or IP address to connect to as string
- * \param  port: Port to connect to
- * \param  *user_parameters: Pointer to custom user parameters (if needed) which will later be passed to callback functions for client connection
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_StartClientConnectionSSL_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t** Conn, const char* name, char* location, uint16_t port, void* user_parameters);
-
-/**
- * \brief  Sets SSL buffer size for connections
- * \note   This function must be called before you can make a new connection using \ref ESP8266_StartClientConnectionSSL
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  buffersize: Size of SSL buffer. Recommended value is 4096 or more.
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SetSSLBufferSize(ESP8266_t* ESP8266, uint16_t buffersize);
-
-/**
- * \brief  Closes all opened connections
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_CloseAllConnections(ESP8266_t* ESP8266);
-
-/**
- * \brief  Checks if connection is active
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Conn: Pointer to \ref ESP8266_Connection_t structure check status
- * \retval Active status:
- *           - 0: Closed
- *           - > 0: Active
- */
-#define ESP8266_IsConnectionActive(ESP8266, Conn)    ((Conn)->Flags.F.Active)
-
-/**
- * \brief  Closes specific previously opened connection
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t structure to close it
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_CloseConnection(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  Closes specific previously opened connection and waits response
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t structure to close it
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_CloseConnection_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  Waits till connection is closed in specific timeout
- * \note   This function has sense if you have client connection and you expect that remote server will close connection after response
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t structure to wait closed
- * \param  Timeout: Timeout in milliseconds to wait to connection to close
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_WaitClosedConnection(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection, uint32_t Timeout);
-
-/**
- * \brief  Checks if all connections are closed
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_AllConnectionsClosed(ESP8266_t* ESP8266);
-
-/**
- * \brief  Makes a request to send data to specific open connection
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t structure to close it
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_RequestSendData(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  Makes a request to send data to specific open connection in blocking mode
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t structure to close it
- * \param  *Data: Pointer to data array to send
- * \param  length: Data length. If data length is greater than maximal ESP8266 package len, multiple packages are used to send
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_RequestSendData_Blocking(ESP8266_t* ESP8266, ESP8266_Connection_t* Conn, const char* Data, uint32_t length);
-
-/**
- * \brief  Gets a list of connected station devices to softAP on ESP module
- * \note   If function succedded, \ref ESP8266_Callback_ConnectedStationsDetected will be called when data are available
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_GetConnectedStations(ESP8266_t* ESP8266);
-
-/**
- * \brief  Gets IP address of domain name
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *domain: Domain to get IP for
- * \retval Member of \ref ESP8266_Result_t enumeration
- */
-ESP8266_Result_t ESP8266_GetDomainIP(ESP8266_t* ESP8266, const char* domain);
-
-/**
- * \brief  Sets server for SNTP datetime retrieving
- * \note   This feature is not implemented by default in ESP8266 AT commands software.
- *            Instead of, custom implementation was made for this and may not work on your software for ESP8266 module.
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  num: Number (between 0 and 2) indicating which of 3 possible servers you will set
- * \param  servername: Server name as hostname or IP in string format
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SNTPSetServer(ESP8266_t* ESP8266, uint8_t num, const char* servername);
-
-/**
- * \brief  Gets date and time from previously set servers with \ref ESP8266_SNTPSetServer function.
- *            For status about function success of fail, callback functions are used.
- * \note   This feature is not implemented by default in ESP8266 AT commands software.
- *            Instead of, custom implementation was made for this and may not work on your software for ESP8266 module.
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval Member of \ref ESP8266_Result_t enumeration
- * \note   This function is blocking function and will wait till ESP8266 sends result
- */
-ESP8266_Result_t ESP8266_SNTPGetDateTime(ESP8266_t* ESP8266);
-
-/**
- * \brief  Writes data from user defined USART RX interrupt handler to module stack
- * \note   This function should be called from USART RX interrupt handler to write new data
- * \param  *ch: Pointer to data to be written to module buffer
- * \param  count: Number of data bytes to write to module buffer
- * \retval Number of bytes written to buffer
- */
-uint16_t ESP8266_DataReceived(uint8_t* ch, uint16_t count);
+ESP_Result_t ESP_FirmwareUpdate(evol ESP_t* ESP, uint32_t blocking);
 
 /**
  * \}
  */
 
 /**
- * \defgroup ESP8266_Callback_Functions
- * \brief    Library callback functions
- *           
- *           Callback functions are called from ESP stack to user which should implement them when necessary.
+ * \defgroup STATION_API
+ * \brief    Functions regarding ESP as station device
  * \{
  */
+
+/**
+ * \brief  Get IP address of station
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *ip: Pointer to 4 bytes long memory to store IP address to
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_STA_GetIP(evol ESP_t* ESP, uint8_t* ip, uint32_t blocking);
+
+/**
+ * \brief  Set IP address of station
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *ip: Pointer to 4 bytes long memory with IP address, MSB first
+ * \param  def: Status whether this IP should be stored to ESP flash or not
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_STA_SetIP(evol ESP_t* ESP, const uint8_t* ip, uint8_t def, uint32_t blocking);
+
+/**
+ * \brief  Get MAC address of station
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *mac: Pointer to 6 bytes long memory to store MAC address to
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_STA_GetMAC(evol ESP_t* ESP, uint8_t* mac, uint32_t blocking);
+
+/**
+ * \brief  Set MAC address of AP
+ * \note   Bit 0 of first byte (mac[0]) can not be set to 1
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *mac: Pointer to 6 bytes long MAC address to use for AP
+ * \param  def: Status whether this options should be set in flash for future connections
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_STA_SetMAC(evol ESP_t* ESP, const uint8_t* mac, uint32_t def, uint32_t blocking);
+
+/**
+ * \brief  Connect to Wi-Fi network
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *ssid: Pointer to SSID name to connect to
+ * \param  *pass: Pointer to password to use for connection
+ * \param  *mac: Pointer to MAC address to use for connection when multiple networks with same SSID are present. Use NULL if not required
+ * \param  def: Status whether this options should be set in flash for future connections
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_STA_Connect(evol ESP_t* ESP, const char* ssid, const char* pass, const uint8_t* mac, uint32_t def, uint32_t blocking);
+
+/**
+ * \brief  Get network informations you are currently connected to
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *AP: Pointer to \ref ESP_ConnectedAP_t structure to fill response to
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_STA_GetConnected(evol ESP_t* ESP, ESP_ConnectedAP_t* AP,  uint32_t blocking);
+
+/**
+ * \brief  Disconnect from Wi-Fi network
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_STA_Disconnect(evol ESP_t* ESP, uint32_t blocking);
+
+/**
+ * \brief  Set autoconnect feature
+ * \note   Setting will be saved to flash automatically
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  autoconn: Status whether ESP should autoconnect to saved network when network is available
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_STA_SetAutoConnect(evol ESP_t* ESP, uint8_t autoconn, uint32_t blocking);
+
+/**
+ * \brief  List access points ESP can connect to
+ * \note   This operation can take a while since ESP will scan network for access points
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *APs: Pointer to array of \ref ESP_AP_t structures to fill access points to
+ * \param  atr: Size of array elements in APs pointer
+ * \param  *ar: Pointer to save number of found networks
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_STA_ListAccessPoints(evol ESP_t* ESP, ESP_AP_t* APs, uint16_t atr, uint16_t* ar, uint32_t blocking);
+
+/**
+ * \}
+ */
+
+/**
+ * \defgroup AP_API
+ * \brief    Functions regarding SoftAP (software Access Point) on ESP 
+ * \{
+ */
+
+/**
+ * \brief  Get IP address of AP
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *ip: Pointer to 4 bytes long memory to store IP address to
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_AP_GetIP(evol ESP_t* ESP, uint8_t* ip, uint32_t blocking);
+
+/**
+ * \brief  Set IP address of AP
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *ip: Pointer to 4 bytes long memory with IP address, MSB first
+ * \param  def: Status whether this IP should be stored to ESP flash or not
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_AP_SetIP(evol ESP_t* ESP, const uint8_t* ip, uint8_t def, uint32_t blocking);
+
+/**
+ * \brief  Get MAC address of AP
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *mac: Pointer to 6 bytes long memory to store MAC address to
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_AP_GetMAC(evol ESP_t* ESP, uint8_t* mac, uint32_t blocking);
+
+/**
+ * \brief  Set MAC address of AP
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *mac: Pointer to 6 bytes long MAC address to use for AP
+ * \param  def: Status whether this options should be set in flash for future connections
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_AP_SetMAC(evol ESP_t* ESP, const uint8_t* mac, uint32_t def, uint32_t blocking);
+
+/**
+ * \brief  List currently connected devices to ESP softAP
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *stations: Pointer to array of \ref ESP_ConnectedStation_t structures to fill connected stations to
+ * \param  size: Number of elements in stations array
+ * \param  *sr: Pointer to save number of stations connected to softAP
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_AP_ListConnectedStations(evol ESP_t* ESP, ESP_ConnectedStation_t* stations, uint32_t size, uint32_t* sr, uint32_t blocking);
+
+/**
+ * \brief  Get current configuration of softAP
+ * \note   This function does not accept output parameters. Instead, parameter in \ref ESP_t structure is filled with data
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_AP_GetConfig(evol ESP_t* ESP, uint32_t blocking);
+
+/**
+ * \brief  Set softAP configuration
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *conf: Pointer to \ref ESP_APConfig_t structure with configuration
+ * \param  def: Status whether this settings should be saved in flash or not
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_AP_SetConfig(evol ESP_t* ESP, ESP_APConfig_t* conf, uint8_t def, uint32_t blocking);
+
+/**
+ * \}
+ */
+
+/**
+ * \defgroup SERVER_API
+ * \brief    Functions regarding server functionality
+ * \{
+ */
+
+/**
+ * \brief  Enable server functionality
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  port: Port used for server listening
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SERVER_Enable(evol ESP_t* ESP, uint16_t port, uint32_t blocking);
+
+/**
+ * \brief  Disable server functionality
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SERVER_Disable(evol ESP_t* ESP, uint32_t blocking);
+
+/**
+ * \brief  Set timeout for server connection
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  timeout: Timeout in units of seconds
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SERVER_SetTimeout(evol ESP_t* ESP, uint16_t timeout, uint32_t blocking);
+
+/**
+ * \}
+ */
+
+/**
+ * \defgroup CONN_API
+ * \brief    Connection management with client and server connection interaction
+ * \{
+ */
+
+/**
+ * \brief  Start a new client connection
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  **conn: Pointer to pointer to save stack connection to user
+ * \param  type: Connection type. This parameter can be a value of \ref ESP_CONN_Type_t enumeration
+ * \param  *domain: Pointer to domain name or IP address in string format to connect to
+ * \param  port: Port used for new connection
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_CONN_Start(evol ESP_t* ESP, ESP_CONN_t** conn, ESP_CONN_Type_t type, const char* domain, uint16_t port, uint32_t blocking);
+
+/**
+ * \brief  Send data to active connection
+ * \note   This function can be used either when connection is acting like server or client
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *conn: Pointer to \ref ESP_CONN_t structure with active connection
+ * \param  *data: Pointer to data to be sent to connection
+ * \param  btw: Number of bytes to send
+ * \param  *bw: Pointer to variable to store number of bytes actually written to connection and successfully sent
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_CONN_Send(evol ESP_t* ESP, ESP_CONN_t* conn, const uint8_t* data, uint32_t btw, uint32_t* bw, uint32_t blocking);
+
+/**
+ * \brief  Close currently active conection
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *conn: Pointer to \ref ESP_CONN_t structure with active connection
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_CONN_Close(evol ESP_t* ESP, ESP_CONN_t* conn, uint32_t blocking);
+
+/**
+ * \brief  Close all active connections
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking);
+
+/**
+ * \brief  Status if desired connection is active as client
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *conn: Pointer to \ref ESP_CONN_t structure with connection
+ * \retval Boolean status if connection is active client
+ * \note   In this revision function is declared as macro
+ */
+#define ESP_CONN_IsClient(ESP, conn)        ((conn)->Flags.F.Client)
+
+/**
+ * \brief  Status if desired connection is active as server
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *conn: Pointer to \ref ESP_CONN_t structure with connection
+ * \retval Boolean status if connection is active server
+ * \note   In this revision function is declared as macro
+ */
+#define ESP_CONN_IsServer(ESP, conn)       (!ESP_CONN_IsClient(ESP, conn))
+
+/**
+ * \brief  Status if desired connection is active
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *conn: Pointer to \ref ESP_CONN_t structure with connection
+ * \retval Boolean status if connection is active
+ * \note   In this revision function is declared as macro
+ */
+#define ESP_CONN_IsActive(ESP, conn)        ((conn)->Flags.F.Active)
+
+/**
+ * \brief  Set SSL buffer size for connection
+ * \note   Valid number of bytes is between 2048 and 4096
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  size: Number of bytes set for buffer size
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SetSSLBufferSize(evol ESP_t* ESP, uint32_t size, uint32_t blocking);
+
+/**
+ * \}
+ */
+
+/**
+ * \defgroup MISC_API
+ * \brief    Miscellaneous functions
+ * \{
+ */
+
+/**
+ * \brief  Get IP address for specific domain name (DNS function)
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *domain: Pointer to domain name to get IP address
+ * \param  *ip: Pointer to 4 bytes long memory for saving received IP address
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_DOMAIN_GetIp(evol ESP_t* ESP, const char* domain, uint8_t* ip, uint32_t blocking);
+
+/**
+ * \brief  Set WPS function for ESP
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  wps: Value to enable (> 0) or disable (0) WPS feature
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SetWPS(evol ESP_t* ESP, uint8_t wps, uint32_t blocking);
+
+/**
+ * \brief  Ping desired domain name or IP address in string form
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *addr: Domain name or IP in string format to ping
+ * \param  *time: Pointer to output variable to store time information to
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_Ping(evol ESP_t* ESP, const char* addr, uint32_t* time, uint32_t blocking);
+
+/**
+ * \}
+ */
  
-/**
- * \brief  Device is ready callback
- *         
- *         Function is called when device has ready string sent to stack
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_DeviceReady(ESP8266_t* ESP8266);
- 
-/**
- * \brief  Watchdog reset detected on device
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_WatchdogReset(ESP8266_t* ESP8266);
- 
-/**
- * \brief  Device has disconnected from wifi network
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_WifiDisconnected(ESP8266_t* ESP8266);
-
-/**
- * \brief  Device has connected to wifi network
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_WifiConnected(ESP8266_t* ESP8266);
-
-/**
- * \brief  Device did not succeed with connection to wifi network
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_WifiConnectFailed(ESP8266_t* ESP8266);
-
-/**
- * \brief  Device has received IP address as station (when connected to another access point) from connected access point (AP)
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_WifiGotIP(ESP8266_t* ESP8266);
- 
-/**
- * \brief  Device has received station IP.
- * \note   Function is called in case you try to get IP with \ref ESP8266_GetSTAIP function
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_WifiIPSet(ESP8266_t* ESP8266);
-
-/**
- * \brief  Device failed to retrieve IP address via DHCP
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_DHCPTimeout(ESP8266_t* ESP8266);
-
-/**
- * \brief  Device has detected wifi access point where we can connect to.
- * \note   Function is called when you use \ref ESP8266_ListWifiStations function
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *ESP8266_AP: Pointer to \ref ESP8266_APs_t structure with data
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_WifiDetected(ESP8266_t* ESP8266, ESP8266_APs_t* ESP8266_AP);
-
-/**
- * \brief  ESP8266 has a new connection active, acting like server
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ServerConnectionActive(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  ESP8266 connection closed, acting like server
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ServerConnectionClosed(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  ESP8266 has a data received on active connection when acting like server
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection
- * \param  *Buffer: Buffer with data
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ServerConnectionDataReceived(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection, char* Buffer);
-
-/**
- * \brief  ESP8266 is ready to accept data to be sent when connection is active as server
- * \note   This function is called in case \ref ESP8266_RequestSendData is called by user
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
- * \param  *Buffer: Pointer to buffer where data should be stored
- * \param  max_buffer_size: Buffer size in units of bytes
- * \retval Number of bytes written into buffer
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-uint16_t ESP8266_Callback_ServerConnectionSendData(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection, char* Buffer, uint16_t max_buffer_size);
-
-/**
- * \brief  ESP8266 has successfully sent data for active connection
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ServerConnectionDataSent(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  ESP8266 has not sent data for active connection
- * \note   When this happen, you can use \ref ESP8266_RequestSendData again to request new data sent
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ServerConnectionDataSentError(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  Connection is active when ESP8266 starts new connection using \ref ESP8266_StartClientConnection
- * \note   When this function is called, use \ref ESP8266_RequestSendData if you want to send any data to connection
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ClientConnectionConnected(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  ESP8266 returns error when trying to connect to external server as client
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ClientConnectionError(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  ESP826 has not return any response in defined amount of time when connection to external server as client
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ClientConnectionTimeout(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  Connection as client has been successfully closed
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ClientConnectionClosed(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  ESP8266 is ready to accept data to be sent when connection is active as client
- * \note   This function is called in case \ref ESP8266_RequestSendData is called by user
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
- * \param  *Buffer: Pointer to buffer where data should be stored
- * \param  max_buffer_size: Buffer size in units of bytes
- * \retval Number of bytes written into buffer
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-uint16_t ESP8266_Callback_ClientConnectionSendData(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection, char* Buffer, uint16_t max_buffer_size);
-
-/**
- * \brief  ESP8266 has successfully sent data for active connection as client
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ClientConnectionDataSent(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  ESP8266 has not sent data for active connection as client
- * \note   When this happen, you can use \ref ESP8266_RequestSendData again to request new data sent
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection 
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ClientConnectionDataSentError(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection);
-
-/**
- * \brief  ESP8266 received network data and sends it to microcontroller. Function is called when when entire package of data is parsed
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Connection: Pointer to \ref ESP8266_Connection_t connection
- * \param  *Buffer: Buffer with data
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ClientConnectionDataReceived(ESP8266_t* ESP8266, ESP8266_Connection_t* Connection, char* Buffer);
-
-/**
- * \brief  Pinging to external server has started
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *address: Pointer to address string where ping started
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_PingStarted(ESP8266_t* ESP8266, const char* address);
-
-/**
- * \brief  Pinging to external server has started
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Pinging: Pointer to \ref ESP8266_Ping_t structure with information
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_PingFinished(ESP8266_t* ESP8266, ESP8266_Ping_t* Pinging);
-
-/**
- * \brief  Firmware update status checking
- * \note   You must use \ref ESP8266_FirmwareUpdate function to start updating
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  status: Called with current status about updating. This parameter can be a value of \ref ESP8266_FirmwareUpdate_t enumeration
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_FirmwareUpdateStatus(ESP8266_t* ESP8266, ESP8266_FirmwareUpdate_t status);
-
-/**
- * \brief  Firmware update has been successful
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_FirmwareUpdateSuccess(ESP8266_t* ESP8266);
-
-/**
- * \brief  Firmware update has failed
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_FirmwareUpdateError(ESP8266_t* ESP8266);
-
-/**
- * \brief  ESP8266 returns new data about connected stations to our softAP
- * \note   This function is called in case \ref ESP8266_GetConnectedStations is used for detection connected stations
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *Stations: Pointer to \ref ESP8266_ConnectedStations_t structure with data
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_ConnectedStationsDetected(ESP8266_t* ESP8266, ESP8266_ConnectedStations_t* Stations);
-
-/**
- * \brief  ESP8266 returns new data about connected stations to our softAP
- * \note   This function is called in case \ref ESP8266_SNTPGetDateTime is used for current date time detection and error is returned
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \param  *SNTP: Pointer to \ref ESP8266_SNTP_t structure with data from response
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_SNTPOk(ESP8266_t* ESP8266, ESP8266_SNTP_t* SNTP);
-
-/**
- * \brief  ESP8266 returns new data about connected stations to our softAP
- * \note   This function is called in case \ref ESP8266_SNTPGetDateTime is used for current date time detection and error is returned
- * \param  *ESP8266: Pointer to working \ref ESP8266_t structure
- * \retval None
- * \note   With weak parameter to prevent link errors if not defined by user
- */
-void ESP8266_Callback_SNTPError(ESP8266_t* ESP8266);
-
-/**
- * \brief  ESP8266 returns data with IP for specific domain (DNS)
- * \param  *ESP8266: Pointer to \ref ESP8266_t structure
- * \param  *Domain: Pointer to \ref ESP8266_Domain_t structure
- * \retval None
- */
-void ESP8266_Callback_DomainIP(ESP8266_t* ESP8266, ESP8266_Domain_t* Domain);
+//TODO for transparent connection
+ESP_Result_t ESP_SetMode(evol ESP_t* ESP, ESP_Mode_t Mode, uint32_t blocking);
 
 /**
  * \}

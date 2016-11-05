@@ -25,64 +25,51 @@
  */
 #include "esp8266_ll.h"
 
-/******************************************************************************/
-/******************************************************************************/
-/***   Copy this file to project directory and rename it to "esp8266_ll.c"   **/
-/******************************************************************************/
-/******************************************************************************/
+/* Include platform dependant libraries */
+#include "stm32fxxx_hal.h"
+#include "tm_stm32_usart.h"
+#include "tm_stm32_usart_dma.h"
+#include "tm_stm32_delay.h"
+#include "tm_stm32_gpio.h"
 
 uint8_t ESP_LL_Init(ESP_LL_t* LL) {
-    /* Init UART with desired baudrated passed in LL structure */
-
-    /* Init reset pin and set it high */
-
-#if ESP_USE_CTS
-    /* Init RTS pin as output and set it low */
-#endif
-
+    /* Init USART */
+    TM_USART_Init(USART1, TM_USART_PinsPack_1, LL->Baudrate);
+    
+    /* Initialize reset pin */
+    TM_GPIO_Init(GPIOA, GPIO_PIN_0, TM_GPIO_Mode_OUT, TM_GPIO_OType_PP, TM_GPIO_PuPd_UP, TM_GPIO_Speed_Low);
+        
+    /* We were successful */
     return 0;
 }
-
 
 uint8_t ESP_LL_SendData(ESP_LL_t* LL, const uint8_t* data, uint16_t count) {
-    /* Send data via UART */
-
-    /* Everything OK, data sent */
+    /* Send data */
+    TM_USART_Send(USART1, (uint8_t *)data, count);
+    
+    /* We were successful */
     return 0;
 }
 
-
 uint8_t ESP_LL_SetReset(ESP_LL_t* LL, uint8_t state) {
-    /* Set reset pin */
+    /* Set pin according to status */
     if (state == ESP_RESET_SET) {
-        /* Set pin low */
+        TM_GPIO_SetPinLow(GPIOA, GPIO_PIN_0);
     } else {
-        /* Set pin high */
+        TM_GPIO_SetPinHigh(GPIOA, GPIO_PIN_0);
     }
-
-    /* Everything OK, RST pin set according to state */
+    
+    /* We are OK */
     return 0;
 }
 
 uint8_t ESP_LL_SetRTS(ESP_LL_t* LL, uint8_t state) {
-    if (state == ESP_RTS_SET) {
-        /* Set pin high */
-    } else {
-        /* Set pin low */
-    }
-
-    /* Everything OK, RTS pin set according to state */
+    /* We are OK */
     return 0;
 }
 
-
-
-/* UART receive interrupt handler */
-void USART_RX_INTERRUPT_HANDLER_FUNCTION_NAME(void) {
-	uint8_t ch;
-	/* Get character from USART */
-	
-	
+/* USART receive interrupt handler */
+void TM_USART1_ReceiveHandler(uint8_t ch) {
 	/* Send received character to ESP stack */
 	ESP_DataReceived(&ch, 1);
 }

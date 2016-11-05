@@ -61,9 +61,9 @@ typedef struct _ESP_LL_t {
 #include "esp8266.h"
 #include "esp8266_config.h"
     
-#define ESP_RTS_SET         1   /*!< RTS should be set high (RTS set, device should stop sending data, in most cases this is set to high) */
+#define ESP_RTS_SET         1   /*!< RTS should be set high */
 #define ESP_RTS_CLR         0   /*!< RTS should be set low */
-#define ESP_RESET_SET       1   /*!< Reset pin should be set (device should go to reset state) */
+#define ESP_RESET_SET       1   /*!< Reset pin should be set */
 #define ESP_RESET_CLR       0   /*!< Reset pin should be cleared */
     
 /**
@@ -76,7 +76,7 @@ typedef struct _ESP_LL_t {
 uint8_t ESP_LL_Init(ESP_LL_t* LL);
 
 /**
- * \brief  Sends data to ESP module from ESP stack
+ * \brief  Sends data to SIM module from ESP stack
  * \param  *LL: Pointer to \ref ESP_LL_t structure with settings
  * \param  *data: Data to be sent to module
  * \param  count: Number of bytes to be sent to module
@@ -89,7 +89,7 @@ uint8_t ESP_LL_SendData(ESP_LL_t* LL, const uint8_t* data, uint16_t count);
 /**
  * \brief  Set reset pin high or low
  * \param  *LL: Pointer to \ref ESP_LL_t structure with settings
- * \param  state: State for reset pin, it can be high or low. Check \ref ESP_RESET_SET and \ref ESP_RESET_CLR
+ * \param  state: State for reset pin, it can be high or low. Check \ref ESP_RESET_HIGH and \ref ESP_RESET_LOW
  * \retval Success status:
  *            - 0: Successful
  *            - > 0: Error
@@ -97,9 +97,8 @@ uint8_t ESP_LL_SendData(ESP_LL_t* LL, const uint8_t* data, uint16_t count);
 uint8_t ESP_LL_SetReset(ESP_LL_t* LL, uint8_t state);
 
 /**
- * \brief  Initializes Low-Level driver to communicate with ESP module
+ * \brief  Initializes Low-Level driver to communicate with SIM module
  * \param  *LL: Pointer to \ref ESP_LL_t structure with settings
- * \param  state: State for RTS pin, it can be high or low. Check \ref ESP_RTS_SET and \ref ESP_RTS_CLR
  * \retval Success status:
  *            - 0: Successful
  *            - > 0: Error
