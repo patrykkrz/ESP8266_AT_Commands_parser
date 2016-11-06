@@ -672,7 +672,7 @@ ESP_Result_t ESP_AP_SetMAC(evol ESP_t* ESP, const uint8_t* mac, uint32_t def, ui
  * \param  blocking: Status whether this function should be blocking to check for response
  * \retval Member of \ref ESP_Result_t enumeration
  */
-ESP_Result_t ESP_AP_ListConnectedStations(evol ESP_t* ESP, ESP_ConnectedStation_t* stations, uint32_t size, uint32_t* sr, uint32_t blocking);
+ESP_Result_t ESP_AP_ListConnectedStations(evol ESP_t* ESP, ESP_ConnectedStation_t* stations, uint16_t size, uint16_t* sr, uint32_t blocking);
 
 /**
  * \brief  Get current configuration of softAP

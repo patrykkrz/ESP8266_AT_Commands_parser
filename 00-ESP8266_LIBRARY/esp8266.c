@@ -391,6 +391,8 @@ void ParseCWLAP(evol ESP_t* ESP, const char* str, ESP_AP_t* AP) {
         str++;
     }
     
+    memset((void *)AP, 0x00, sizeof(ESP_AP_t));             /* Reset structure first */
+    
     AP->Ecn = ParseNumber(str, &cnt);                       /* Parse ECN value */
     str += cnt + 1;
     
@@ -403,9 +405,13 @@ void ParseCWLAP(evol ESP_t* ESP, const char* str, ESP_AP_t* AP) {
         if (*str == '"' && *(str + 1) == ',') {
             break;
         }
-        AP->SSID[cnt] = *str;
+        if (cnt < sizeof(AP->SSID) - 1) {
+            AP->SSID[cnt] = *str;
+        }
+        
         cnt++;
         str++;
+        
     }
     
     str += 2;                                               /* Parse RSSI */
@@ -608,7 +614,7 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
         if (*(uint16_t *)Pointers.Ptr2 < Pointers.UI) {     /* Check if memory still available */
             ParseCWLIF(ESP, str, (ESP_ConnectedStation_t *)Pointers.Ptr1);  /* Parse CWLIF statement */
             Pointers.Ptr1 = ((ESP_ConnectedStation_t *)Pointers.Ptr1) + 1;
-            *(uint32_t *)Pointers.Ptr2 = (*(uint16_t *)Pointers.Ptr2) + 1;  /* Increase number of parsed elements */
+            *(uint16_t *)Pointers.Ptr2 = (*(uint16_t *)Pointers.Ptr2) + 1;  /* Increase number of parsed elements */
         }
     }
     
@@ -1018,6 +1024,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
 cmd_wifi_listaccesspoints_clean:
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {          /* Connect to network */
+        ptr = (uint8_t *) Pointers.Ptr1;
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWJAP_"));                /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
@@ -1025,7 +1032,19 @@ cmd_wifi_listaccesspoints_clean:
         EscapeStringAndSend(FROMMEM(Pointers.CPtr2));
         UART_SEND_STR(FROMMEM("\",\""));
         EscapeStringAndSend(FROMMEM(Pointers.CPtr3));
-        UART_SEND_STR(FROMMEM("\""));
+        UART_SEND_STR(FROMMEM("\"")); 
+        if (ptr) {                                          /* Send MAC address */
+            UART_SEND_STR(FROMMEM(",\""));
+            i = 6; ch = ':';
+            while (i--) {
+                HexNumberToString(str, *ptr++);             /* Convert to hex number */
+                UART_SEND_STR(FROMMEM(str));
+                if (i) {
+                    UART_SEND_CH(FROMMEM(&ch));
+                }
+            }
+            UART_SEND_STR(FROMMEM("\""));
+        }
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CWJAP, NULL);
         
@@ -1965,7 +1984,7 @@ ESP_Result_t ESP_STA_ListAccessPoints(evol ESP_t* ESP, ESP_AP_t* APs, uint16_t a
     __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
-ESP_Result_t ESP_AP_ListConnectedStations(evol ESP_t* ESP, ESP_ConnectedStation_t* stations, uint32_t size, uint32_t* sr, uint32_t blocking) {
+ESP_Result_t ESP_AP_ListConnectedStations(evol ESP_t* ESP, ESP_ConnectedStation_t* stations, uint16_t size, uint16_t* sr, uint32_t blocking) {
     __CHECK_INPUTS(stations && size && sr);                 /* Check inputs */
     __CHECK_BUSY(ESP);                                      /* Check busy status */
     __ACTIVE_CMD(ESP, CMD_WIFI_CWLIF);                      /* Set active command */
@@ -1989,7 +2008,7 @@ ESP_Result_t ESP_STA_Connect(evol ESP_t* ESP, const char* ssid, const char* pass
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.CPtr2 = ssid;
     Pointers.CPtr3 = pass;
-    Pointers.Ptr1 = (uint8_t *)mac;
+    Pointers.Ptr1 = (void *)mac;
     
     __RETURN_BLOCKING(ESP, blocking, 30000);                /* Return with blocking support */
 }
