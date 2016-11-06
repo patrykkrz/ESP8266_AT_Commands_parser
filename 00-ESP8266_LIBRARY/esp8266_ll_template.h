@@ -2,7 +2,6 @@
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
  * \website https://majerle.eu/projects/esp8266-at-commands-parser-for-embedded-systems
- * \version v2.0
  * \license MIT
  * \brief   Low level, platform dependant, part for communicate with ESP module and platform.
  *  
@@ -33,7 +32,7 @@
 \endverbatim
  */
 #ifndef ESP_LL_H
-#define ESP_LL_H 200
+#define ESP_LL_H
 
 /* C++ detection */
 #ifdef __cplusplus

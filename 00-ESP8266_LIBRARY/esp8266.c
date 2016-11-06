@@ -157,41 +157,41 @@ typedef struct {
 #define ESP_TIMEOUT                         30000               /* Timeout value in milliseconds */
 
 /* Debug */
-#define ESP_DEBUG(fmt, ...)                 printf(fmt, ##__VA_ARGS__)
+#define __DEBUG(fmt, ...)                   printf(fmt, ##__VA_ARGS__)
 
 /* Delay milliseconds */
-#define ESP_DELAYMS(ESP, x)                 do { volatile uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x)); } while (0)
+#define __DELAYMS(ESP, x)                   do { volatile uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x)); } while (0)
 
 /* Constants */
 #define ESP_MAX_RFPWR                       82
 #define ESP_MAX_SEND_DATA_LEN               2048
 
 #if ESP_RTOS
-#define ESP_IS_BUSY(p)                      ((p)->ActiveCmd != CMD_IDLE || (p)->Flags.F.Call_Idle != 0)
+#define __IS_BUSY(p)                        ((p)->ActiveCmd != CMD_IDLE || (p)->Flags.F.Call_Idle != 0)
 #else
-#define ESP_IS_BUSY(p)                      ((p)->ActiveCmd != CMD_IDLE || (p)->Flags.F.Call_Idle != 0)
+#define __IS_BUSY(p)                        ((p)->ActiveCmd != CMD_IDLE || (p)->Flags.F.Call_Idle != 0)
 #endif
-#define ESP_IS_READY(p)                     (!ESP_IS_BUSY(p))
-#define ESP_CHECK_BUSY(p)                   do { if (ESP_IS_BUSY(p)) { ESP_RETURN(ESP, espBUSY); } } while (0)
-#define ESP_CHECK_INPUTS(c)                 do { if (!(c)) { ESP_RETURN(ESP, espPARERROR); } } while (0)
+#define __IS_READY(p)                       (!__IS_BUSY(p))
+#define __CHECK_BUSY(p)                     do { if (__IS_BUSY(p)) { __RETURN(ESP, espBUSY); } } while (0)
+#define __CHECK_INPUTS(c)                   do { if (!(c)) { __RETURN(ESP, espPARERROR); } } while (0)
 
-#define ESP_CONN_RESET(c)                   do { c->Flags.Value = 0x00; } while (0)
+#define __CONN_RESET(c)                   do { c->Flags.Value = 0x00; } while (0)
 
 #if ESP_RTOS == 1
-#define ESP_IDLE(p)                         do {\
+#define __IDLE(p)                         do {\
     if (ESP_SYS_Release((ESP_RTOS_SYNC_t *)&(p)->Sync)) {   \
     }                                           \
     (p)->ActiveCmd = CMD_IDLE;                  \
-    RESET_THREADS(p);                           \
+    __RESET_THREADS(p);                           \
     if (!(p)->Flags.F.IsBlocking) {             \
         (p)->Flags.F.Call_Idle = 1;             \
     }                                           \
     memset((void *)&Pointers, 0x00, sizeof(Pointers));  \
 } while (0)
 #else
-#define ESP_IDLE(p)                         do {\
+#define __IDLE(p)                         do {\
     (p)->ActiveCmd = CMD_IDLE;                  \
-    RESET_THREADS(p);                           \
+    __RESET_THREADS(p);                           \
     if (!(p)->Flags.F.IsBlocking) {             \
         (p)->Flags.F.Call_Idle = 1;             \
     }                                           \
@@ -200,7 +200,7 @@ typedef struct {
 #endif
 
 #if ESP_RTOS
-#define ESP_ACTIVE_CMD(p, cmd)              do {\
+#define __ACTIVE_CMD(p, cmd)              do {\
     if (ESP_SYS_Request((ESP_RTOS_SYNC_t *)&(p)->Sync)) {   \
         return espTIMEOUT;                      \
     }                                           \
@@ -210,7 +210,7 @@ typedef struct {
     (p)->ActiveCmd = (cmd);                     \
 } while (0)
 #else
-#define ESP_ACTIVE_CMD(p, cmd)              do {\
+#define __ACTIVE_CMD(p, cmd)              do {\
     if ((p)->ActiveCmd == CMD_IDLE) {           \
         (p)->ActiveCmdStart = (ESP)->Time;      \
     }                                           \
@@ -218,15 +218,15 @@ typedef struct {
 } while (0)
 #endif
 
-#define ESP_CMD_SAVE(p)                     (p)->ActiveCmdSaved = (p)->ActiveCmd
-#define ESP_CMD_RESTORE(p)                  (p)->ActiveCmd = (p)->ActiveCmdSaved
+#define __CMD_SAVE(p)                     (p)->ActiveCmdSaved = (p)->ActiveCmd
+#define __CMD_RESTORE(p)                  (p)->ActiveCmd = (p)->ActiveCmdSaved
 
-#define ESP_RETURN(p, v)                    do { (p)->RetVal = (v); return (v); } while (0)
-#define ESP_RETURN_BLOCKING(p, b, mt)       do {\
+#define __RETURN(p, v)                    do { (p)->RetVal = (v); return (v); } while (0)
+#define __RETURN_BLOCKING(p, b, mt)       do {\
     ESP_Result_t res;                           \
     if (!(b)) {                                 \
         (p)->Flags.F.IsBlocking = 0;            \
-        ESP_RETURN(p, espOK);                   \
+        __RETURN(p, espOK);                   \
     }                                           \
     (p)->Flags.F.IsBlocking = 1;                \
     res = ESP_WaitReady(p, mt);                 \
@@ -238,7 +238,7 @@ typedef struct {
     return res;                                 \
 } while (0)
 
-#define RESET_EVENTS_RESP(p)                do { (p)->Events.Value = 0; } while (0)
+#define __RST_EVENTS_RESP(p)                do { (p)->Events.Value = 0; } while (0)
 
 #define ESP_CALL_CALLBACK(p, e)             (p)->Callback(e, (ESP_EventParams_t *)&(p)->CallbackParams);
 
@@ -260,20 +260,14 @@ typedef struct {
 /******************************************************************************/
 /******************************************************************************/
 #if ESP_USE_CTS
-static uint8_t RTSStatus;                   /* RTS pin status */
+static uint8_t RTSStatus;                                   /* RTS pin status */
 #endif
 
-/* List of possible ESP8266 baudrates */
-/*
-estatic
-uint32_t ESP_Baudrate[] = { 9600, 57600, 115200, 921600 };    
-*/
-
 /* Buffers */
-estatic BUFFER_t Buffer;                    /* Buffer structure */
-uint8_t Buffer_Data[1024];                  /* Buffer data array */
-estatic Received_t Received;                /* Received data structure */
-estatic Pointers_t Pointers;                /* Pointers object */
+estatic BUFFER_t Buffer;                                    /* Buffer structure */
+uint8_t Buffer_Data[1024];                                  /* Buffer data array */
+estatic Received_t Received;                                /* Received data structure */
+estatic Pointers_t Pointers;                                /* Pointers object */
 estatic ESP_t* _ESP;
 #if ESP_CONN_SINGLEBUFFER
 estatic uint8_t IPD_Data[ESP_CONNBUFFER_SIZE + 1];  /* Data buffer for incoming connection */
@@ -282,7 +276,9 @@ estatic uint8_t IPD_Data[ESP_CONNBUFFER_SIZE + 1];  /* Data buffer for incoming 
 estatic
 struct pt pt_BASIC, pt_WIFI, pt_TCPIP;
 
-#define RESET_THREADS(GSM)                  do { PT_INIT(&pt_BASIC); PT_INIT(&pt_WIFI); PT_INIT(&pt_TCPIP); } while (0);
+#define __RESET_THREADS(GSM)                  do {          \
+PT_INIT(&pt_BASIC); PT_INIT(&pt_WIFI); PT_INIT(&pt_TCPIP);  \
+} while (0);
 
 /******************************************************************************/
 /******************************************************************************/
@@ -325,7 +321,7 @@ int32_t ParseNumber(const char* ptr, uint8_t* cnt) {
         ptr++;
         i++;
     }
-    if (cnt) {                                		/* Save number of characters used for number */
+    if (cnt) {                                		        /* Save number of characters used for number */
         *cnt = i;
     }
     if (minus) {                                    		/* Minus detected */
@@ -347,7 +343,7 @@ uint32_t ParseHexNumber(const char* ptr, uint8_t* cnt) {
         i++;
     }
     
-    if (cnt) {                               		/* Save number of characters used for number */
+    if (cnt) {                               		        /* Save number of characters used for number */
         *cnt = i;
     }
     return sum;                                        		/* Return number */
@@ -628,14 +624,14 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     }
     
     if (ESP->ActiveCmd == CMD_WIFI_CWSAP) {
-        if (strncmp(str, FROMMEM("+CWSAP"), 6) == 0) {          /* Check for response */
+        if (strncmp(str, FROMMEM("+CWSAP"), 6) == 0) {      /* Check for response */
             ParseCWSAP(ESP, str + 7, (ESP_APConfig_t *)&ESP->APConf);   /* Parse config from AP */             
         }
     }
     
     /* Connecting to AP */
-    if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {                     /* Trying to connect to wifi network */
-        if (strcmp(str, FROMMEM("FAIL\r\n")) == 0) {            /* Fail received */
+    if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {                 /* Trying to connect to wifi network */
+        if (strcmp(str, FROMMEM("FAIL\r\n")) == 0) {        /* Fail received */
             is_error = 1;
         } else if (strncmp(str, FROMMEM("+CWJAP_CUR"), 10) == 0) {  /* Received currently connected AP info */
             ParseCWJAP(ESP, str + 10, (ESP_ConnectedAP_t *)Pointers.Ptr1);  /* Parse and save */
@@ -648,18 +644,18 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     }
     
     /* Wifi management informations */
-    if (strcmp(str, FROMMEM("WIFI CONNECTED\r\n")) == 0) {      /* Just connected */
-        if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {                 /* If trying to join AP */
+    if (strcmp(str, FROMMEM("WIFI CONNECTED\r\n")) == 0) {  /* Just connected */
+        if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {             /* If trying to join AP */
             ESP->Events.F.RespWifiConnected = 1;
         }
         ESP->CallbackFlags.F.WifiConnected = 1;
     } else if (strcmp(str, FROMMEM("WIFI DISCONNECTED\r\n")) == 0) {    /* Just disconnected */
-        if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {                 /* If trying to join AP */
+        if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {             /* If trying to join AP */
             ESP->Events.F.RespWifiDisconnected = 1;
         }
         ESP->CallbackFlags.F.WifiDisconnected = 1;
     } else if (strcmp(str, FROMMEM("WIFI GOT IP\r\n")) == 0) {  /* ESP got assigned IP address from DHCP */
-        if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {                 /* If trying to join AP */
+        if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {             /* If trying to join AP */
             ESP->Events.F.RespWifiGotIp = 1;
         }
         ESP->CallbackFlags.F.WifiGotIP = 1;
@@ -668,16 +664,16 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     /* Connection management */
     if (strncmp(&str[1], ",CONNECT", 8) == 0) {
         ESP_CONN_t* conn = (ESP_CONN_t *)&ESP->Conn[CHARTONUM(str[0])]; /* Get connection from number */
-        conn->Number = CHARTONUM(str[0]);                       /* Set connection number */
-        conn->Flags.F.Active = 1;                               /* Connection is active */
+        conn->Number = CHARTONUM(str[0]);                   /* Set connection number */
+        conn->Flags.F.Active = 1;                           /* Connection is active */
         conn->Callback.F.Connect = 1;
     } else if (strncmp(&str[1], ",CLOSED", 7) == 0) {
         ESP_CONN_t* conn = (ESP_CONN_t *)&ESP->Conn[CHARTONUM(str[0])]; /* Get connection from number */
         conn->Callback.F.Closed = 1;
-        ESP_CONN_RESET(conn);                                   /* Reset connection */
+        __CONN_RESET(conn);                                 /* Reset connection */
     }
     if (ESP->ActiveCmd == CMD_TCPIP_CIPSEND) {
-        if (strncmp(str, FROMMEM("SEND OK"), 7) == 0) {         /* Data successfully sent */
+        if (strncmp(str, FROMMEM("SEND OK"), 7) == 0) {     /* Data successfully sent */
             ESP->Events.F.RespSendOk = 1;
         } else if (strncmp(str, FROMMEM("SEND FAIL"), 9) == 0) {    /* Data sent error */
             ESP->Events.F.RespSendFail = 1;
@@ -688,9 +684,9 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     }
     
     /* Manage receive data */
-    if (strncmp(str, "+IPD", 4) == 0) {                         /* Check for incoming data */
-        ParseIPD(ESP, str + 5, (ESP_IPD_t *)&ESP->IPD);         /* Parse incoming data string */
-        ESP->IPD.InIPD = 1;                                     /* Start with data reading */
+    if (strncmp(str, "+IPD", 4) == 0) {                     /* Check for incoming data */
+        ParseIPD(ESP, str + 5, (ESP_IPD_t *)&ESP->IPD);     /* Parse incoming data string */
+        ESP->IPD.InIPD = 1;                                 /* Start with data reading */
     }
     
     if (is_ok) {
@@ -714,7 +710,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
     PT_BEGIN(pt);
     
     if (ESP->ActiveCmd == CMD_BASIC_AT) {                   /* Send AT and check for any response */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         
         UART_SEND_STR(FROMMEM("AT"));                       /* Send data */
         UART_SEND_STR(_CRLF);
@@ -725,9 +721,9 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_BASIC_RST) {           /* Process device reset */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         
         /* Hardware reset */
         ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_SET);   /* Set reset */
@@ -743,11 +739,11 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR; /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_BASIC_UART) {          /* Set UART */
         NumberToString(str, Pointers.UI);                   /* Get baudrate as string */
         
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+UART_"));                 /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
         UART_SEND_STR(FROMMEM("="));
@@ -770,10 +766,10 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
             ESP_LL_Init((ESP_LL_t *)&ESP->LL);              /* Init low-level layer again */
         }
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_BASIC_RFPOWER) {       /* Set RF power */
         NumberToString(str, Pointers.UI);                   /* Convert mode to string */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+RFPOWER="));              /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
@@ -784,9 +780,9 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_BASIC_RESTORE) {       /* Restore device */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         
         UART_SEND_STR(FROMMEM("AT+RESTORE"));               /* Send data */
         UART_SEND_STR(_CRLF);
@@ -797,7 +793,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     }
     PT_END(pt);
 }
@@ -810,7 +806,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
     
     if (ESP->ActiveCmd == CMD_WIFI_CWMODE) {                /* Set device mode */
         NumberToString(str, Pointers.UI);                   /* Convert mode to string */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWMODE="));               /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
@@ -821,9 +817,9 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_GETSTAMAC) {      /* Get station MAC address */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSTAMAC_CUR?"));        /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CIPSTAMAC, NULL);
@@ -833,9 +829,9 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_GETAPMAC) {       /* Get AP MAC address */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPAPMAC_CUR?"));         /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CIPAPMAC, NULL);
@@ -845,9 +841,9 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_GETSTAIP) {       /* Get station IP address */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSTA_CUR?"));           /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CIPSTA, NULL);
@@ -857,9 +853,9 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_GETAPIP) {        /* Get AP IP address */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPAP_CUR?"));            /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CIPAP, NULL);
@@ -869,11 +865,11 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_SETSTAMAC) {      /* Get AP IP address */
         ptr = (uint8_t *) Pointers.CPtr2;
         
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSTAMAC_"));            /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));             /* Default or current */
         UART_SEND_STR(FROMMEM("=\""));
@@ -896,12 +892,12 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         if (ESP->ActiveResult == espOK) {                   /* Copy data as new MAC address */
             memcpy((void *)&ESP->STAMAC, ptr - 6, 6);
         }
-        
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+            
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_SETAPMAC) {       /* Get AP IP address */
         ptr = (uint8_t *) Pointers.CPtr2;
         
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPAPMAC_"));             /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));             /* Default or current */
         UART_SEND_STR(FROMMEM("=\""));
@@ -925,11 +921,11 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
             memcpy((void *)&ESP->APMAC, ptr - 6, 6);
         }
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_SETSTAIP) {       /* Set AP IP address */
         ptr = (uint8_t *) Pointers.CPtr2;
         
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSTA_"));               /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));             /* Default or current */
         UART_SEND_STR(FROMMEM("=\""));
@@ -953,11 +949,11 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
             memcpy((void *)&ESP->STAIP, ptr - 4, 4);
         }
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_SETAPIP) {        /* Set AP IP address */
         ptr = (uint8_t *) Pointers.CPtr2;
         
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPAP_"));                /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));             /* Default or current */
         UART_SEND_STR(FROMMEM("=\""));
@@ -981,9 +977,9 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
             memcpy((void *)&ESP->STAIP, ptr - 4, 4);
         }
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_LISTACCESSPOINTS) {   /* List available access points */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWLAPOPT=1,127"));        /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CWLAPOPT, NULL);
@@ -996,7 +992,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
             goto cmd_wifi_listaccesspoints_clean;           /* Clean thread and stop execution */  
         }
         
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWLAP"));                 /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CWLAP, NULL);
@@ -1007,9 +1003,9 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
 
 cmd_wifi_listaccesspoints_clean:
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {          /* Connect to network */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWJAP_"));                /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
         UART_SEND_STR(FROMMEM("=\""));
@@ -1025,13 +1021,13 @@ cmd_wifi_listaccesspoints_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         if (ESP->ActiveResult == espOK) {
-            ESP_IDLE(ESP);                                  /* Go IDLE mode */
-            ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);         /* Set new active CMD to retrieve info about station data */
+            __IDLE(ESP);                                    /* Go IDLE mode */
+            __ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);           /* Set new active CMD to retrieve info about station data */
         } else {
-            ESP_IDLE(ESP);                                  /* Go IDLE mode */
+            __IDLE(ESP);                                    /* Go IDLE mode */
         }
     } else if (ESP->ActiveCmd == CMD_WIFI_CWQAP) {          /* Disconnect from network */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWQAP"));                 /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CWQAP, NULL);
@@ -1041,9 +1037,9 @@ cmd_wifi_listaccesspoints_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_GETCWJAP) {       /* Get AP we are connected with */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWJAP_CUR?"));            /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CWJAP, NULL);
@@ -1053,9 +1049,9 @@ cmd_wifi_listaccesspoints_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_CWAUTOCONN) {     /* Set autoconnect status */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWAUTOCONN="));           /* Send data */
         UART_SEND_STR(Pointers.UI ? FROMMEM("1") : FROMMEM("0"));
         UART_SEND_STR(_CRLF);
@@ -1066,9 +1062,9 @@ cmd_wifi_listaccesspoints_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_CWLIF) {          /* List connected stations */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWLIF"));                 /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CWLIF, NULL);
@@ -1078,9 +1074,9 @@ cmd_wifi_listaccesspoints_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_GETCWSAP) {       /* GET AP settings */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
 
         UART_SEND_STR(FROMMEM("AT+CWSAP_CUR?"));            /* Send data */
         UART_SEND_STR(_CRLF);
@@ -1091,9 +1087,9 @@ cmd_wifi_listaccesspoints_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_SETCWSAP) {       /* Set AP settings */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         
         UART_SEND_STR(FROMMEM("AT+CWSAP_"));                /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));             /* Send data */
@@ -1121,12 +1117,12 @@ cmd_wifi_listaccesspoints_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         if (ESP->ActiveResult != espOK) {
-            ESP_IDLE(ESP);                                  /* Go IDLE mode */
+            __IDLE(ESP);                                    /* Go IDLE mode */
         } else {
-            ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETCWSAP);         /* Get info and save to structure */
+            __ACTIVE_CMD(ESP, CMD_WIFI_GETCWSAP);           /* Get info and save to structure */
         }
     } else if (ESP->ActiveCmd == CMD_WIFI_WPS) {            /* Set WPS function */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+WPS="));                  /* Send data */
         UART_SEND_STR(Pointers.UI ? FROMMEM("1") : FROMMEM("0"));
         UART_SEND_STR(_CRLF);
@@ -1137,7 +1133,7 @@ cmd_wifi_listaccesspoints_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     }
     
     PT_END(pt);
@@ -1154,7 +1150,7 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
 
     if (ESP->ActiveCmd == CMD_TCPIP_CIPMUX) {               /* Set device mode */
         NumberToString(str, Pointers.UI);                   /* Convert mode to string */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPMUX="));               /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
@@ -1165,9 +1161,9 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPDINFO) {      /* Set info on +IPD statement */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPDINFO=1"));            /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_TCPIP_CIPDINFO, NULL);
@@ -1177,10 +1173,10 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_SERVERENABLE) {  /* Enable server mode */
         NumberToString(str, Pointers.UI);                   /* Convert mode to string */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSERVER=1,"));          /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
@@ -1191,9 +1187,9 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_SERVERDISABLE) { /* Disable server mode */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSERVER=0"));           /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);
@@ -1203,10 +1199,10 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSTO) {        /* Set server timeout */
         NumberToString(str, Pointers.UI);                   /* Convert mode to string */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSTO="));               /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
@@ -1217,9 +1213,9 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSTART) {      /* Start a new connection */
-        ESP_CMD_SAVE(ESP);                                  /* Save current command */
+        __CMD_SAVE(ESP);                                    /* Save current command */
         
         for (i = 0; i < 5; i++) {
             if (!ESP->Conn[i].Flags.F.Active) {
@@ -1234,7 +1230,7 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
 
         (*(ESP_CONN_t **)Pointers.PPtr1)->Flags.F.Client = 1;   /* Connection made as client */
         NumberToString(str, i);                             /* Convert mode to string */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSTART="));             /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(FROMMEM(",\""));
@@ -1259,16 +1255,16 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
         if (ESP->ActiveResult != espOK) {                   /* Failed, reset connection */
-            ESP_CONN_RESET((*(ESP_CONN_t **)Pointers.PPtr1));
+            __CONN_RESET((*(ESP_CONN_t **)Pointers.PPtr1));
             goto cmd_tcpip_cipstart_clean;
         }
         
 cmd_tcpip_cipstart_clean:
-        ESP_CMD_RESTORE(ESP);                               /* Restore command */
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __CMD_RESTORE(ESP);                                 /* Restore command */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPCLOSE) {      /* Close connection */
         NumberToString(str, Pointers.UI);                   /* Close specific connection */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPCLOSE="));             /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
@@ -1279,9 +1275,9 @@ cmd_tcpip_cipstart_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSEND) {       /* Send data on connection */
-        ESP_CMD_SAVE(ESP);                                  /* Save command */
+        __CMD_SAVE(ESP);                                    /* Save command */
         
         if (Pointers.Ptr2 != NULL) {
             *(uint32_t *)Pointers.Ptr2 = 0;                 /* Set sent bytes to zero first */
@@ -1291,7 +1287,7 @@ cmd_tcpip_cipstart_clean:
         do {
             btw = Pointers.UI > ESP_MAX_SEND_DATA_LEN ? ESP_MAX_SEND_DATA_LEN : Pointers.UI;    /* Set length to send */
             
-            RESET_EVENTS_RESP(ESP);                         /* Reset events */
+            __RST_EVENTS_RESP(ESP);                         /* Reset events */
             UART_SEND_STR(FROMMEM("AT+CIPSEND="));          /* Send number to ESP */
             NumberToString(str, ((ESP_CONN_t *)Pointers.Ptr1)->Number);
             UART_SEND_STR(FROMMEM(str));
@@ -1305,7 +1301,7 @@ cmd_tcpip_cipstart_clean:
                                 ESP->Events.F.RespError);   /* Wait for > character and timeout */
             
             if (ESP->Events.F.RespBracket) {                /* We received bracket */
-                RESET_EVENTS_RESP(ESP);                     /* Reset events */
+                __RST_EVENTS_RESP(ESP);                     /* Reset events */
                 UART_SEND((uint8_t *)Pointers.CPtr1, btw);  /* Send data */
                 
                 PT_WAIT_UNTIL(pt, ESP->Events.F.RespSendOk ||
@@ -1340,11 +1336,11 @@ cmd_tcpip_cipstart_clean:
             ((ESP_CONN_t *)Pointers.Ptr1)->Callback.F.DataError = 1;/* Set flag for callback */
         }
         
-        ESP_CMD_RESTORE(ESP);                               /* Restore command */
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __CMD_RESTORE(ESP);                                 /* Restore command */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSSLSIZE) {    /* Set SSL buffer size */
         NumberToString(str, Pointers.UI);                   /* Close specific connection */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSSLSIZE="));           /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
@@ -1355,9 +1351,9 @@ cmd_tcpip_cipstart_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN) {     /* Get IP address from domain name */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPDOMAIN=\""));          /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
         UART_SEND_STR(FROMMEM("\""));
@@ -1369,9 +1365,9 @@ cmd_tcpip_cipstart_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_PING) {          /* Ping domain or IP */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+PING=\""));               /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
         UART_SEND_STR(FROMMEM("\""));
@@ -1383,9 +1379,9 @@ cmd_tcpip_cipstart_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIUPDATE) {      /* Update firmware from cloud */
-        RESET_EVENTS_RESP(ESP);                             /* Reset all events */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIUPDATE"));              /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_TCPIP_CIUPDATE, NULL);
@@ -1395,7 +1391,7 @@ cmd_tcpip_cipstart_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        ESP_IDLE(ESP);                                      /* Go IDLE mode */
+        __IDLE(ESP);                                        /* Go IDLE mode */
     }
     
     PT_END(pt);
@@ -1413,9 +1409,9 @@ ESP_Result_t ProcessThreads(evol ESP_t* ESP) {
         PT_Thread_TCPIP(&pt_TCPIP, ESP);
     }
 #if !ESP_RTOS && !ESP_ASYNC
-    ESP_ProcessCallbacks(ESP);                            /* Process callbacks when not in RTOS or ASYNC mode */
+    ESP_ProcessCallbacks(ESP);                              /* Process callbacks when not in RTOS or ASYNC mode */
 #endif
-    ESP_RETURN(ESP, espOK);
+    __RETURN(ESP, espOK);
 }
 /******************************************************************************/
 /******************************************************************************/
@@ -1449,35 +1445,35 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     /* Low-Level initialization */
     ESP->LL.Baudrate = baudrate;
     if (ESP_LL_Init((ESP_LL_t *)&ESP->LL)) {                /* Init low-level */
-        ESP_RETURN(ESP, espLLERROR);                        /* Return error */
+        __RETURN(ESP, espLLERROR);                          /* Return error */
     }
     
 #if ESP_RTOS
     /* RTOS support */
     if (ESP_SYS_Create((ESP_RTOS_SYNC_t *)&ESP->Sync)) {    /* Init sync object */
-        ESP_RETURN(ESP, espSYSERROR);
+        __RETURN(ESP, espSYSERROR);
     }
 #endif /*!< ESP_RTOS */
 
     /* Init all threads */
-    RESET_THREADS(ESP);
+    __RESET_THREADS(ESP);
 
     /* Send initialization commands */
     ESP->Flags.F.IsBlocking = 1;                            /* Process blocking calls */
     ESP->ActiveCmdTimeout = 1000;                           /* Give 1 second timeout */
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_BASIC_RST);                 /* Reset device */
+        __ACTIVE_CMD(ESP, CMD_BASIC_RST);                   /* Reset device */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     }
     ESP->ActiveCmdTimeout = 100;                            /* Set response timeout */
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_BASIC_AT);                  /* Check AT response */
+        __ACTIVE_CMD(ESP, CMD_BASIC_AT);                    /* Check AT response */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1487,96 +1483,96 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     while (i--) {
         Pointers.CPtr1 = FROMMEM("CUR");
         Pointers.UI = baudrate;
-        ESP_ACTIVE_CMD(ESP, CMD_BASIC_UART);                /* Check AT response */
+        __ACTIVE_CMD(ESP, CMD_BASIC_UART);                  /* Check AT response */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     }
 #endif /*!< ESP_USE_CTS */
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_WIFI_CWMODE);               /* Set device mode */
+        __ACTIVE_CMD(ESP, CMD_WIFI_CWMODE);                 /* Set device mode */
         Pointers.UI = 3;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     }
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPMUX);              /* Set device mux */
+        __ACTIVE_CMD(ESP, CMD_TCPIP_CIPMUX);                /* Set device mux */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     };
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPDINFO);            /* Enable informations about connection on +IPD statement */
+        __ACTIVE_CMD(ESP, CMD_TCPIP_CIPDINFO);              /* Enable informations about connection on +IPD statement */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     }
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETSTAMAC);            /* Get station MAC address */
+        __ACTIVE_CMD(ESP, CMD_WIFI_GETSTAMAC);              /* Get station MAC address */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     }
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETAPMAC);             /* Get AP MAC address */
+        __ACTIVE_CMD(ESP, CMD_WIFI_GETAPMAC);               /* Get AP MAC address */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     }
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);             /* Get station IP */
+        __ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);               /* Get station IP */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     }
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETAPIP);              /* Get AP IP */
+        __ACTIVE_CMD(ESP, CMD_WIFI_GETAPIP);                /* Get AP IP */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     }
     while (i--) {
-        ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETCWSAP);             /* Get AP settings */
+        __ACTIVE_CMD(ESP, CMD_WIFI_GETCWSAP);               /* Get AP settings */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
-        ESP_IDLE(ESP);
+        __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
     }
-    ESP_IDLE(ESP);                                          /* Process IDLE */
+    __IDLE(ESP);                                            /* Process IDLE */
     ESP->Flags.F.IsBlocking = 0;                            /* Reset blocking calls */
     ESP->Flags.F.Call_Idle = 0;
     
-    ESP_RETURN(ESP, ESP->ActiveResult);                     /* Return active status */
+    __RETURN(ESP, ESP->ActiveResult);                       /* Return active status */
 }
 
 ESP_Result_t ESP_DeInit(evol ESP_t* ESP) {
     BUFFER_Free(&Buffer);                                   /* Clear USART buffer */
     
-    ESP_RETURN(ESP, espOK);                                 /* Return OK from function */
+    __RETURN(ESP, espOK);                                   /* Return OK from function */
 }
 
 ESP_Result_t ESP_Update(evol ESP_t* ESP) {
@@ -1600,7 +1596,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
         ESP_SET_RTS(ESP, ESP_RTS_CLR);                      /* Clear RTS pin */
         if (ESP->IPD.InIPD && ESP->IPD.BytesRemaining) {    /* Read network data */
             if (ESP->ActiveCmd == CMD_IDLE) {
-                ESP_ACTIVE_CMD(ESP, CMD_TCPIP_IPD);         /* Set active command! */
+                __ACTIVE_CMD(ESP, CMD_TCPIP_IPD);           /* Set active command! */
                 ESP->Flags.F.IsBlocking = 1;                /* Set as it was blocking call */
             }
             ESP->IPD.Conn->Data[ESP->IPD.BytesRead] = ch;   /* Add character to receive buffer */
@@ -1610,7 +1606,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
             if (!ESP->IPD.BytesRemaining) {                 /* We read all the data? */
                 ESP->IPD.InIPD = 0;
                 if (ESP->ActiveCmd == CMD_TCPIP_IPD) {      /* If we set as TCPIP then release it */
-                    ESP_IDLE(ESP);                          /* Go to IDLE mode */
+                    __IDLE(ESP);                            /* Go to IDLE mode */
                 }
             }
             if (ESP->IPD.BytesRead >= (ESP_CONNBUFFER_SIZE - 1) || !ESP->IPD.BytesRemaining) { /* Receive buffer full or we read all the data? */
@@ -1687,37 +1683,37 @@ ESP_Result_t ESP_ProcessCallbacks(evol ESP_t* ESP) {
     for (i = 0; i < sizeof(ESP->Conn) / sizeof(ESP->Conn[0]); i++) {
         ESP_CONN_t* c = (ESP_CONN_t *)&ESP->Conn[i];
         
-        /* Maybe move this part directly to ESP_IDLE() command */
+        /* Maybe move this part directly to __IDLE() command */
         /* More test required first to see usability of this */
-        if (ESP_IS_READY(ESP) && c->Callback.F.CallLastPartOfPacketReceived) { /* Notify user about last packet */
+        if (__IS_READY(ESP) && c->Callback.F.CallLastPartOfPacketReceived) {    /* Notify user about last packet */
             c->Callback.F.CallLastPartOfPacketReceived = 0;
             ESP->CallbackParams.CP1 = c;
             ESP->CallbackParams.CP2 = c->Data;
             ESP->CallbackParams.UI = c->DataLength;
             ESP_CALL_CALLBACK(ESP, espEventDataReceived);
         }
-        if (ESP_IS_READY(ESP) && c->Callback.F.DataSent) {  /* Data sent ok */
+        if (__IS_READY(ESP) && c->Callback.F.DataSent) {    /* Data sent ok */
             c->Callback.F.DataSent = 0;
             ESP->CallbackParams.CP1 = c;
             ESP_CALL_CALLBACK(ESP, espEventDataSent);
         }
-        if (ESP_IS_READY(ESP) && c->Callback.F.DataError) { /* Data sent error */
+        if (__IS_READY(ESP) && c->Callback.F.DataError) {   /* Data sent error */
             c->Callback.F.DataError = 0;
             ESP->CallbackParams.CP1 = c;
             ESP_CALL_CALLBACK(ESP, espEventDataSentError);
         }
-        if (ESP_IS_READY(ESP) && c->Callback.F.Connect) {   /* Connection just active */
+        if (__IS_READY(ESP) && c->Callback.F.Connect) {     /* Connection just active */
             c->Callback.F.Connect = 0;
             ESP->CallbackParams.CP1 = c;
             ESP_CALL_CALLBACK(ESP, espEventConnActive); 
         }
-        if (ESP_IS_READY(ESP) && c->Callback.F.Closed) {    /* Connection just closed */
+        if (__IS_READY(ESP) && c->Callback.F.Closed) {      /* Connection just closed */
             c->Callback.F.Closed = 0;
             ESP->CallbackParams.CP1 = c;
             ESP_CALL_CALLBACK(ESP, espEventConnClosed); 
         }
     }
-    ESP_RETURN(ESP, espOK);
+    __RETURN(ESP, espOK);
 }
 
 void ESP_UpdateTime(evol ESP_t* ESP, uint32_t time_increase) {
@@ -1747,8 +1743,8 @@ ESP_Result_t ESP_WaitReady(evol ESP_t* ESP, uint32_t timeout) {
 #else
         ESP_ProcessCallbacks(ESP);                          /* Process callbacks when not in synchronous mode */
 #endif
-    } while (ESP_IS_BUSY(ESP));
-    ESP_RETURN(ESP, ESP->ActiveResult);                     /* Return active result from command */
+    } while (__IS_BUSY(ESP));
+    __RETURN(ESP, ESP->ActiveResult);                       /* Return active result from command */
 }
 
 ESP_Result_t ESP_Delay(evol ESP_t* ESP, uint32_t timeout) {
@@ -1758,7 +1754,7 @@ ESP_Result_t ESP_Delay(evol ESP_t* ESP, uint32_t timeout) {
         ESP_Update(ESP);
 #endif
     } while (ESP->Time - start < timeout);
-    ESP_RETURN(ESP, espOK);
+    __RETURN(ESP, espOK);
 }
 
 ESP_Result_t ESP_IsReady(evol ESP_t* ESP) {
@@ -1769,326 +1765,326 @@ ESP_Result_t ESP_IsReady(evol ESP_t* ESP) {
 /***                              Device settings                            **/
 /******************************************************************************/
 ESP_Result_t ESP_RestoreDefault(evol ESP_t* ESP, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_BASIC_RESTORE);                 /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_RESTORE);                   /* Set active command */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 2000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 2000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_SetUART(evol ESP_t* ESP, uint32_t baudrate, uint32_t def, uint32_t blocking) {
-    ESP_CHECK_INPUTS(baudrate >= 110 && baudrate <= (40 * 115200)); /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_BASIC_UART);                    /* Set active command */
+    __CHECK_INPUTS(baudrate >= 110 && baudrate <= (40 * 115200));   /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_UART);                      /* Set active command */
     
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.UI = baudrate;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_SetRFPower(evol ESP_t* ESP, float pwr, uint32_t blocking) {
-    ESP_CHECK_INPUTS(pwr > 0 && (pwr / 0.25f) <= 82);       /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_BASIC_RFPOWER);                 /* Set active command */
+    __CHECK_INPUTS(pwr > 0 && (pwr / 0.25f) <= 82);         /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_RFPOWER);                   /* Set active command */
     
     Pointers.UI = (uint8_t)(pwr / 0.25f);
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_FirmwareUpdate(evol ESP_t* ESP, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIUPDATE);                /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIUPDATE);                  /* Set active command */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 180000);             /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 180000);               /* Return with blocking support */
 }
 
 /******************************************************************************/
 /***                         STATION AND AP settings                         **/
 /******************************************************************************/
 ESP_Result_t ESP_STA_GetIP(evol ESP_t* ESP, uint8_t* ip, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);                 /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);                   /* Set active command */
     
     Pointers.Ptr1 = ip;                                     /* Save pointer to save IP to */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_STA_SetIP(evol ESP_t* ESP, const uint8_t* ip, uint8_t def, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_SETSTAIP);                 /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_SETSTAIP);                   /* Set active command */
     
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.CPtr2 = ip;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_STA_GetMAC(evol ESP_t* ESP, uint8_t* mac, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETSTAMAC);                /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_GETSTAMAC);                  /* Set active command */
     
-    Pointers.Ptr1 = mac;                                     /* Save pointer to save MAC to */
+    Pointers.Ptr1 = mac;                                    /* Save pointer to save MAC to */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_STA_SetMAC(evol ESP_t* ESP, const uint8_t* mac, uint32_t def, uint32_t blocking) {
-    ESP_CHECK_INPUTS(mac && (*mac & 0x01) == 0);            /* Check inputs, bit 0 of first byte cannot be set to 1 on station */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_SETSTAMAC);                /* Set active command */
+    __CHECK_INPUTS(mac && (*mac & 0x01) == 0);              /* Check inputs, bit 0 of first byte cannot be set to 1 on station */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_SETSTAMAC);                  /* Set active command */
     
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.CPtr2 = mac;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_AP_GetIP(evol ESP_t* ESP, uint8_t* ip, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETAPIP);                  /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_GETAPIP);                    /* Set active command */
     
     Pointers.Ptr1 = ip;                                     /* Save pointer to save IP to */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_AP_SetIP(evol ESP_t* ESP, const uint8_t* ip, uint8_t def, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_SETAPIP);                  /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_SETAPIP);                    /* Set active command */
     
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.CPtr2 = ip;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_AP_GetMAC(evol ESP_t* ESP, uint8_t* mac, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETAPMAC);                 /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_GETAPMAC);                   /* Set active command */
     
     Pointers.Ptr1 = mac;                                    /* Save pointer to save MAC to */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_AP_SetMAC(evol ESP_t* ESP, const uint8_t* mac, uint32_t def, uint32_t blocking) {
-    ESP_CHECK_INPUTS(mac);                                  /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_SETAPMAC);                 /* Set active command */
+    __CHECK_INPUTS(mac);                                    /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_SETAPMAC);                   /* Set active command */
     
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.CPtr2 = mac;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_AP_GetConfig(evol ESP_t* ESP, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETCWSAP);                 /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_GETCWSAP);                   /* Set active command */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_AP_SetConfig(evol ESP_t* ESP, ESP_APConfig_t* conf, uint8_t def, uint32_t blocking) {
-    ESP_CHECK_INPUTS(conf);                                 /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_SETCWSAP);                 /* Set active command */
+    __CHECK_INPUTS(conf);                                   /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_SETCWSAP);                   /* Set active command */
     
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.CPtr2 = conf;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 /******************************************************************************/
 /***                            SERVER settings                              **/
 /******************************************************************************/
 ESP_Result_t ESP_SERVER_Enable(evol ESP_t* ESP, uint16_t port, uint32_t blocking) {
-    ESP_CHECK_INPUTS(port > 0);                             /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_SERVERENABLE);            /* Set active command */
+    __CHECK_INPUTS(port > 0);                               /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_SERVERENABLE);              /* Set active command */
     
     Pointers.UI = port;                                     /* port number */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_SERVER_Disable(evol ESP_t* ESP, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_SERVERDISABLE);           /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_SERVERDISABLE);             /* Set active command */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_SERVER_SetTimeout(evol ESP_t* ESP, uint16_t timeout, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPSTO);                  /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPSTO);                    /* Set active command */
     
     Pointers.UI = timeout;                                  /* Save timeout value */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 /******************************************************************************/
 /***                            List wifi stations                           **/
 /******************************************************************************/
 ESP_Result_t ESP_STA_ListAccessPoints(evol ESP_t* ESP, ESP_AP_t* APs, uint16_t atr, uint16_t* ar, uint32_t blocking) {
-    ESP_CHECK_INPUTS(APs && atr && ar);                     /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_LISTACCESSPOINTS);         /* Set active command */
+    __CHECK_INPUTS(APs && atr && ar);                       /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_LISTACCESSPOINTS);           /* Set active command */
     
     *ar = 0;
     Pointers.Ptr1 = APs;
     Pointers.Ptr2 = ar;
     Pointers.UI = atr;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
 ESP_Result_t ESP_AP_ListConnectedStations(evol ESP_t* ESP, ESP_ConnectedStation_t* stations, uint32_t size, uint32_t* sr, uint32_t blocking) {
-    ESP_CHECK_INPUTS(stations && size && sr);               /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_CWLIF);                    /* Set active command */
+    __CHECK_INPUTS(stations && size && sr);                 /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_CWLIF);                      /* Set active command */
     
     *sr = 0;
     Pointers.Ptr1 = stations;
     Pointers.Ptr2 = sr;
     Pointers.UI = size;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
 /******************************************************************************/
 /***                            Connect to network                           **/
 /******************************************************************************/
 ESP_Result_t ESP_STA_Connect(evol ESP_t* ESP, const char* ssid, const char* pass, const uint8_t* mac, uint32_t def, uint32_t blocking) {
-    ESP_CHECK_INPUTS(ssid && pass);                         /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_CWJAP);                    /* Set active command */
+    __CHECK_INPUTS(ssid && pass);                           /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_CWJAP);                      /* Set active command */
     
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.CPtr2 = ssid;
     Pointers.CPtr3 = pass;
     Pointers.Ptr1 = (uint8_t *)mac;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 30000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 30000);                /* Return with blocking support */
 }
 
 ESP_Result_t ESP_STA_GetConnected(evol ESP_t* ESP, ESP_ConnectedAP_t* AP, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETCWJAP);                 /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_GETCWJAP);                   /* Set active command */
     
     Pointers.Ptr1 = AP;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
 ESP_Result_t ESP_STA_Disconnect(evol ESP_t* ESP, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_CWQAP);                    /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_CWQAP);                      /* Set active command */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
 ESP_Result_t ESP_STA_SetAutoConnect(evol ESP_t* ESP, uint8_t autoconn, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_CWAUTOCONN);               /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_CWAUTOCONN);                 /* Set active command */
     
     Pointers.UI = autoconn ? 1 : 0;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
 /******************************************************************************/
 /***                            Connection management                        **/
 /******************************************************************************/
 ESP_Result_t ESP_CONN_Start(evol ESP_t* ESP, ESP_CONN_t** conn, ESP_CONN_Type_t type, const char* domain, uint16_t port, uint32_t blocking) {
-    ESP_CHECK_INPUTS(conn && domain && port);               /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPSTART);                /* Set active command */
+    __CHECK_INPUTS(conn && domain && port);                 /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPSTART);                  /* Set active command */
     
     Pointers.PPtr1 = (evol void **)conn;
     Pointers.CPtr1 = domain;
     Pointers.UI = type << 16 | port;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 60000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 60000);              /* Return with blocking support */
 }
 
 ESP_Result_t ESP_CONN_Send(evol ESP_t* ESP, ESP_CONN_t* conn, const uint8_t* data, uint32_t btw, uint32_t* bw, uint32_t blocking) {
-    ESP_CHECK_INPUTS(conn && data && btw);                  /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPSEND);                 /* Set active command */
+    __CHECK_INPUTS(conn && data && btw);                    /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPSEND);                   /* Set active command */
     
     Pointers.Ptr1 = conn;
     Pointers.Ptr2 = bw;
     Pointers.CPtr1 = data;
     Pointers.UI = btw;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
 ESP_Result_t ESP_CONN_Close(evol ESP_t* ESP, ESP_CONN_t* conn, uint32_t blocking) {
-    ESP_CHECK_INPUTS(conn);                                 /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPCLOSE);                /* Set active command */
+    __CHECK_INPUTS(conn);                                   /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPCLOSE);                  /* Set active command */
  
     Pointers.UI = conn->Number;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
 ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPCLOSE);                /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPCLOSE);                  /* Set active command */
 
     Pointers.UI = 5;                                        /* Close all connections */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 5000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 5000);                 /* Return with blocking support */
 }
 
 ESP_Result_t ESP_SetSSLBufferSize(evol ESP_t* ESP, uint32_t size, uint32_t blocking) {
-    ESP_CHECK_INPUTS(size >= 2048 && size <= 4096);         /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPSSLSIZE);              /* Set active command */
+    __CHECK_INPUTS(size >= 2048 && size <= 4096);           /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPSSLSIZE);                /* Set active command */
 
     Pointers.UI = size;                                     /* Close all connections */
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 1000);               /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 /******************************************************************************/
 /***                            Miscellanious                                **/
 /******************************************************************************/
 ESP_Result_t ESP_DOMAIN_GetIp(evol ESP_t* ESP, const char* domain, uint8_t* ip, uint32_t blocking) {
-    ESP_CHECK_INPUTS(ip);                                   /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPDOMAIN);               /* Set active command */
+    __CHECK_INPUTS(ip);                                     /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPDOMAIN);                 /* Set active command */
 
     Pointers.CPtr1 = domain;
     Pointers.Ptr1 = ip;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
 ESP_Result_t ESP_Ping(evol ESP_t* ESP, const char* addr, uint32_t* time, uint32_t blocking) {
-    ESP_CHECK_INPUTS(addr && time);                         /* Check inputs */
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_TCPIP_PING);                    /* Set active command */
+    __CHECK_INPUTS(addr && time);                           /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_PING);                      /* Set active command */
 
     *time = 0;
     Pointers.CPtr1 = addr;
     Pointers.Ptr1 = time;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
 ESP_Result_t ESP_SetWPS(evol ESP_t* ESP, uint8_t wps, uint32_t blocking) {
-    ESP_CHECK_BUSY(ESP);                                    /* Check busy status */
-    ESP_ACTIVE_CMD(ESP, CMD_WIFI_WPS);                      /* Set active command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_WPS);                        /* Set active command */
 
     Pointers.UI = wps ? 1 : 0;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }

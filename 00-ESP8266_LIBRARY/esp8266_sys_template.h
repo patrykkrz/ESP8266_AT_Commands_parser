@@ -2,7 +2,6 @@
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
  * \website https://majerle.eu/projects/esp8266-at-commands-parser-for-embedded-systems
- * \version v2.0
  * \license MIT
  * \brief   ESP System calls
  *  
@@ -33,7 +32,7 @@
 \endverbatim
  */
 #ifndef ESP_SYS_H
-#define ESP_SYS_H 200
+#define ESP_SYS_H
 
 /* C++ detection */
 #ifdef __cplusplus
