@@ -201,8 +201,7 @@ typedef struct {
 
 #if ESP_RTOS
 #define ESP_ACTIVE_CMD(p, cmd)              do {\
-    if (ESP_SYS_Request((ESP_RTOS_SYNC_t *)&(p)->Sync)) { \
-        ESP_DEBUG("Timeout!! %d", __LINE__);    \
+    if (ESP_SYS_Request((ESP_RTOS_SYNC_t *)&(p)->Sync)) {   \
         return espTIMEOUT;                      \
     }                                           \
     if ((p)->ActiveCmd == CMD_IDLE) {           \
@@ -731,9 +730,8 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         RESET_EVENTS_RESP(ESP);                             /* Reset all events */
         
         /* Hardware reset */
-        time = ESP->Time;
         ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_SET);   /* Set reset */
-        PT_WAIT_UNTIL(pt, (ESP->Time - time) < 10);         /* Delay for reset */
+        time = 4000; while (time--);
         ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_CLR);   /* Clear reset */
         
         /* Software reset */

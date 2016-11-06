@@ -22,6 +22,7 @@
  * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network
  * - On debug port, IP address will be written to you where you can connect with browser
  * - Magic will begin, you should see something on your screen on PC
+ * - On debug output (PA2 pin) is printf targeted via UART at 921600 bauds
  *
  * \note  Example uses separate buffers for each connection, because multiple connections can be active at a time
  *

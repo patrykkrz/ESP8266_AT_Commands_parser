@@ -21,7 +21,7 @@
  * - Library if initialized using ESP_Init
  * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network
  * - Press on button to connect to example.com website with custom HTTP GET request method.
- * - On debug output (PA2 pin) is printf targeted via UART at 115200 bauds
+ * - On debug output (PA2 pin) is printf targeted via UART at 921600 bauds
  *
  * \note  Example uses single buffer for all connections.
  *        Since only one connection is active at a time in this example, there is no problems with that.
@@ -56,8 +56,8 @@ CTS         PA3                 RTS from ST to CTS from ESP
 #define DEBUG_USART_PP      TM_USART_PinsPack_1
 
 /* Wifi network settings, replace with your settings */
-#define WIFINAME            "wifi_network_SSID"
-#define WIFIPASS            "wifi_password"
+#define WIFINAME            "Majerle WiFi"
+#define WIFIPASS            "majerle_internet"
 
 /* ESP working structure and result enumeration */
 evol ESP_t ESP;
@@ -142,7 +142,9 @@ void ESP_Main_Thread(void const* params) {
     }
     
     /* Try to connect to wifi network in blocking mode */
-    if ((espRes = ESP_STA_Connect(&ESP, WIFINAME, WIFIPASS, NULL, 0, 1)) != espOK) {
+    if ((espRes = ESP_STA_Connect(&ESP, WIFINAME, WIFIPASS, NULL, 0, 1)) == espOK) {
+        printf("Connected to network\r\n");
+    } else {
         printf("Problems trying to connect to network: %d\r\n", espRes);
     }
     
