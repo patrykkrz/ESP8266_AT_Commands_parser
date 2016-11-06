@@ -1470,6 +1470,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     while (i--) {
         ESP_ACTIVE_CMD(ESP, CMD_BASIC_RST);                 /* Reset device */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1478,6 +1479,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     while (i--) {
         ESP_ACTIVE_CMD(ESP, CMD_BASIC_AT);                  /* Check AT response */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1489,6 +1491,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         Pointers.UI = baudrate;
         ESP_ACTIVE_CMD(ESP, CMD_BASIC_UART);                /* Check AT response */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1498,6 +1501,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         ESP_ACTIVE_CMD(ESP, CMD_WIFI_CWMODE);               /* Set device mode */
         Pointers.UI = 3;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1506,6 +1510,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPMUX);              /* Set device mux */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1514,6 +1519,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         ESP_ACTIVE_CMD(ESP, CMD_TCPIP_CIPDINFO);            /* Enable informations about connection on +IPD statement */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1522,6 +1528,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETSTAMAC);            /* Get station MAC address */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1530,6 +1537,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETAPMAC);             /* Get AP MAC address */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1538,6 +1546,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);             /* Get station IP */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1546,6 +1555,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETAPIP);              /* Get AP IP */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1553,6 +1563,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     while (i--) {
         ESP_ACTIVE_CMD(ESP, CMD_WIFI_GETCWSAP);             /* Get AP settings */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP_IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
@@ -1964,7 +1975,7 @@ ESP_Result_t ESP_STA_Connect(evol ESP_t* ESP, const char* ssid, const char* pass
     Pointers.CPtr3 = pass;
     Pointers.Ptr1 = (uint8_t *)mac;
     
-    ESP_RETURN_BLOCKING(ESP, blocking, 10000);              /* Return with blocking support */
+    ESP_RETURN_BLOCKING(ESP, blocking, 30000);              /* Return with blocking support */
 }
 
 ESP_Result_t ESP_STA_GetConnected(evol ESP_t* ESP, ESP_ConnectedAP_t* AP, uint32_t blocking) {
