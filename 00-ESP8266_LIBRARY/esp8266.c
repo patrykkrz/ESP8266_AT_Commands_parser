@@ -238,7 +238,7 @@ typedef struct {
     return res;                                 \
 } while (0)
 
-#define __RST_EVENTS_RESP(p)                do { (p)->Events.Value = 0; } while (0)
+#define __RST_EVENTS_RESP(p)                do { (p)->Events.Value = 0; (p)->ActiveCmdStart = (p)->Time; } while (0)
 
 #define ESP_CALL_CALLBACK(p, e)             (p)->Callback(e, (ESP_EventParams_t *)&(p)->CallbackParams);
 
@@ -731,19 +731,27 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
     } else if (ESP->ActiveCmd == CMD_BASIC_RST) {           /* Process device reset */
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         
-        /* Hardware reset */
-        ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_SET);   /* Set reset */
-        time = 4000; while (time--);
-        ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_CLR);   /* Clear reset */
-        
-        /* Software reset */
-        //UART_SEND_STR(FROMMEM("AT+RST"));                   /* Send data */
-        //UART_SEND_STR(_CRLF);
+        /* Software reset first */
+        UART_SEND_STR(FROMMEM("AT+RST"));                   /* Send data */
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_RST, NULL);
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady ||
                             ESP->Events.F.RespError);       /* Wait for response */
         
         ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR; /* Check response */
+        
+        if (ESP->ActiveResult != espOK) {
+            /* Try hardware reset */
+            ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_SET);   /* Set reset */
+            time = 4000; while (time--);
+            ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_CLR);   /* Clear reset */
+            
+            PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady ||
+                                ESP->Events.F.RespError);   /* Wait for response */
+            
+            ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR; /* Check response */
+        }
         
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_BASIC_GMR) {           /* Get informations about AT software */
