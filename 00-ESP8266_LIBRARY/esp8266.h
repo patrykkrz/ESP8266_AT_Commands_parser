@@ -516,6 +516,24 @@ ESP_Result_t ESP_RestoreDefault(evol ESP_t* ESP, uint32_t blocking);
 ESP_Result_t ESP_FirmwareUpdate(evol ESP_t* ESP, uint32_t blocking);
 
 /**
+ * \brief  Get AT software info on ESP8266 device
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \param  *atv: Pointer to array of string to save AT version.
+ *               Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
+ *               Use NULL if you don't need AT version
+ * \param  *atv: Pointer to array of string to save SDK version.
+ *               Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
+ *               Use NULL if you don't need SDK version
+ * \param  *atv: Pointer to array of string to save compile time version.
+ *               Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
+ *               Use NULL if you don't need compile time
+ * \param  *sdkv: Pointer to array of string to save SDK version. Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
+ * \param  blocking: Status whether this function should be blocking to check for response
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_GetSoftwareInfo(evol ESP_t* ESP, char* atv, char* sdkv, char* cmpt, uint32_t blocking);
+
+/**
  * \}
  */
 

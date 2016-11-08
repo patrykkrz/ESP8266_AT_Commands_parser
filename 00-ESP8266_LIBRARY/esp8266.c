@@ -573,6 +573,19 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
         }
     }
     
+    /* Device info */
+    if (ESP->ActiveCmd == CMD_BASIC_GMR) {
+        if ((str[0] == 'A' || str[0] == 'a') && Pointers.CPtr1) {   /* "AT version:" received */
+            strncpy((char *)Pointers.CPtr1, &str[11], strlen(&str[11]) - 2);    /* Save AT version */
+        }
+        if ((str[0] == 'S' || str[0] == 's') && Pointers.CPtr2) {   /* "SDK version:" received */
+            strncpy((char *)Pointers.CPtr2, &str[12], strlen(&str[12]) - 2);    /* Save AT version */
+        }
+        if ((str[0] == 'C' || str[0] == 'c') && Pointers.CPtr3) {   /* "compile time:" received */
+            strncpy((char *)Pointers.CPtr3, &str[13], strlen(&str[13]) - 2);    /* Save AT version */
+        }
+    }
+    
     if (ESP->ActiveCmd == CMD_WIFI_CIPSTAMAC && str[0] == '+' && strncmp(str, FROMMEM("+CIPSTAMAC"), 10) == 0) {    /* On CIPSTAMAC active command */
         ParseMAC(ESP, str + 16, (uint8_t *)&ESP->STAMAC, NULL); /* Parse MAC */
         if (Pointers.Ptr1) {
@@ -1844,6 +1857,19 @@ ESP_Result_t ESP_SetRFPower(evol ESP_t* ESP, float pwr, uint32_t blocking) {
 ESP_Result_t ESP_FirmwareUpdate(evol ESP_t* ESP, uint32_t blocking) {
     __CHECK_BUSY(ESP);                                      /* Check busy status */
     __ACTIVE_CMD(ESP, CMD_TCPIP_CIUPDATE);                  /* Set active command */
+    
+    __RETURN_BLOCKING(ESP, blocking, 180000);               /* Return with blocking support */
+}
+
+ESP_Result_t ESP_GetSoftwareInfo(evol ESP_t* ESP, char* atv, char* sdkv, char* cmpt, uint32_t blocking) {
+    __CHECK_INPUTS(atv || sdkv || cmpt);                    /* Check inputs, at least one must be valid to start with this command */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_GMR);                       /* Set active command */
+    
+    /* Use const pointers because of missing structure data and to prevent RAM usage */
+    Pointers.CPtr1 = (const void *)atv;
+    Pointers.CPtr2 = (const void *)sdkv;
+    Pointers.CPtr3 = (const void *)cmpt;
     
     __RETURN_BLOCKING(ESP, blocking, 180000);               /* Return with blocking support */
 }
