@@ -38,6 +38,7 @@ uint8_t ESP_LL_Init(ESP_LL_t* LL) {
     
     /* Initialize reset pin */
     TM_GPIO_Init(GPIOA, GPIO_PIN_0, TM_GPIO_Mode_OUT, TM_GPIO_OType_PP, TM_GPIO_PuPd_UP, TM_GPIO_Speed_Low);
+    TM_GPIO_SetPinHigh(GPIOA, GPIO_PIN_0);
         
     /* We were successful */
     return 0;
