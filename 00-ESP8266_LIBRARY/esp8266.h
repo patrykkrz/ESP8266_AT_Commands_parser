@@ -474,6 +474,14 @@ void ESP_UpdateTime(evol ESP_t* ESP, uint32_t time_increase);
 uint16_t ESP_DataReceived(uint8_t* ch, uint16_t count);
 
 /**
+ * \brief  Gets last return status from stack
+ * \note   Use this function in callback function to detect returned status of last operation
+ * \param  *ESP: Pointer to working \ref ESP_t structure
+ * \retval Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_GetLastReturnStatus(evol ESP_t* ESP);
+
+/**
  * \defgroup MISC_API
  * \brief    
  * \{

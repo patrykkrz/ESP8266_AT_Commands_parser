@@ -222,11 +222,12 @@ typedef struct {
 #define __CMD_RESTORE(p)                  (p)->ActiveCmd = (p)->ActiveCmdSaved
 
 #define __RETURN(p, v)                    do { (p)->RetVal = (v); return (v); } while (0)
-#define __RETURN_BLOCKING(p, b, mt)       do {\
+#define __RETURN_BLOCKING(p, b, mt)       do {  \
     ESP_Result_t res;                           \
+    (p)->ActiveCmdTimeout = mt;                 \
     if (!(b)) {                                 \
         (p)->Flags.F.IsBlocking = 0;            \
-        __RETURN(p, espOK);                   \
+        __RETURN(p, espOK);                     \
     }                                           \
     (p)->Flags.F.IsBlocking = 1;                \
     res = ESP_WaitReady(p, mt);                 \
@@ -411,7 +412,6 @@ void ParseCWLAP(evol ESP_t* ESP, const char* str, ESP_AP_t* AP) {
         
         cnt++;
         str++;
-        
     }
     
     str += 2;                                               /* Parse RSSI */
@@ -1780,6 +1780,13 @@ ESP_Result_t ESP_ProcessCallbacks(evol ESP_t* ESP) {
 
 void ESP_UpdateTime(evol ESP_t* ESP, uint32_t time_increase) {
     ESP->Time += time_increase;                             /* Increase time */
+}
+
+ESP_Result_t ESP_GetLastReturnStatus(evol ESP_t* ESP) {
+    ESP_Result_t tmp = ESP->ActiveResult;
+    ESP->ActiveResult = espOK;
+    
+    return tmp;
 }
 
 uint16_t ESP_DataReceived(uint8_t* ch, uint16_t count) {
