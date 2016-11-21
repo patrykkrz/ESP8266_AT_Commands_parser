@@ -1162,64 +1162,9 @@
               <FilePath>..\00-ESP8266_LIBRARY\esp8266.c</FilePath>
             </File>
             <File>
-              <FileName>esp8266_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\esp8266_sys.c</FilePath>
-            </File>
-            <File>
               <FileName>esp8266_ll.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\esp8266_ll.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>FreeRTOS</GroupName>
-          <Files>
-            <File>
-              <FileName>croutine.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\croutine.c</FilePath>
-            </File>
-            <File>
-              <FileName>event_groups.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\event_groups.c</FilePath>
-            </File>
-            <File>
-              <FileName>list.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\list.c</FilePath>
-            </File>
-            <File>
-              <FileName>queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\queue.c</FilePath>
-            </File>
-            <File>
-              <FileName>tasks.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\tasks.c</FilePath>
-            </File>
-            <File>
-              <FileName>timers.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\timers.c</FilePath>
-            </File>
-            <File>
-              <FileName>port_cm4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\portable\RVDS\ARM_CM4F\port_cm4.c</FilePath>
-            </File>
-            <File>
-              <FileName>cmsis_os.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\CMSIS_RTOS\cmsis_os.c</FilePath>
-            </File>
-            <File>
-              <FileName>heap_4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\portable\MemMang\heap_4.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2381,64 +2326,9 @@
               <FilePath>..\00-ESP8266_LIBRARY\esp8266.c</FilePath>
             </File>
             <File>
-              <FileName>esp8266_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\esp8266_sys.c</FilePath>
-            </File>
-            <File>
               <FileName>esp8266_ll.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\esp8266_ll.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>FreeRTOS</GroupName>
-          <Files>
-            <File>
-              <FileName>croutine.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\croutine.c</FilePath>
-            </File>
-            <File>
-              <FileName>event_groups.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\event_groups.c</FilePath>
-            </File>
-            <File>
-              <FileName>list.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\list.c</FilePath>
-            </File>
-            <File>
-              <FileName>queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\queue.c</FilePath>
-            </File>
-            <File>
-              <FileName>tasks.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\tasks.c</FilePath>
-            </File>
-            <File>
-              <FileName>timers.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\timers.c</FilePath>
-            </File>
-            <File>
-              <FileName>port_cm4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\portable\RVDS\ARM_CM4F\port_cm4.c</FilePath>
-            </File>
-            <File>
-              <FileName>cmsis_os.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\CMSIS_RTOS\cmsis_os.c</FilePath>
-            </File>
-            <File>
-              <FileName>heap_4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\portable\MemMang\heap_4.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -3600,64 +3490,9 @@
               <FilePath>..\00-ESP8266_LIBRARY\esp8266.c</FilePath>
             </File>
             <File>
-              <FileName>esp8266_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\esp8266_sys.c</FilePath>
-            </File>
-            <File>
               <FileName>esp8266_ll.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\esp8266_ll.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>FreeRTOS</GroupName>
-          <Files>
-            <File>
-              <FileName>croutine.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\croutine.c</FilePath>
-            </File>
-            <File>
-              <FileName>event_groups.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\event_groups.c</FilePath>
-            </File>
-            <File>
-              <FileName>list.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\list.c</FilePath>
-            </File>
-            <File>
-              <FileName>queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\queue.c</FilePath>
-            </File>
-            <File>
-              <FileName>tasks.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\tasks.c</FilePath>
-            </File>
-            <File>
-              <FileName>timers.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\timers.c</FilePath>
-            </File>
-            <File>
-              <FileName>port_cm4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\portable\RVDS\ARM_CM4F\port_cm4.c</FilePath>
-            </File>
-            <File>
-              <FileName>cmsis_os.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\CMSIS_RTOS\cmsis_os.c</FilePath>
-            </File>
-            <File>
-              <FileName>heap_4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\portable\MemMang\heap_4.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -4553,64 +4388,9 @@
               <FilePath>..\00-ESP8266_LIBRARY\esp8266.c</FilePath>
             </File>
             <File>
-              <FileName>esp8266_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\esp8266_sys.c</FilePath>
-            </File>
-            <File>
               <FileName>esp8266_ll.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\esp8266_ll.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>FreeRTOS</GroupName>
-          <Files>
-            <File>
-              <FileName>croutine.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\croutine.c</FilePath>
-            </File>
-            <File>
-              <FileName>event_groups.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\event_groups.c</FilePath>
-            </File>
-            <File>
-              <FileName>list.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\list.c</FilePath>
-            </File>
-            <File>
-              <FileName>queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\queue.c</FilePath>
-            </File>
-            <File>
-              <FileName>tasks.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\tasks.c</FilePath>
-            </File>
-            <File>
-              <FileName>timers.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\timers.c</FilePath>
-            </File>
-            <File>
-              <FileName>port_cm4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\portable\RVDS\ARM_CM4F\port_cm4.c</FilePath>
-            </File>
-            <File>
-              <FileName>cmsis_os.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\CMSIS_RTOS\cmsis_os.c</FilePath>
-            </File>
-            <File>
-              <FileName>heap_4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\00-STM32_LIBRARIES\FreeRTOS\portable\MemMang\heap_4.c</FilePath>
             </File>
           </Files>
         </Group>

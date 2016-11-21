@@ -2,7 +2,7 @@
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
  * \website https://majerle.eu/projects/esp8266-at-commands-parser-for-embedded-systems
- * \version v2.0.1
+ * \version v2.1.0
  * \license MIT
  * \brief   Library for ESP8266 module using AT commands for embedded systems
  *	
@@ -33,7 +33,7 @@
 \endverbatim
  */
 #ifndef ESP_H
-#define ESP_H 201
+#define ESP_H 210
 
 /* C++ detection */
 #ifdef __cplusplus
