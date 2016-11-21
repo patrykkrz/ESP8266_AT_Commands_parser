@@ -1,5 +1,5 @@
 /**
- * Keil project example for ESP8266 ACCESS POINT
+ * Keil project example for ESP8266 ACCESS POINT wit hRTOS
  *
  * @note      Check defines.h file for configuration settings!
  * @note      When using Nucleo F411 board, example has set 8MHz external HSE clock!
@@ -18,7 +18,7 @@
  *
  * This examples shows how you can use ESP for basic server
  *
- * - Library if initialized using ESP_Init
+ * - Library is initialized using ESP_Init
  * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network
  * - Software Access point is enabled.
  * - After successful setup, wifi network should be shown in your phone/PC/..

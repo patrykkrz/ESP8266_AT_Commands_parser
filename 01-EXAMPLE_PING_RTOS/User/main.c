@@ -1,5 +1,5 @@
 /**
- * Keil project example for ESP8266 PING feature
+ * Keil project example for ESP8266 PING feature using RTOS
  *
  * @note      Check defines.h file for configuration settings!
  * @note      When using Nucleo F411 board, example has set 8MHz external HSE clock!
@@ -18,7 +18,7 @@
  *
  * This examples shows how you can use ESP for basic client connection
  *
- * - Library if initialized using ESP_Init
+ * - Library is initialized using ESP_Init
  * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network
  * - Press on button to start pinging domain
  * - On debug output (PA2 pin) is printf targeted via UART at 921600 bauds

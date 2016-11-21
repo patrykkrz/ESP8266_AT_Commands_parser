@@ -18,7 +18,7 @@
  *
  * This examples shows how you can use ESP for basic server
  *
- * - Library if initialized using ESP_Init
+ * - Library is initialized using ESP_Init
  * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network
  * - On debug port, IP address will be written to you where you can connect with browser
  * - Magic will begin, you should see something on your screen on PC

@@ -1,5 +1,5 @@
 /**
- * Keil project example for ESP8266 SERVER mode and without RTOS support
+ * Keil project example for ESP8266 NETWORK SCAN mode and without RTOS support
  *
  * @note      Check defines.h file for configuration settings!
  * @note      When using Nucleo F411 board, example has set 8MHz external HSE clock!
@@ -18,10 +18,8 @@
  *
  * This examples shows how you can use ESP for basic server
  *
- * - Library if initialized using ESP_Init
- * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network
- * - On debug port, IP address will be written to you where you can connect with browser
- * - Magic will begin, you should see something on your screen on PC
+ * - Library is initialized using ESP_Init
+ * - Network scan using Protothread will begin
  * - On debug output (PA2 pin) is printf targeted via UART at 921600 bauds
  *
  * Protothreads are used with non-blocking API calls to show how ESP stack can easily be used as blocking flow with non-blocking calls.
@@ -147,41 +145,6 @@ int main(void) {
 /* 1ms handler function, called from SysTick interrupt */
 void TM_DELAY_1msHandler(void) {
     ESP_UpdateTime(&ESP, 1);                /* Update ESP library time for 1 ms */
-}
-
-/**
- * \brief  Application thread to work with ESP module only
- */
-void ESP_Main_Thread(void const* params) {
-    /* Init ESP library with 115200 bauds */
-    if ((espRes = ESP_Init(&ESP, 115200, ESP_Callback)) == espOK) {
-        printf("ESP module init successfully!\r\n");
-    } else {
-        printf("ESP Init error. Status: %d\r\n", espRes);
-    }
-    
-    /* Scan network for AP */
-    if ((espRes = ESP_STA_ListAccessPoints(&ESP, aps, sizeof(aps) / sizeof(aps[0]), &ar, 1)) == espOK) {
-        uint8_t i = 0;
-        printf("Network scan for access points was successful and found %d access point(s).\r\n", ar);
-        
-        for (i = 0; i < ar; i++) {              /* Go through all access points found */
-            printf("AP %d: Name: %s, RSSI: %d, MAC: %02X:%02X:%02X:%02X:%02X:%02X\r\n", i, aps[i].SSID, aps[i].RSSI,
-                aps[i].MAC[0], aps[i].MAC[1], aps[i].MAC[2], aps[i].MAC[3], aps[i].MAC[4], aps[i].MAC[5]
-            );
-        }
-    }
-    
-    /* Try to connect to wifi network in blocking mode */
-    if ((espRes = ESP_STA_Connect(&ESP, WIFINAME, WIFIPASS, networkMAC, 0, 1)) == espOK) {
-        printf("Connected to network\r\n");
-    } else {
-        printf("Problems trying to connect to network: %d\r\n", espRes);
-    }
-    
-    while (1) {
-        ESP_ProcessCallbacks(&ESP);             /* Process all callbacks */
-    }
 }
 
 /***********************************************/

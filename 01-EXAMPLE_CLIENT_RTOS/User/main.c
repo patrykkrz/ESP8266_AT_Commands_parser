@@ -18,7 +18,7 @@
  *
  * This examples shows how you can use ESP for basic client connection
  *
- * - Library if initialized using ESP_Init
+ * - Library is initialized using ESP_Init
  * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network
  * - Press on button to connect to example.com website with custom HTTP GET request method.
  * - On debug output (PA2 pin) is printf targeted via UART at 921600 bauds
