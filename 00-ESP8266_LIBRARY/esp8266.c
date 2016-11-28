@@ -1513,34 +1513,36 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     /* Send initialization commands */
     ESP->Flags.F.IsBlocking = 1;                            /* Process blocking calls */
     ESP->ActiveCmdTimeout = 1000;                           /* Give 1 second timeout */
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_BASIC_RST);                   /* Reset device */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
     ESP->ActiveCmdTimeout = 100;                            /* Set response timeout */
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_BASIC_AT);                    /* Check AT response */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_BASIC_GMR);                   /* Check AT software */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
 #if ESP_USE_CTS
-    //TODO: Use function for UART command!
-    while (i--) {
+    while (i) {
         Pointers.CPtr1 = FROMMEM("CUR");
         Pointers.UI = baudrate;
         __ACTIVE_CMD(ESP, CMD_BASIC_UART);                  /* Check AT response */
@@ -1549,9 +1551,10 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
 #endif /*!< ESP_USE_CTS */
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_WIFI_CWMODE);                 /* Set device mode */
         Pointers.UI = 3;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
@@ -1559,8 +1562,9 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_TCPIP_CIPMUX);                /* Set device mux */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
@@ -1568,8 +1572,9 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         if (ESP->ActiveResult == espOK) {
             break;
         }
-    };
-    while (i--) {
+        i--;
+    }
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_TCPIP_CIPDINFO);              /* Enable informations about connection on +IPD statement */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
@@ -1577,8 +1582,9 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_WIFI_GETSTAMAC);              /* Get station MAC address */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
@@ -1586,8 +1592,9 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_WIFI_GETAPMAC);               /* Get AP MAC address */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
@@ -1595,8 +1602,9 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);               /* Get station IP */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
@@ -1604,8 +1612,9 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_WIFI_GETAPIP);                /* Get AP IP */
         Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
@@ -1613,14 +1622,16 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
-    while (i--) {
+    while (i) {
         __ACTIVE_CMD(ESP, CMD_WIFI_GETCWSAP);               /* Get AP settings */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
             break;
         }
+        i--;
     }
     __IDLE(ESP);                                            /* Process IDLE */
     ESP->Flags.F.IsBlocking = 0;                            /* Reset blocking calls */
