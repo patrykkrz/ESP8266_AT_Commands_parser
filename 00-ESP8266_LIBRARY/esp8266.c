@@ -556,9 +556,7 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     if (*str == '\r' && *(str + 1) == '\n') {               /* Check empty line */
         return;
     }
-    if (strcmp(str, RESP_OK) == 0) {
-        is_ok = 0;
-    }
+
     is_ok = strcmp(str, RESP_OK) == 0;                      /* Check if OK received */
     if (!is_ok) {
         is_error = strcmp(str, RESP_ERROR) == 0;            /* Check if error received */
@@ -1277,7 +1275,7 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
                 break;
             }
         }
-        if (!(*(ESP_CONN_t **)Pointers.PPtr1)) {            /* Check valid connection */
+        if (!(*(ESP_CONN_t **)Pointers.PPtr1) || i == 5) {  /* Check valid connection */
             ESP->ActiveResult = espERROR;
             goto cmd_tcpip_cipstart_clean;
         }
@@ -2091,7 +2089,7 @@ ESP_Result_t ESP_CONN_Start(evol ESP_t* ESP, ESP_CONN_t** conn, ESP_CONN_Type_t 
     Pointers.CPtr1 = domain;
     Pointers.UI = type << 16 | port;
     
-    __RETURN_BLOCKING(ESP, blocking, 60000);              /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 180000);               /* Return with blocking support */
 }
 
 ESP_Result_t ESP_CONN_Send(evol ESP_t* ESP, ESP_CONN_t* conn, const uint8_t* data, uint32_t btw, uint32_t* bw, uint32_t blocking) {
