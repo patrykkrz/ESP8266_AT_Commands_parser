@@ -753,6 +753,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR; /* Check response */
         
         if (ESP->ActiveResult != espOK) {
+            __RST_EVENTS_RESP(ESP);                         /* Reset all events */
             /* Try hardware reset */
             ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_SET);   /* Set reset */
             time = 4000; while (time--);
@@ -1512,7 +1513,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
 
     /* Send initialization commands */
     ESP->Flags.F.IsBlocking = 1;                            /* Process blocking calls */
-    ESP->ActiveCmdTimeout = 1000;                           /* Give 1 second timeout */
+    ESP->ActiveCmdTimeout = 5000;                           /* Give 1 second timeout */
     while (i) {
         __ACTIVE_CMD(ESP, CMD_BASIC_RST);                   /* Reset device */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
