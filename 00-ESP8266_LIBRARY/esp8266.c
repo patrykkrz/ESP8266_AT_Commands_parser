@@ -175,23 +175,23 @@ typedef struct {
 #define __CHECK_BUSY(p)                     do { if (__IS_BUSY(p)) { __RETURN(ESP, espBUSY); } } while (0)
 #define __CHECK_INPUTS(c)                   do { if (!(c)) { __RETURN(ESP, espPARERROR); } } while (0)
 
-#define __CONN_RESET(c)                   do { c->Flags.Value = 0x00; } while (0)
+#define __CONN_RESET(c)                     do { c->Flags.Value = 0x00; } while (0)
 
 #if ESP_RTOS == 1
-#define __IDLE(p)                         do {\
+#define __IDLE(p)                           do {\
     if (ESP_SYS_Release((ESP_RTOS_SYNC_t *)&(p)->Sync)) {   \
     }                                           \
     (p)->ActiveCmd = CMD_IDLE;                  \
-    __RESET_THREADS(p);                           \
+    __RESET_THREADS(p);                          \
     if (!(p)->Flags.F.IsBlocking) {             \
         (p)->Flags.F.Call_Idle = 1;             \
     }                                           \
     memset((void *)&Pointers, 0x00, sizeof(Pointers));  \
 } while (0)
 #else
-#define __IDLE(p)                         do {\
+#define __IDLE(p)                           do {\
     (p)->ActiveCmd = CMD_IDLE;                  \
-    __RESET_THREADS(p);                           \
+    __RESET_THREADS(p);                         \
     if (!(p)->Flags.F.IsBlocking) {             \
         (p)->Flags.F.Call_Idle = 1;             \
     }                                           \
@@ -200,7 +200,7 @@ typedef struct {
 #endif
 
 #if ESP_RTOS
-#define __ACTIVE_CMD(p, cmd)              do {\
+#define __ACTIVE_CMD(p, cmd)                do {\
     if (ESP_SYS_Request((ESP_RTOS_SYNC_t *)&(p)->Sync)) {   \
         return espTIMEOUT;                      \
     }                                           \
@@ -210,7 +210,7 @@ typedef struct {
     (p)->ActiveCmd = (cmd);                     \
 } while (0)
 #else
-#define __ACTIVE_CMD(p, cmd)              do {\
+#define __ACTIVE_CMD(p, cmd)                do {\
     if ((p)->ActiveCmd == CMD_IDLE) {           \
         (p)->ActiveCmdStart = (ESP)->Time;      \
     }                                           \
@@ -218,11 +218,11 @@ typedef struct {
 } while (0)
 #endif
 
-#define __CMD_SAVE(p)                     (p)->ActiveCmdSaved = (p)->ActiveCmd
-#define __CMD_RESTORE(p)                  (p)->ActiveCmd = (p)->ActiveCmdSaved
+#define __CMD_SAVE(p)                       (p)->ActiveCmdSaved = (p)->ActiveCmd
+#define __CMD_RESTORE(p)                    (p)->ActiveCmd = (p)->ActiveCmdSaved
 
-#define __RETURN(p, v)                    do { (p)->RetVal = (v); return (v); } while (0)
-#define __RETURN_BLOCKING(p, b, mt)       do {  \
+#define __RETURN(p, v)                      do { (p)->RetVal = (v); return (v); } while (0)
+#define __RETURN_BLOCKING(p, b, mt)         do {\
     ESP_Result_t res;                           \
     (p)->ActiveCmdTimeout = mt;                 \
     if (!(b)) {                                 \
@@ -666,7 +666,7 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
             ESP->Events.F.RespWifiConnected = 1;
         }
         ESP->CallbackFlags.F.WifiConnected = 1;
-    } else if (strcmp(str, FROMMEM("WIFI DISCONNECTED\r\n")) == 0) {    /* Just disconnected */
+    } else if (strcmp(str, FROMMEM("WIFI DISCONNECT\r\n")) == 0) {  /* Just disconnected */
         if (ESP->ActiveCmd == CMD_WIFI_CWJAP) {             /* If trying to join AP */
             ESP->Events.F.RespWifiDisconnected = 1;
         }
