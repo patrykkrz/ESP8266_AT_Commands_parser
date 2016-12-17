@@ -642,7 +642,7 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     
     if (ESP->ActiveCmd == CMD_WIFI_CWSAP) {
         if (strncmp(str, FROMMEM("+CWSAP"), 6) == 0) {      /* Check for response */
-            ParseCWSAP(ESP, str + 7, (ESP_APConfig_t *)&ESP->APConf);   /* Parse config from AP */             
+            ParseCWSAP(ESP, str + 12, (ESP_APConfig_t *)&ESP->APConf);   /* Parse config from AP */             
         }
     }
     
