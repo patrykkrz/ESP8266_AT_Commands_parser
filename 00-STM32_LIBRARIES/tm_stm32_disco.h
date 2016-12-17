@@ -1,8 +1,8 @@
 /**
  * @author  Tilen Majerle
  * @email   tilen@majerle.eu
- * @website http://stm32f4-discovery.com
- * @link    http://stm32f4-discovery.com/2015/07/hal-library-2-leds-and-button-for-stm32-boards/
+ * @website http://stm32f4-discovery.net
+ * @link    http://stm32f4-discovery.net/2015/07/hal-library-2-leds-and-button-for-stm32-boards/
  * @version v1.1
  * @ide     Keil uVision
  * @license MIT
@@ -49,7 +49,7 @@ extern "C" {
 
 /**
  * @defgroup TM_DISCO
- * @brief    Leds and buttons for discovery, nucleo and eval boards - http://stm32f4-discovery.com/2015/07/hal-library-2-leds-and-button-for-stm32-boards/
+ * @brief    Leds and buttons for discovery, nucleo and eval boards - http://stm32f4-discovery.net/2015/07/hal-library-2-leds-and-button-for-stm32-boards/
  * @{
  *	
  * \par Supported boards
@@ -261,6 +261,21 @@ extern "C" {
 
 	#define DISCO_BUTTON_PORT			GPIOI
 	#define DISCO_BUTTON_PIN			0x0800
+	#define DISCO_BUTTON_PRESSED		1
+	#define DISCO_BUTTON_PULL			TM_GPIO_PuPd_DOWN
+/* STM32F769-Discovery */
+#elif defined(STM32F769_DISCOVERY)
+	#define LED_GREEN					0x0020U
+	#define LED_RED						0x2000U
+	#define LED_ORANGE					0
+	#define LED_BLUE					0
+	#define LED_ALL						LED_GREEN | LED_RED
+	
+	#define DISCO_LED_PORT				GPIOJ
+	#define DISCO_LED_PINS				LED_ALL
+
+	#define DISCO_BUTTON_PORT			GPIOA
+	#define DISCO_BUTTON_PIN			0x0001U
 	#define DISCO_BUTTON_PRESSED		1
 	#define DISCO_BUTTON_PULL			TM_GPIO_PuPd_DOWN
 /* No board used */

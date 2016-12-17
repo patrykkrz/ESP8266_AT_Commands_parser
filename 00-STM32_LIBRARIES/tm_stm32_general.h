@@ -1,9 +1,9 @@
 /**
  * @author  Tilen Majerle
  * @email   tilen@majerle.eu
- * @website http://stm32f4-discovery.com
- * @link    http://stm32f4-discovery.com/2015/07/hal-library-09-general-for-stm32fxxx/
- * @version v1.0
+ * @website http://stm32f4-discovery.net
+ * @link    http://stm32f4-discovery.net/2015/07/hal-library-09-general-for-stm32fxxx/
+ * @version v1.1
  * @ide     Keil uVision
  * @license MIT
  * @brief   GENERAL library for STM32F4xx devices
@@ -35,7 +35,7 @@
 \endverbatim
  */
 #ifndef TM_GENERAL_H
-#define TM_GENERAL_H 100
+#define TM_GENERAL_H 110
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -49,7 +49,7 @@ extern "C" {
 
 /**
  * @defgroup TM_GENERAL
- * @brief    GENERAL library for STM32Fxxx devices - http://stm32f4-discovery.com/2015/07/hal-library-09-general-for-stm32fxxx/
+ * @brief    GENERAL library for STM32Fxxx devices - http://stm32f4-discovery.net/2015/07/hal-library-09-general-for-stm32fxxx/
  * @{
  *
  * This is a simple library, where its content can be used in a lot of places in your project.
@@ -73,6 +73,10 @@ extern "C" {
 \verbatim
  Version 1.0
   - First release
+
+ Version 1.1
+  - July 12, 2016
+  - DWT counter did not start on STM32F7xx devices
 \endverbatim
  *
  * \par Dependencies

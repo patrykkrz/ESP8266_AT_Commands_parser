@@ -1,24 +1,31 @@
 /**	
  * |----------------------------------------------------------------------
- * | Copyright (C) Tilen Majerle, 2015
- * | 
- * | This program is free software: you can redistribute it and/or modify
- * | it under the terms of the GNU General Public License as published by
- * | the Free Software Foundation, either version 3 of the License, or
- * | any later version.
+ * | Copyright (c) 2016 Tilen Majerle
  * |  
- * | This program is distributed in the hope that it will be useful,
- * | but WITHOUT ANY WARRANTY; without even the implied warranty of
- * | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * | GNU General Public License for more details.
+ * | Permission is hereby granted, free of charge, to any person
+ * | obtaining a copy of this software and associated documentation
+ * | files (the "Software"), to deal in the Software without restriction,
+ * | including without limitation the rights to use, copy, modify, merge,
+ * | publish, distribute, sublicense, and/or sell copies of the Software, 
+ * | and to permit persons to whom the Software is furnished to do so, 
+ * | subject to the following conditions:
  * | 
- * | You should have received a copy of the GNU General Public License
- * | along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * | The above copyright notice and this permission notice shall be
+ * | included in all copies or substantial portions of the Software.
+ * | 
+ * | THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * | EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * | OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * | AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * | HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * | WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+ * | FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * | OTHER DEALINGS IN THE SOFTWARE.
  * |----------------------------------------------------------------------
  */
 #include "tm_stm32_buffer.h"
 
-uint8_t TM_BUFFER_Init(TM_BUFFER_t* Buffer, uint16_t Size, uint8_t* BufferPtr) {
+uint8_t TM_BUFFER_Init(TM_BUFFER_t* Buffer, uint32_t Size, uint8_t* BufferPtr) {
 	/* Set buffer values to all zeros */
 	memset(Buffer, 0, sizeof(TM_BUFFER_t));
 	
@@ -69,11 +76,15 @@ void TM_BUFFER_Free(TM_BUFFER_t* Buffer) {
 	Buffer->Size = 0;
 }
 
-uint16_t TM_BUFFER_Write(TM_BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
-	uint8_t i = 0;
-	
+uint32_t TM_BUFFER_Write(TM_BUFFER_t* Buffer, uint8_t* Data, uint32_t count) {
+	uint32_t i = 0;
+	uint32_t free;
+#if BUFFER_FAST
+	uint32_t tocopy;
+#endif
+
 	/* Check buffer structure */
-	if (Buffer == NULL) {
+	if (Buffer == NULL || count == 0) {
 		return 0;
 	}
 
@@ -81,38 +92,143 @@ uint16_t TM_BUFFER_Write(TM_BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
 	if (Buffer->In >= Buffer->Size) {
 		Buffer->In = 0;
 	}
-	
+
+	/* Get free memory */
+	free = TM_BUFFER_GetFree(Buffer);
+
+	/* Check available memory */
+	if (free < count) {
+		/* If no memory, stop execution */
+		if (free == 0) {
+			return 0;
+		}
+
+		/* Set values for write */
+		count = free;
+	}
+
+	/* We have calculated memory for write */
+
+#if BUFFER_FAST
+	/* Calculate number of elements we can put at the end of buffer */
+	tocopy = Buffer->Size - Buffer->In;
+
+	/* Check for copy count */
+	if (tocopy > count) {
+		tocopy = count;
+	}
+
+	/* Copy content to buffer */
+	memcpy(&Buffer->Buffer[Buffer->In], Data, tocopy);
+
+	/* Increase number of bytes we copied already */
+	i += tocopy;
+	Buffer->In += tocopy;
+	count -= tocopy;
+
+	/* Check if anything to write */
+	if (count > 0) {
+		/* Start from the beginning of buffer */
+		Buffer->In = 0;
+
+		/* Copy content */
+		memcpy(&Buffer->Buffer[Buffer->In], &Data[i], count);
+
+		/* Set input pointer */
+		Buffer->In = count;
+	}
+
+	/* Check input overflow */
+	if (Buffer->In >= Buffer->Size) {
+		Buffer->In = 0;
+	}
+
+	/* Return number of elements stored in memory */
+	return (i + count);
+#else
 	/* Go through all elements */
 	while (count--) {
-		/* Check if buffer full */
-		if (
-			(Buffer->In == (Buffer->Out - 1)) ||
-			(Buffer->Out == 0 && Buffer->In == (Buffer->Size - 1))
-		) {
-			break;
-		}
-		
 		/* Add to buffer */
 		Buffer->Buffer[Buffer->In++] = *Data++;
-		
+
 		/* Increase pointers */
 		i++;
-		
+
 		/* Check input overflow */
 		if (Buffer->In >= Buffer->Size) {
 			Buffer->In = 0;
 		}
 	}
-	
-	/* Return number of elements stored in memory */
+
+	/* Return number of elements written */
+	return i;
+#endif
+}
+
+uint32_t TM_BUFFER_WriteToTop(TM_BUFFER_t* Buffer, uint8_t* Data, uint32_t count) {
+	uint32_t i = 0;
+	uint32_t free;
+
+	/* Check buffer structure */
+	if (Buffer == NULL || count == 0) {
+		return 0;
+	}
+
+	/* Check input pointer */
+	if (Buffer->In >= Buffer->Size) {
+		Buffer->In = 0;
+	}
+	if (Buffer->Out >= Buffer->Size) {
+		Buffer->Out = 0;
+	}
+
+	/* Get free memory */
+	free = TM_BUFFER_GetFree(Buffer);
+
+	/* Check available memory */
+	if (free < count) {
+		/* If no memory, stop execution */
+		if (free == 0) {
+			return 0;
+		}
+
+		/* Set values for write */
+		count = free;
+	}
+
+	/* We have calculated memory for write */
+
+	/* Start on bottom */
+	Data += count - 1;
+
+	/* Go through all elements */
+	while (count--) {
+		if (Buffer->Out == 0) {
+			Buffer->Out = Buffer->Size - 1;
+		} else {
+			Buffer->Out--;
+		}
+
+		/* Add to buffer */
+		Buffer->Buffer[Buffer->Out] = *Data--;
+
+		/* Increase pointers */
+		i++;
+	}
+
+	/* Return number of elements written */
 	return i;
 }
 
-uint16_t TM_BUFFER_Read(TM_BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
-	uint16_t i = 0;
-	
+uint32_t TM_BUFFER_Read(TM_BUFFER_t* Buffer, uint8_t* Data, uint32_t count) {
+	uint32_t i = 0;
+	uint32_t full;
+#if BUFFER_FAST
+	uint32_t tocopy;
+#endif
+
 	/* Check buffer structure */
-	if (Buffer == NULL) {
+	if (Buffer == NULL || count == 0) {
 		return 0;
 	}
 
@@ -120,17 +236,65 @@ uint16_t TM_BUFFER_Read(TM_BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
 	if (Buffer->Out >= Buffer->Size) {
 		Buffer->Out = 0;
 	}
-	
+
+	/* Get free memory */
+	full = TM_BUFFER_GetFull(Buffer);
+
+	/* Check available memory */
+	if (full < count) {
+		/* If no memory, stop execution */
+		if (full == 0) {
+			return 0;
+		}
+
+		/* Set values for write */
+		count = full;
+	}
+
+	/* We have calculated memory for write */
+
+#if BUFFER_FAST
+	/* Calculate number of elements we can put at the end of buffer */
+	tocopy = Buffer->Size - Buffer->Out;
+
+	/* Check for copy count */
+	if (tocopy > count) {
+		tocopy = count;
+	}
+
+	/* Copy content from buffer */
+	memcpy(Data, &Buffer->Buffer[Buffer->Out], tocopy);
+
+	/* Increase number of bytes we copied already */
+	i += tocopy;
+	Buffer->Out += tocopy;
+	count -= tocopy;
+
+	/* Check if anything to read */
+	if (count > 0) {
+		/* Start from the beginning of buffer */
+		Buffer->Out = 0;
+
+		/* Copy content */
+		memcpy(&Data[i], &Buffer->Buffer[Buffer->Out], count);
+
+		/* Set input pointer */
+		Buffer->Out = count;
+	}
+
+	/* Check output overflow */
+	if (Buffer->Out >= Buffer->Size) {
+		Buffer->Out = 0;
+	}
+
+	/* Return number of elements stored in memory */
+	return (i + count);
+#else
 	/* Go through all elements */
 	while (count--) {
-		/* Check if pointers are same = buffer is empty */
-		if (Buffer->Out == Buffer->In) {
-			break;
-		}
-		
-		/* Save to user buffer */
+		/* Read from buffer */
 		*Data++ = Buffer->Buffer[Buffer->Out++];
-		
+
 		/* Increase pointers */
 		i++;
 
@@ -139,12 +303,13 @@ uint16_t TM_BUFFER_Read(TM_BUFFER_t* Buffer, uint8_t* Data, uint16_t count) {
 			Buffer->Out = 0;
 		}
 	}
-	
-	/* Return number of elements read from buffer */
+
+	/* Return number of elements stored in memory */
 	return i;
+#endif
 }
 
-uint16_t TM_BUFFER_GetFree(TM_BUFFER_t* Buffer) {
+uint32_t TM_BUFFER_GetFree(TM_BUFFER_t* Buffer) {
 	uint32_t size, in, out;
 	
 	/* Check buffer structure */
@@ -175,7 +340,7 @@ uint16_t TM_BUFFER_GetFree(TM_BUFFER_t* Buffer) {
 	return size - 1;
 }
 
-uint16_t TM_BUFFER_GetFull(TM_BUFFER_t* Buffer) {
+uint32_t TM_BUFFER_GetFull(TM_BUFFER_t* Buffer) {
 	uint32_t in, out, size;
 	
 	/* Check buffer structure */
@@ -218,8 +383,8 @@ void TM_BUFFER_Reset(TM_BUFFER_t* Buffer) {
 	Buffer->Out = 0;
 }
 
-int16_t TM_BUFFER_FindElement(TM_BUFFER_t* Buffer, uint8_t Element) {
-	uint16_t Num, Out, retval = 0;
+int32_t TM_BUFFER_FindElement(TM_BUFFER_t* Buffer, uint8_t Element) {
+	uint32_t Num, Out, retval = 0;
 	
 	/* Check buffer structure */
 	if (Buffer == NULL) {
@@ -253,8 +418,8 @@ int16_t TM_BUFFER_FindElement(TM_BUFFER_t* Buffer, uint8_t Element) {
 	return -1;
 }
 
-int16_t TM_BUFFER_Find(TM_BUFFER_t* Buffer, uint8_t* Data, uint16_t Size) {
-	uint16_t Num, Out, i, retval = 0;
+int32_t TM_BUFFER_Find(TM_BUFFER_t* Buffer, uint8_t* Data, uint32_t Size) {
+	uint32_t Num, Out, i, retval = 0;
 	uint8_t found = 0;
 
 	/* Check buffer structure and number of elements in buffer */
@@ -287,7 +452,7 @@ int16_t TM_BUFFER_Find(TM_BUFFER_t* Buffer, uint8_t* Data, uint16_t Size) {
 			/* First character found */
 			/* Check others */
 			i = 1;
-			while (i < Size) {
+			while (i < Size && Num > 0) {
 				/* Check output overflow */
 				if (Out >= Buffer->Size) {
 					Out = 0;
@@ -316,15 +481,15 @@ int16_t TM_BUFFER_Find(TM_BUFFER_t* Buffer, uint8_t* Data, uint16_t Size) {
 	return -1;
 }
 
-uint16_t TM_BUFFER_WriteString(TM_BUFFER_t* Buffer, char* buff) {
+uint32_t TM_BUFFER_WriteString(TM_BUFFER_t* Buffer, char* buff) {
 	/* Write string to buffer */
 	return TM_BUFFER_Write(Buffer, (uint8_t *)buff, strlen(buff));
 }
 
-uint16_t TM_BUFFER_ReadString(TM_BUFFER_t* Buffer, char* buff, uint16_t buffsize) {
-	uint16_t i = 0;
+uint32_t TM_BUFFER_ReadString(TM_BUFFER_t* Buffer, char* buff, uint32_t buffsize) {
+	uint32_t i = 0;
 	uint8_t ch;
-	uint16_t memFree, memFull;
+	uint32_t memFree, memFull;
 	
 	/* Check value buffer */
 	if (Buffer == NULL) {
@@ -379,8 +544,8 @@ uint16_t TM_BUFFER_ReadString(TM_BUFFER_t* Buffer, char* buff, uint16_t buffsize
 	return i;
 }
 
-int8_t TM_BUFFER_CheckElement(TM_BUFFER_t* Buffer, uint16_t pos, uint8_t* element) {
-	uint16_t In, Out, i = 0;
+int8_t TM_BUFFER_CheckElement(TM_BUFFER_t* Buffer, uint32_t pos, uint8_t* element) {
+	uint32_t In, Out, i = 0;
 	
 	/* Check value buffer */
 	if (Buffer == NULL) {
