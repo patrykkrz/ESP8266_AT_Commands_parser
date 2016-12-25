@@ -342,6 +342,8 @@ typedef struct _ESP_t {
     
     /* Connections structure */
 	ESP_CONN_t Conn[ESP_MAX_CONNECTIONS];               /*!< Array of connections */
+    uint8_t ActiveConns;                                /*!< Bit variable of active connections on ESP8266 from CIPSTATUS response */
+    uint8_t ActiveConnsResp;                            /*!< List of active connections */
     
     /*!< Incoming data structure */
     ESP_IPD_t IPD;                                      /*!< IPD network data structure */
@@ -876,7 +878,7 @@ ESP_Result_t ESP_SetWPS(evol ESP_t* ESP, uint8_t wps, uint32_t blocking);
  * \brief         Ping desired domain name or IP address in string form
  * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
  * \param[in]     *addr: Domain name or IP in string format to ping
- * \param[out]    *time: Pointer to output variable to store time information to
+ * \param[out]    *time: Pointer to output variable to store time information to in units of milliseconds
  * \param[in]     blocking: Status whether this function should be blocking to check for response
  * \retval        Member of \ref ESP_Result_t enumeration
  */

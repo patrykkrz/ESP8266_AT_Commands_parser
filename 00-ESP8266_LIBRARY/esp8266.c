@@ -254,6 +254,15 @@ typedef struct {
 #define ESP_SET_RTS(p, s)                   (void)0
 #endif
      
+/* Check device CIPSTATUS */
+#define __CHECK_CIPSTATUS(p)                do {\
+    __RST_EVENTS_RESP(ESP);                     \
+    UART_SEND_STR(FROMMEM("AT+CIPSTATUS"));     \
+    UART_SEND_STR(FROMMEM(_CRLF));              \
+    StartCommand(ESP, CMD_TCPIP_CIPSTATUS, NULL);   \
+    PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk ||   \
+                    ESP->Events.F.RespError);   \
+} while (0)
 
 /******************************************************************************/
 /******************************************************************************/
@@ -261,7 +270,8 @@ typedef struct {
 /******************************************************************************/
 /******************************************************************************/
 #if ESP_USE_CTS
-static uint8_t RTSStatus;                                   /* RTS pin status */
+static 
+uint8_t RTSStatus;                                          /* RTS pin status */
 #endif
 
 /* Buffers */
@@ -274,7 +284,7 @@ estatic ESP_t* _ESP;
 estatic uint8_t IPD_Data[ESP_CONNBUFFER_SIZE + 1];  /* Data buffer for incoming connection */
 #endif
 
-estatic
+static
 struct pt pt_BASIC, pt_WIFI, pt_TCPIP;
 
 #define __RESET_THREADS(GSM)                  do {          \
@@ -510,6 +520,12 @@ void ParseCWSAP(evol ESP_t* ESP, const char* ptr, ESP_APConfig_t* AP) {
     AP->Hidden = ParseNumber(ptr, &cnt);    		        /* Get hidden value */
 }
 
+/* Parse CIPSTATUS value */
+estatic
+void ParseCIPSTATUS(evol ESP_t* ESP, uint8_t* value, const char* str) {
+    *value |= 1 << CHARTONUM(*str);                          /* Set bit according to active connection */
+}
+
 /* Starts command and sets pointer for return statement */
 estatic 
 ESP_Result_t StartCommand(evol ESP_t* ESP, uint16_t cmd, const char* cmdResp) {
@@ -517,6 +533,10 @@ ESP_Result_t StartCommand(evol ESP_t* ESP, uint16_t cmd, const char* cmdResp) {
     ESP->ActiveCmdResp = (char *)cmdResp;
     ESP->ActiveCmdStart = ESP->Time;
     ESP->ActiveResult = espOK;
+    
+    if (cmd == CMD_TCPIP_CIPSTATUS) {                       /* On CIPSTATUS command */
+        ESP->ActiveConnsResp = 0;                           /* Reset active connections status */
+    }
     
     return espOK;
 }
@@ -640,6 +660,19 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
         }
     }
     
+    if (ESP->ActiveCmd == CMD_TCPIP_CIPSTATUS) {
+        if (strncmp(str, FROMMEM("+CIPSTATUS"), 10) == 0) { /* +CIPSTATUS received */
+            ParseCIPSTATUS(ESP, (uint8_t *)&ESP->ActiveConnsResp, str + 11);    /* Parse CIPSTATUS response */
+        } else if (is_ok) {                                 /* OK received */
+            /* Check and merge all connections from ESP */
+            uint8_t i = 0;
+            for (i = 0; i < ESP_MAX_CONNECTIONS; i++) {
+                ESP->Conn[i].Flags.F.Active = (ESP->ActiveConnsResp & (1 << i)) == (1 << i);
+            }
+            ESP->ActiveConns = ESP->ActiveConnsResp;        /* Copy current value */
+        }
+    }
+    
     if (ESP->ActiveCmd == CMD_WIFI_CWSAP) {
         if (strncmp(str, FROMMEM("+CWSAP"), 6) == 0) {      /* Check for response */
             ParseCWSAP(ESP, str + 12, (ESP_APConfig_t *)&ESP->APConf);   /* Parse config from AP */             
@@ -745,7 +778,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         /* Software reset first */
         UART_SEND_STR(FROMMEM("AT+RST"));                   /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_BASIC_RST, NULL);
+        StartCommand(ESP, CMD_BASIC_RST, NULL);             /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady ||
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -793,6 +826,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(FROMMEM(",8,1,0,0"));                 /* No flow control for ESP */
 #endif
         UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_UART, NULL);            /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk ||
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -812,7 +846,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(FROMMEM("AT+RFPOWER="));              /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_BASIC_RFPOWER, NULL);
+        StartCommand(ESP, CMD_BASIC_RFPOWER, NULL);         /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -849,7 +883,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(FROMMEM("AT+CWMODE="));               /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CWMODE, NULL);
+        StartCommand(ESP, CMD_WIFI_CWMODE, NULL);           /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -861,7 +895,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSTAMAC_CUR?"));        /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CIPSTAMAC, NULL);
+        StartCommand(ESP, CMD_WIFI_CIPSTAMAC, NULL);        /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -873,7 +907,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPAPMAC_CUR?"));         /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CIPAPMAC, NULL);
+        StartCommand(ESP, CMD_WIFI_CIPAPMAC, NULL);         /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -885,7 +919,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSTA_CUR?"));           /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CIPSTA, NULL);
+        StartCommand(ESP, CMD_WIFI_CIPSTA, NULL);           /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -922,7 +956,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         }
         UART_SEND_STR(FROMMEM("\""));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CIPSTAMAC, NULL);
+        StartCommand(ESP, CMD_WIFI_CIPSTAMAC, NULL);        /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -950,7 +984,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         }
         UART_SEND_STR(FROMMEM("\""));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CIPAPMAC, NULL);
+        StartCommand(ESP, CMD_WIFI_CIPAPMAC, NULL);         /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -978,7 +1012,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         }
         UART_SEND_STR(FROMMEM("\""));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CIPSTA, NULL);
+        StartCommand(ESP, CMD_WIFI_CIPSTA, NULL);           /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1006,7 +1040,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         }
         UART_SEND_STR(FROMMEM("\""));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CIPSTA, NULL);
+        StartCommand(ESP, CMD_WIFI_CIPSTA, NULL);           /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1034,7 +1068,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWLAP"));                 /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CWLAP, NULL);
+        StartCommand(ESP, CMD_WIFI_CWLAP, NULL);            /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1066,15 +1100,16 @@ cmd_wifi_listaccesspoints_clean:
             UART_SEND_STR(FROMMEM("\""));
         }
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CWJAP, NULL);
+        StartCommand(ESP, CMD_WIFI_CWJAP, NULL);            /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         if (ESP->ActiveResult == espOK) {
-            __IDLE(ESP);                                    /* Go IDLE mode */
-            __ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);           /* Set new active CMD to retrieve info about station data */
+            ESP->ActiveCmd = CMD_WIFI_GETSTAIP;
+            //__IDLE(ESP);                                    /* Go IDLE mode */
+            //__ACTIVE_CMD(ESP, CMD_WIFI_GETSTAIP);           /* Set new active CMD to retrieve info about station data */
         } else {
             __IDLE(ESP);                                    /* Go IDLE mode */
         }
@@ -1082,7 +1117,7 @@ cmd_wifi_listaccesspoints_clean:
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWQAP"));                 /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CWQAP, NULL);
+        StartCommand(ESP, CMD_WIFI_CWQAP, NULL);            /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1094,7 +1129,7 @@ cmd_wifi_listaccesspoints_clean:
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWJAP_CUR?"));            /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CWJAP, NULL);
+        StartCommand(ESP, CMD_WIFI_CWJAP, NULL);            /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1107,7 +1142,7 @@ cmd_wifi_listaccesspoints_clean:
         UART_SEND_STR(FROMMEM("AT+CWAUTOCONN="));           /* Send data */
         UART_SEND_STR(Pointers.UI ? FROMMEM("1") : FROMMEM("0"));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CWAUTOCONN, NULL);
+        StartCommand(ESP, CMD_WIFI_CWAUTOCONN, NULL);       /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1119,7 +1154,7 @@ cmd_wifi_listaccesspoints_clean:
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWLIF"));                 /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CWLIF, NULL);
+        StartCommand(ESP, CMD_WIFI_CWLIF, NULL);            /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1132,7 +1167,7 @@ cmd_wifi_listaccesspoints_clean:
 
         UART_SEND_STR(FROMMEM("AT+CWSAP_CUR?"));            /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CWSAP, NULL);
+        StartCommand(ESP, CMD_WIFI_CWSAP, NULL);            /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1162,7 +1197,7 @@ cmd_wifi_listaccesspoints_clean:
         NumberToString(str, ((ESP_APConfig_t *)Pointers.CPtr2)->Hidden);
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_CWSAP, NULL);
+        StartCommand(ESP, CMD_WIFI_CWSAP, NULL);            /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1179,7 +1214,7 @@ cmd_wifi_listaccesspoints_clean:
         UART_SEND_STR(FROMMEM("AT+WPS="));                  /* Send data */
         UART_SEND_STR(Pointers.UI ? FROMMEM("1") : FROMMEM("0"));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_WIFI_WPS, NULL);
+        StartCommand(ESP, CMD_WIFI_WPS, NULL);              /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1195,7 +1230,7 @@ cmd_wifi_listaccesspoints_clean:
 estatic
 PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
     char str[7];
-    uint8_t i;
+    static uint8_t i;
     static uint8_t tries;
     static uint32_t btw = 0;
     
@@ -1207,7 +1242,7 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(FROMMEM("AT+CIPMUX="));               /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPMUX, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIPMUX, NULL);          /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1219,7 +1254,7 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPDINFO=1"));            /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPDINFO, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIPDINFO, NULL);        /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1233,7 +1268,7 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(FROMMEM("AT+CIPSERVER=1,"));          /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);       /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1245,7 +1280,7 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPSERVER=0"));           /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);       /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1259,7 +1294,7 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(FROMMEM("AT+CIPSTO="));               /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);       /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1269,14 +1304,23 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSTART) {      /* Start a new connection */
         __CMD_SAVE(ESP);                                    /* Save current command */
+   
+        /* Check CIPSTATUS */
+        __CHECK_CIPSTATUS(ESP);
         
-        for (i = 0; i < 5; i++) {
-            if (!ESP->Conn[i].Flags.F.Active) {
+        if (ESP->Events.F.RespError) {                      /* Check response */
+            ESP->ActiveResult = espERROR;
+            goto cmd_tcpip_cipstart_clean;
+        }
+        
+        for (i = 0; i < ESP_MAX_CONNECTIONS; i++) {         /* Find available connection */
+            if (!ESP->Conn[i].Flags.F.Active || (ESP->ActiveConns & (1 << i)) == 0) {
                 *(ESP_CONN_t **)Pointers.PPtr1 = (ESP_CONN_t *)&ESP->Conn[i];
                 break;
             }
         }
-        if (!(*(ESP_CONN_t **)Pointers.PPtr1) || i == 5) {  /* Check valid connection */
+        
+        if (!(*(ESP_CONN_t **)Pointers.PPtr1) || i == ESP_MAX_CONNECTIONS) {    /* Check valid connection */
             ESP->ActiveResult = espERROR;
             goto cmd_tcpip_cipstart_clean;
         }
@@ -1300,7 +1344,7 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         NumberToString(str, Pointers.UI & 0xFFFF);
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPSTART, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIPSTART, NULL);        /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1321,12 +1365,16 @@ cmd_tcpip_cipstart_clean:
         UART_SEND_STR(FROMMEM("AT+CIPCLOSE="));             /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);       /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __CMD_SAVE(ESP);                                    /* Save current command */
+        __CHECK_CIPSTATUS(ESP);                             /* Check CIPSTATUS and ignore response */
+        __CMD_RESTORE(ESP);                                 /* Restore command */
         
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSEND) {       /* Send data on connection */
@@ -1397,7 +1445,7 @@ cmd_tcpip_cipstart_clean:
         UART_SEND_STR(FROMMEM("AT+CIPSSLSIZE="));           /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPSSLSIZE, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIPSSLSIZE, NULL);      /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1411,7 +1459,7 @@ cmd_tcpip_cipstart_clean:
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
         UART_SEND_STR(FROMMEM("\""));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPDOMAIN, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIPDOMAIN, NULL);       /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1425,7 +1473,7 @@ cmd_tcpip_cipstart_clean:
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
         UART_SEND_STR(FROMMEM("\""));
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_PING, NULL);
+        StartCommand(ESP, CMD_TCPIP_PING, NULL);            /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1437,7 +1485,7 @@ cmd_tcpip_cipstart_clean:
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIUPDATE"));              /* Send data */
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIUPDATE, NULL);
+        StartCommand(ESP, CMD_TCPIP_CIUPDATE, NULL);        /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -2131,7 +2179,7 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking) {
     __CHECK_BUSY(ESP);                                      /* Check busy status */
     __ACTIVE_CMD(ESP, CMD_TCPIP_CIPCLOSE);                  /* Set active command */
 
-    Pointers.UI = 5;                                        /* Close all connections */
+    Pointers.UI = ESP_MAX_CONNECTIONS;                      /* Close all connections */
     
     __RETURN_BLOCKING(ESP, blocking, 5000);                 /* Return with blocking support */
 }
