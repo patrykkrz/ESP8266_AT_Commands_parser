@@ -2,9 +2,9 @@
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
  * \website https://majerle.eu/projects/esp8266-at-commands-parser-for-embedded-systems
- * \version v2.1.0
+ * \version v2.2.0
  * \license MIT
- * \brief          Library for ESP8266 module using AT commands for embedded systems
+ * \brief   Library for ESP8266 module using AT commands for embedded systems
  *	
 \verbatim
    ----------------------------------------------------------------------
@@ -33,7 +33,7 @@
 \endverbatim
  */
 #ifndef ESP_H
-#define ESP_H 210
+#define ESP_H 220
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -793,7 +793,7 @@ ESP_Result_t ESP_CONN_Start(evol ESP_t* ESP, ESP_CONN_t** conn, ESP_CONN_Type_t 
 ESP_Result_t ESP_CONN_Send(evol ESP_t* ESP, ESP_CONN_t* conn, const uint8_t* data, uint32_t btw, uint32_t* bw, uint32_t blocking);
 
 /**
- * \brief         Close currently active conection
+ * \brief         Close active connection
  * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
  * \param[in]     *conn: Pointer to \ref ESP_CONN_t structure with active connection
  * \param[in]     blocking: Status whether this function should be blocking to check for response
@@ -815,6 +815,7 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking);
  * \param[in]     *conn: Pointer to \ref ESP_CONN_t structure with connection
  * \retval        Boolean status if connection is active client
  * \note          In this revision function is declared as macro
+ * \hideinitializer
  */
 #define ESP_CONN_IsClient(ESP, conn)        ((conn)->Flags.F.Client)
 
@@ -824,6 +825,7 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking);
  * \param[in]     *conn: Pointer to \ref ESP_CONN_t structure with connection
  * \retval        Boolean status if connection is active server
  * \note          In this revision function is declared as macro
+ * \hideinitializer
  */
 #define ESP_CONN_IsServer(ESP, conn)       (!ESP_CONN_IsClient(ESP, conn))
 
@@ -833,6 +835,7 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking);
  * \param[in]     *conn: Pointer to \ref ESP_CONN_t structure with connection
  * \retval        Boolean status if connection is active
  * \note          In this revision function is declared as macro
+ * \hideinitializer
  */
 #define ESP_CONN_IsActive(ESP, conn)        ((conn)->Flags.F.Active)
 
