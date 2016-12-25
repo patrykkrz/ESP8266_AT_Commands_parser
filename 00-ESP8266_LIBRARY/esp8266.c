@@ -256,12 +256,12 @@ typedef struct {
      
 /* Check device CIPSTATUS */
 #define __CHECK_CIPSTATUS(p)                do {\
-    __RST_EVENTS_RESP(ESP);                     \
+    __RST_EVENTS_RESP((ESP));                   \
     UART_SEND_STR(FROMMEM("AT+CIPSTATUS"));     \
     UART_SEND_STR(FROMMEM(_CRLF));              \
-    StartCommand(ESP, CMD_TCPIP_CIPSTATUS, NULL);   \
-    PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk ||   \
-                    ESP->Events.F.RespError);   \
+    StartCommand((ESP), CMD_TCPIP_CIPSTATUS, NULL); \
+    PT_WAIT_UNTIL(pt, (ESP)->Events.F.RespOk || \
+                    (ESP)->Events.F.RespError); \
 } while (0)
 
 /******************************************************************************/
@@ -523,7 +523,36 @@ void ParseCWSAP(evol ESP_t* ESP, const char* ptr, ESP_APConfig_t* AP) {
 /* Parse CIPSTATUS value */
 estatic
 void ParseCIPSTATUS(evol ESP_t* ESP, uint8_t* value, const char* str) {
-    *value |= 1 << CHARTONUM(*str);                          /* Set bit according to active connection */
+    uint8_t i, cnt;
+    uint8_t connNumber = CHARTONUM(*str);
+    
+    *value |= 1 << connNumber;                              /* Set bit according to active connection */
+    
+    /* Parse connection parameters */
+    str += 2;
+    while (*str && *str != ',') {
+        str++;
+    }
+    str++;
+    
+    /* Parse connection IP */
+    str++;
+    for (i = 0; i < 4; i++) {
+        ESP->Conn[connNumber].RemoteIP[i] = ParseNumber(str, &cnt);  /* Get remote IP */
+        str += cnt + 1;
+    }
+    str++;
+    
+    /* Parse Remove PORT */
+    ESP->Conn[connNumber].RemotePort = ParseNumber(str, &cnt);
+    str += cnt + 1;
+    
+    /* Parse local port */
+    ESP->Conn[connNumber].LocalPort = ParseNumber(str, &cnt);
+    str += cnt + 1;
+    
+    /* Parse client/server type */
+    ESP->Conn[connNumber].Flags.F.Client = CHARTONUM(*str) == 0;
 }
 
 /* Starts command and sets pointer for return statement */
@@ -1356,10 +1385,15 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
             goto cmd_tcpip_cipstart_clean;
         }
         
+        /* Execute CIPSTATUS */
+        __CHECK_CIPSTATUS(ESP);                             /* Check CIPSTATUS response and parse connection parameters */
+        
 cmd_tcpip_cipstart_clean:
         __CMD_RESTORE(ESP);                                 /* Restore command */
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPCLOSE) {      /* Close connection */
+        __CMD_SAVE(ESP);                                    /* Save current command */
+        
         NumberToString(str, Pointers.UI);                   /* Close specific connection */
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPCLOSE="));             /* Send data */
@@ -1372,10 +1406,10 @@ cmd_tcpip_cipstart_clean:
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
-        __CMD_SAVE(ESP);                                    /* Save current command */
+        /* Execute CIPSTATUS */
         __CHECK_CIPSTATUS(ESP);                             /* Check CIPSTATUS and ignore response */
-        __CMD_RESTORE(ESP);                                 /* Restore command */
         
+        __CMD_RESTORE(ESP);                                 /* Restore command */
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSEND) {       /* Send data on connection */
         __CMD_SAVE(ESP);                                    /* Save command */

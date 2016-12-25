@@ -184,6 +184,7 @@ typedef struct _ESP_CONN_t {
 	uint8_t Number;                                     /*!< Connection number */
 	uint16_t RemotePort;                                /*!< Remote PORT number */
 	uint8_t RemoteIP[4];                                /*!< IP address of device */
+    uint16_t LocalPort;                                 /*!< Local PORT number */
 	ESP_CONN_Type_t Type;                               /*!< Connection type. Parameter is valid only if connection is made as client */
 #if ESP_CONN_SINGLEBUFFER
     uint8_t* Data;                                      /*!< Pointer to data array */
