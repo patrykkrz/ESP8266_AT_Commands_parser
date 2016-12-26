@@ -1463,7 +1463,7 @@ cmd_tcpip_cipstart_clean:
             } else {                                        /* Error was received, link is probably not active */
                 tries = 0;                                  /* Stop execution here */
             }
-        } while (Pointers.UI && tries);                     /* Until anything to send */
+        } while (Pointers.UI && tries);                     /* Until anything to send or max tries reached */
         
         if (tries) {
             ((ESP_CONN_t *)Pointers.Ptr1)->Callback.F.DataSent = 1; /* Set flag for callback */
