@@ -275,13 +275,13 @@ uint8_t RTSStatus;                                          /* RTS pin status */
 #endif
 
 /* Buffers */
-estatic BUFFER_t Buffer;                                    /* Buffer structure */
-uint8_t Buffer_Data[1024];                                  /* Buffer data array */
-estatic Received_t Received;                                /* Received data structure */
-estatic Pointers_t Pointers;                                /* Pointers object */
-estatic ESP_t* _ESP;
+static BUFFER_t Buffer;                                     /* Buffer structure */
+static uint8_t Buffer_Data[ESP_BUFFER_SIZE + 1];            /* Buffer data array */
+static Received_t Received;                                 /* Received data structure */
+static Pointers_t Pointers;                                 /* Pointers object */
+static ESP_t* _ESP;
 #if ESP_CONN_SINGLEBUFFER
-estatic uint8_t IPD_Data[ESP_CONNBUFFER_SIZE + 1];  /* Data buffer for incoming connection */
+static uint8_t IPD_Data[ESP_CONNBUFFER_SIZE + 1];           /* Data buffer for incoming connection */
 #endif
 
 static
