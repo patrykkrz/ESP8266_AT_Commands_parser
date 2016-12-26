@@ -76,6 +76,12 @@ uint8_t ESP_LL_Init(ESP_LL_t* LL);
 
 /**
  * \brief  Sends data to ESP module from ESP stack
+ * \note   Send can be implemented using DMA or IRQ easily,
+ *            without waiting for finish.
+ *            However, when multiple calls are executed,
+ *            you must take care to send previous data first.
+ *            Using DMA or IRQ, you can use cyclic buffers for implementation.
+ *
  * \param  *LL: Pointer to \ref ESP_LL_t structure with settings
  * \param  *data: Data to be sent to module
  * \param  count: Number of bytes to be sent to module
