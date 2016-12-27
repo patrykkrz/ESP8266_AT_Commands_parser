@@ -124,6 +124,7 @@ typedef enum _ESP_Result_t {
 	espBUSY,                                            /*!< Device is busy, new command is not possible */
 	espINVALIDPARAMETERS,                               /*!< Parameters for functions are invalid */
     espSENDERROR,                                       /*!< Error trying to send data on connection */
+    espSSLERROR,                                        /*!< Connection SSL error, when there is already a connection with SSL */
     
     espAPNOTFOUND,                                      /*!< AP was not found to connect to */
     espWRONGPASSWORD                                    /*!< Password is wrong */
@@ -192,10 +193,14 @@ typedef struct _ESP_CONN_t {
     uint8_t Data[ESP_CONNBUFFER_SIZE + 1];              /*!< Received data on connection */
 #endif
     uint16_t DataLength;                                /*!< Number of bytes received in connection packet */
+    
+    uint32_t TotalBytesReceived;                        /*!< Number of total bytes so far received on connection */
+    uint32_t DataStartTime;                             /*!< Current time in units of milliseconds when first data packet was received on connection */
 	union {
 		struct {
 			uint8_t Active:1;                           /*!< Status if connection is active */
 			uint8_t Client:1;                           /*!< Set to 1 if connection was made as client */
+            uint8_t SSL:1;                              /*!< Connection has been made as SSL */
         } F;
 		uint8_t Value;                                  /*!< Value of entire union */
 	} Flags;                                            /*!< Connection flags management */

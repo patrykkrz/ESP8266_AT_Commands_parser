@@ -175,7 +175,7 @@ typedef struct {
 #define __CHECK_BUSY(p)                     do { if (__IS_BUSY(p)) { __RETURN(ESP, espBUSY); } } while (0)
 #define __CHECK_INPUTS(c)                   do { if (!(c)) { __RETURN(ESP, espPARERROR); } } while (0)
 
-#define __CONN_RESET(c)                     do { c->Flags.Value = 0x00; } while (0)
+#define __CONN_RESET(c)                     do { memset((void *)c, 0x00, sizeof(ESP_CONN_t)); } while (0)
 
 #if ESP_RTOS == 1
 #define __IDLE(p)                           do {\
@@ -766,6 +766,10 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     if (strncmp(str, "+IPD", 4) == 0) {                     /* Check for incoming data */
         ParseIPD(ESP, str + 5, (ESP_IPD_t *)&ESP->IPD);     /* Parse incoming data string */
         ESP->IPD.InIPD = 1;                                 /* Start with data reading */
+        if (!ESP->IPD.Conn->TotalBytesReceived) {
+            ESP->IPD.Conn->DataStartTime = ESP->Time;       /* Set time when first IPD received on connection */
+        }
+        ESP->IPD.Conn->TotalBytesReceived += ESP->IPD.BytesRemaining;   /* Increase total bytes received so far */
     }
     
     if (is_ok) {
@@ -1337,34 +1341,50 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         /* Check CIPSTATUS */
         __CHECK_CIPSTATUS(ESP);
         
-        if (ESP->Events.F.RespError) {                      /* Check response */
+        /* Check response */
+        if (ESP->Events.F.RespError) {
             ESP->ActiveResult = espERROR;
             goto cmd_tcpip_cipstart_clean;
         }
         
-        for (i = 0; i < ESP_MAX_CONNECTIONS; i++) {         /* Find available connection */
+        /* Find available connection */
+        for (i = 0; i < ESP_MAX_CONNECTIONS; i++) {
             if (!ESP->Conn[i].Flags.F.Active || (ESP->ActiveConns & (1 << i)) == 0) {
+                ESP->Conn[i].Number = i;
                 *(ESP_CONN_t **)Pointers.PPtr1 = (ESP_CONN_t *)&ESP->Conn[i];
                 break;
             }
         }
         
-        if (!(*(ESP_CONN_t **)Pointers.PPtr1) || i == ESP_MAX_CONNECTIONS) {    /* Check valid connection */
+        /* Check valid connection */
+        if (!(*(ESP_CONN_t **)Pointers.PPtr1) || i == ESP_MAX_CONNECTIONS) {
             ESP->ActiveResult = espERROR;
             goto cmd_tcpip_cipstart_clean;
         }
+        
+        /* Check if there is an active connection and is SSL */
+        if (((ESP_CONN_Type_t)(Pointers.UI >> 16)) == ESP_CONN_Type_SSL) {
+            for (i = 0; i < ESP_MAX_CONNECTIONS; i++) {
+                if (ESP->Conn[i].Flags.F.Active && ESP->Conn[i].Flags.F.SSL) {
+                    ESP->ActiveResult = espSSLERROR;
+                    goto cmd_tcpip_cipstart_clean;
+                }
+            }
+        }
 
         (*(ESP_CONN_t **)Pointers.PPtr1)->Flags.F.Client = 1;   /* Connection made as client */
-        NumberToString(str, i);                             /* Convert mode to string */
+        (*(ESP_CONN_t **)Pointers.PPtr1)->Flags.F.SSL = ((ESP_CONN_Type_t)(Pointers.UI >> 16)) == ESP_CONN_Type_SSL;  /* Connection type is SSL */
+        
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        NumberToString(str, (*(ESP_CONN_t **)Pointers.PPtr1)->Number);  /* Convert mode to string */
         UART_SEND_STR(FROMMEM("AT+CIPSTART="));             /* Send data */
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(FROMMEM(",\""));
-        if ((Pointers.UI >> 16) == ESP_CONN_Type_TCP) {
+        if (((ESP_CONN_Type_t)(Pointers.UI >> 16)) == ESP_CONN_Type_TCP) {
             UART_SEND_STR(FROMMEM("TCP"));
-        } else if ((Pointers.UI >> 16) == ESP_CONN_Type_UDP) {
+        } else if (((ESP_CONN_Type_t)(Pointers.UI >> 16)) == ESP_CONN_Type_UDP) {
             UART_SEND_STR(FROMMEM("UDP"));
-        } else if ((Pointers.UI >> 16) == ESP_CONN_Type_SSL) {
+        } else if (((ESP_CONN_Type_t)(Pointers.UI >> 16)) == ESP_CONN_Type_SSL) {
             UART_SEND_STR(FROMMEM("SSL"));
         }
         UART_SEND_STR(FROMMEM("\",\""));
