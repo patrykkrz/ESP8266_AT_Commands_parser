@@ -77,14 +77,22 @@ extern "C" {
 #endif
 
 /**
- * \defgroup ESP_Macros
- * \brief           Library defines
+ * \defgroup      ESP_Macros
+ * \brief         Library defines
  * \{
  */
 
+/* Backward ocmpatibility definitions */
+#if !defined(ESP_SINGLE_CONN)       
+#define ESP_SINGLE_CONN             0   /*!< Single connection mode */
+#endif
+
 /* This settings should not be modified */
-#define ESP_MAX_CONNECTIONS        5  /*!< Number of maximum active connections on ESP */
-#define ESP_MAX_CONNECTEDSTATIONS  10 /*!< Number of AP stations saved to received data array */
+#if ESP_SINGLE_CONN
+#define ESP_MAX_CONNECTIONS         1   /*!< Number of maximum active connections on ESP */
+#else
+#define ESP_MAX_CONNECTIONS         5   /*!< Number of maximum active connections on ESP */
+#endif /* ESP_SINGLE_CONN */
 
 #define evol                        volatile
 #define estatic                     static
@@ -103,8 +111,8 @@ extern "C" {
  */
  
 /**
- * \defgroup ESP_Typedefs
- * \brief           Library Typedefs
+ * \defgroup      ESP_Typedefs
+ * \brief         Library Typedefs
  * \{
  */
 
@@ -402,8 +410,8 @@ typedef struct _ESP_t {
  */
 
 /**
- * \defgroup ESP_Functions
- * \brief           ESP Functions
+ * \defgroup      ESP_Functions
+ * \brief         ESP Functions
  * \{
  */
 

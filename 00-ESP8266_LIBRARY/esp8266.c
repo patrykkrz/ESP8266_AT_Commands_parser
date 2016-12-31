@@ -600,7 +600,8 @@ estatic
 void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     char* str = (char *)Received->Data;
     
-    uint8_t is_ok = 0, is_error = 0;
+    uint8_t is_ok = 0, is_error = 0, len;
+    len = strlen(str);                                      /* String length */
     
     if (*str == '\r' && *(str + 1) == '\n') {               /* Check empty line */
         return;
@@ -622,14 +623,17 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     
     /* Device info */
     if (ESP->ActiveCmd == CMD_BASIC_GMR) {
-        if ((str[0] == 'A' || str[0] == 'a') && Pointers.CPtr1) {   /* "AT version:" received */
-            strncpy((char *)Pointers.CPtr1, &str[11], strlen(&str[11]) - 2);    /* Save AT version */
+        if ((str[0] == 'A' || str[0] == 'a') && Pointers.CPtr1 && len > 13) {   /* "AT version:" received */
+            strncpy((char *)Pointers.CPtr1, &str[11], len - 13);    /* Save AT version */
+            ((char *)Pointers.CPtr1)[len - 13] = 0;
         }
         if ((str[0] == 'S' || str[0] == 's') && Pointers.CPtr2) {   /* "SDK version:" received */
-            strncpy((char *)Pointers.CPtr2, &str[12], strlen(&str[12]) - 2);    /* Save AT version */
+            strncpy((char *)Pointers.CPtr2, &str[12], len - 14);    /* Save SDK version */
+            ((char *)Pointers.CPtr2)[len - 14] = 0;                 /* End of strings */
         }
         if ((str[0] == 'C' || str[0] == 'c') && Pointers.CPtr3) {   /* "compile time:" received */
-            strncpy((char *)Pointers.CPtr3, &str[13], strlen(&str[13]) - 2);    /* Save AT version */
+            strncpy((char *)Pointers.CPtr3, &str[13], len - 15);    /* Save compile time version */
+            ((char *)Pointers.CPtr3)[len - 15] = 0;                 /* End of strings */
         }
     }
     
@@ -689,19 +693,6 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
         }
     }
     
-    if (ESP->ActiveCmd == CMD_TCPIP_CIPSTATUS) {
-        if (strncmp(str, FROMMEM("+CIPSTATUS"), 10) == 0) { /* +CIPSTATUS received */
-            ParseCIPSTATUS(ESP, (uint8_t *)&ESP->ActiveConnsResp, str + 11);    /* Parse CIPSTATUS response */
-        } else if (is_ok) {                                 /* OK received */
-            /* Check and merge all connections from ESP */
-            uint8_t i = 0;
-            for (i = 0; i < ESP_MAX_CONNECTIONS; i++) {
-                ESP->Conn[i].Flags.F.Active = (ESP->ActiveConnsResp & (1 << i)) == (1 << i);
-            }
-            ESP->ActiveConns = ESP->ActiveConnsResp;        /* Copy current value */
-        }
-    }
-    
     if (ESP->ActiveCmd == CMD_WIFI_CWSAP) {
         if (strncmp(str, FROMMEM("+CWSAP"), 6) == 0) {      /* Check for response */
             ParseCWSAP(ESP, str + 12, (ESP_APConfig_t *)&ESP->APConf);   /* Parse config from AP */             
@@ -751,6 +742,22 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
         conn->Callback.F.Closed = 1;
         __CONN_RESET(conn);                                 /* Reset connection */
     }
+    
+    /* Manage connection status */
+    if (ESP->ActiveCmd == CMD_TCPIP_CIPSTATUS) {
+        if (strncmp(str, FROMMEM("+CIPSTATUS"), 10) == 0) { /* +CIPSTATUS received */
+            ParseCIPSTATUS(ESP, (uint8_t *)&ESP->ActiveConnsResp, str + 11);    /* Parse CIPSTATUS response */
+        } else if (is_ok) {                                 /* OK received */
+            /* Check and merge all connections from ESP */
+            uint8_t i = 0;
+            for (i = 0; i < ESP_MAX_CONNECTIONS; i++) {
+                ESP->Conn[i].Flags.F.Active = (ESP->ActiveConnsResp & (1 << i)) == (1 << i);
+            }
+            ESP->ActiveConns = ESP->ActiveConnsResp;        /* Copy current value */
+        }
+    }
+    
+    /* Manage send data */
     if (ESP->ActiveCmd == CMD_TCPIP_CIPSEND) {
         if (strncmp(str, FROMMEM("SEND OK"), 7) == 0) {     /* Data successfully sent */
             ESP->Events.F.RespSendOk = 1;
@@ -758,6 +765,8 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
             ESP->Events.F.RespSendFail = 1;
         }
     }
+    
+    /* DNS function */
     if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN && strncmp(str, "+CIPDOMAIN", 10) == 0) {
         ParseIP(ESP, &str[11], (uint8_t *)Pointers.Ptr1, NULL); /* Parse IP and save it to user location */
     }
@@ -1736,6 +1745,15 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         }
         i--;
     }
+    while (i) {
+        __ACTIVE_CMD(ESP, CMD_TCPIP_SERVERDISABLE);         /* Get AP settings */
+        ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        __IDLE(ESP);
+        if (ESP->ActiveResult == espOK) {
+            break;
+        }
+        i--;
+    }
     __IDLE(ESP);                                            /* Process IDLE */
     ESP->Flags.F.IsBlocking = 0;                            /* Reset blocking calls */
     ESP->Flags.F.Call_Idle = 0;
@@ -2092,6 +2110,7 @@ ESP_Result_t ESP_AP_SetConfig(evol ESP_t* ESP, ESP_APConfig_t* conf, uint8_t def
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
+#if !ESP_SINGLE_CONN
 /******************************************************************************/
 /***                            SERVER settings                              **/
 /******************************************************************************/
@@ -2120,6 +2139,7 @@ ESP_Result_t ESP_SERVER_SetTimeout(evol ESP_t* ESP, uint16_t timeout, uint32_t b
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
+#endif /* ESP_SINGLE_CONN */
 
 /******************************************************************************/
 /***                            List wifi stations                           **/

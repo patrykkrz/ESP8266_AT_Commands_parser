@@ -60,6 +60,15 @@
 #define ESP_BUFFER_SIZE                     256
 
 /**
+ * \brief   Enables (1) or disables (0) single connection mode
+ *
+ *          In this mode, only one connection is allowed and only client can be used.
+ *          Server mode is disabled and can not be enabled by user.
+ *
+ */
+#define ESP_SINGLE_CONN                     1
+
+/**
  * \brief   Connection data receive buffer size in units of bytes.
  *          
  *          Since there can only be one received data packet at a time,
