@@ -487,8 +487,12 @@ void ParseIPD(evol ESP_t* ESP, const char* str, ESP_IPD_t* IPD) {
     
     memset((void *) IPD, 0x00, sizeof(ESP_IPD_t));          /* Reset structure */
     
+#if !ESP_SINGLE_CONN
     IPD->Conn = (ESP_CONN_t *)&ESP->Conn[ParseNumber(str, &cnt)];   /* Get connection */
     str += cnt + 1;
+#else
+    IPD->Conn = (ESP_CONN_t *)&ESP->Conn[0];                /* Get connection */
+#endif /* ESP_SINGLE_CONN */
     IPD->BytesRemaining = ParseNumber(str, &cnt);           /* Set bytes remaining to read */
 }
 
@@ -524,8 +528,11 @@ void ParseCWSAP(evol ESP_t* ESP, const char* ptr, ESP_APConfig_t* AP) {
 estatic
 void ParseCIPSTATUS(evol ESP_t* ESP, uint8_t* value, const char* str) {
     uint8_t i, cnt;
-    uint8_t connNumber = CHARTONUM(*str);
+    uint8_t connNumber = 0;
     
+#if !ESP_SINGLE_CONN
+    connNumber = CHARTONUM(*str);                           /* Get connection number */
+#endif    /* ESP_SINGLE_CONN */
     *value |= 1 << connNumber;                              /* Set bit according to active connection */
     
     /* Parse connection parameters */
@@ -732,16 +739,29 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     }
     
     /* Connection management */
-    if (strncmp(&str[1], ",CONNECT", 8) == 0) {
+#if !ESP_SINGLE_CONN
+    if (strncmp(&str[1], FROMMEM(",CONNECT"), 8) == 0) {
         ESP_CONN_t* conn = (ESP_CONN_t *)&ESP->Conn[CHARTONUM(str[0])]; /* Get connection from number */
         conn->Number = CHARTONUM(str[0]);                   /* Set connection number */
         conn->Flags.F.Active = 1;                           /* Connection is active */
         conn->Callback.F.Connect = 1;
-    } else if (strncmp(&str[1], ",CLOSED", 7) == 0) {
+    } else if (strncmp(&str[1], FROMMEM(",CLOSED"), 7) == 0) {
         ESP_CONN_t* conn = (ESP_CONN_t *)&ESP->Conn[CHARTONUM(str[0])]; /* Get connection from number */
-        conn->Callback.F.Closed = 1;
         __CONN_RESET(conn);                                 /* Reset connection */
+        conn->Callback.F.Closed = 1;
     }
+#else
+    if (strncmp(str, FROMMEM("CONNECT"), 7) == 0) {
+        ESP_CONN_t* conn = (ESP_CONN_t *)&ESP->Conn[0];     /* Get connection from number */
+        conn->Number = 0;                                   /* Set connection number */
+        conn->Flags.F.Active = 1;                           /* Connection is active */
+        conn->Callback.F.Connect = 1;
+    } else if (strncmp(str, FROMMEM("CLOSED"), 6) == 0) {
+        ESP_CONN_t* conn = (ESP_CONN_t *)&ESP->Conn[0];     /* Get connection from number */
+        __CONN_RESET(conn);                                 /* Reset connection */
+        conn->Callback.F.Closed = 1;
+    }
+#endif /* ESP_SINGLE_CONN */
     
     /* Manage connection status */
     if (ESP->ActiveCmd == CMD_TCPIP_CIPSTATUS) {
@@ -767,12 +787,12 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
     }
     
     /* DNS function */
-    if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN && strncmp(str, "+CIPDOMAIN", 10) == 0) {
+    if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN && strncmp(str, FROMMEM("+CIPDOMAIN"), 10) == 0) {
         ParseIP(ESP, &str[11], (uint8_t *)Pointers.Ptr1, NULL); /* Parse IP and save it to user location */
     }
     
     /* Manage receive data */
-    if (strncmp(str, "+IPD", 4) == 0) {                     /* Check for incoming data */
+    if (strncmp(str, FROMMEM("+IPD"), 4) == 0) {                     /* Check for incoming data */
         ParseIPD(ESP, str + 5, (ESP_IPD_t *)&ESP->IPD);     /* Parse incoming data string */
         ESP->IPD.InIPD = 1;                                 /* Start with data reading */
         if (!ESP->IPD.Conn->TotalBytesReceived) {
@@ -1385,16 +1405,18 @@ PT_THREAD(PT_Thread_TCPIP(struct pt* pt, evol ESP_t* ESP)) {
         (*(ESP_CONN_t **)Pointers.PPtr1)->Flags.F.SSL = ((ESP_CONN_Type_t)(Pointers.UI >> 16)) == ESP_CONN_Type_SSL;  /* Connection type is SSL */
         
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
-        NumberToString(str, (*(ESP_CONN_t **)Pointers.PPtr1)->Number);  /* Convert mode to string */
         UART_SEND_STR(FROMMEM("AT+CIPSTART="));             /* Send data */
+#if !ESP_SINGLE_CONN
+        NumberToString(str, (*(ESP_CONN_t **)Pointers.PPtr1)->Number);  /* Convert mode to string */
         UART_SEND_STR(FROMMEM(str));
-        UART_SEND_STR(FROMMEM(",\""));
+        UART_SEND_STR(FROMMEM(","));
+#endif /* ESP_SINGLE_CONN */
         if (((ESP_CONN_Type_t)(Pointers.UI >> 16)) == ESP_CONN_Type_TCP) {
-            UART_SEND_STR(FROMMEM("TCP"));
+            UART_SEND_STR(FROMMEM("\"TCP"));
         } else if (((ESP_CONN_Type_t)(Pointers.UI >> 16)) == ESP_CONN_Type_UDP) {
-            UART_SEND_STR(FROMMEM("UDP"));
+            UART_SEND_STR(FROMMEM("\"UDP"));
         } else if (((ESP_CONN_Type_t)(Pointers.UI >> 16)) == ESP_CONN_Type_SSL) {
-            UART_SEND_STR(FROMMEM("SSL"));
+            UART_SEND_STR(FROMMEM("\"SSL"));
         }
         UART_SEND_STR(FROMMEM("\",\""));
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
@@ -1453,9 +1475,11 @@ cmd_tcpip_cipstart_clean:
             
             __RST_EVENTS_RESP(ESP);                         /* Reset events */
             UART_SEND_STR(FROMMEM("AT+CIPSEND="));          /* Send number to ESP */
+#if !ESP_SINGLE_CONN
             NumberToString(str, ((ESP_CONN_t *)Pointers.Ptr1)->Number);
             UART_SEND_STR(FROMMEM(str));
             UART_SEND_STR(FROMMEM(","));
+#endif /* ESP_SINGLE_CONN */
             NumberToString(str, btw);                       /* Get string from number */
             UART_SEND_STR(str);
             UART_SEND_STR(_CRLF);
@@ -1667,8 +1691,8 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     }
 #endif /*!< ESP_USE_CTS */
     while (i) {
-        __ACTIVE_CMD(ESP, CMD_WIFI_CWMODE);                 /* Set device mode */
         Pointers.UI = 3;
+        __ACTIVE_CMD(ESP, CMD_WIFI_CWMODE);                 /* Set device mode */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
@@ -1677,8 +1701,8 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         i--;
     }
     while (i) {
+        Pointers.UI = !ESP_SINGLE_CONN && 1;                /* Set up for single connection mode */
         __ACTIVE_CMD(ESP, CMD_TCPIP_CIPMUX);                /* Set device mux */
-        Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
@@ -1687,8 +1711,8 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         i--;
     }
     while (i) {
+        Pointers.UI = !ESP_SINGLE_CONN && 1;                /* In single connection mode, we don't need informations on IPD data = CLIENT ONLY */
         __ACTIVE_CMD(ESP, CMD_TCPIP_CIPDINFO);              /* Enable informations about connection on +IPD statement */
-        Pointers.UI = 1;
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
@@ -1749,10 +1773,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         __ACTIVE_CMD(ESP, CMD_TCPIP_SERVERDISABLE);         /* Get AP settings */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
-        if (ESP->ActiveResult == espOK) {
-            break;
-        }
-        i--;
+        break;                                              /* Ignore response */
     }
     __IDLE(ESP);                                            /* Process IDLE */
     ESP->Flags.F.IsBlocking = 0;                            /* Reset blocking calls */
