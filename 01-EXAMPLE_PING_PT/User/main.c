@@ -1,5 +1,5 @@
 /**
- * Keil project example for ESP8266 DNS to acquire IP address from domain name
+ * Keil project example for ESP8266 PING mode and without RTOS support
  *
  * @note      Check defines.h file for configuration settings!
  * @note      When using Nucleo F411 board, example has set 8MHz external HSE clock!
@@ -16,15 +16,15 @@
  *
  * \par Description
  *
- * This examples shows how you can use ESP for DNS function
+ * This examples shows how you can use ESP for ping
  *
  * - Library is initialized using ESP_Init
- * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network
- * - Press on button to get IP address of example.com domain with DNS function
- * - On debug output (PA2 pin) is printf targeted via UART at 921600 bauds
+ * - Ping procedurect will start using protothread on button press
  *
- * \note  Example uses single buffer for all connections.
- *        Since only one connection is active at a time in this example, there is no problems with that.
+ * Protothreads are used with non-blocking API calls to show how ESP stack can easily be used as blocking flow with non-blocking calls.
+ * Check Adam Dunkels' protothreads for more informations about flow.
+ *
+ * \note  Example uses separate buffers for each connection, because multiple connections can be active at a time
  *
  * \par Pinout for example (Nucleo STM32F411)
  *
@@ -56,38 +56,49 @@ CTS         PA3                 RTS from ST to CTS from ESP
 #define DEBUG_USART_PP      TM_USART_PinsPack_1
 
 /* Wifi network settings, replace with your settings */
-//#define WIFINAME            "wifi_ssid"
-//#define WIFIPASS            "wifi_password"
-#define WIFINAME            "Majerle WiFi"
+#define WIFINAME            "Majerle WiFiii"
 #define WIFIPASS            "majerle_internet"
+uint8_t networkMAC[] = {0xA4, 0x2B, 0xB0, 0xC2, 0xB7, 0xBE};
+
+/* Search variables */
+static uint8_t ping = 0;
+struct pt PT;
 
 /* ESP working structure and result enumeration */
 evol ESP_t ESP;
 ESP_Result_t espRes;
 
-/* IP address array */
-uint8_t IP[4];
-
-/* Connection manupulation */
-uint32_t bw;
-const uint8_t requestData[] = ""
-"GET / HTTP/1.1\r\n"
-"Host: example.com\r\n"
-"Connection: close\r\n"
-"\r\n";
-
-/* Thread prototypes */
-void ESP_Update_Thread(void const* params);
-void ESP_Main_Thread(void const* params);
-
-/* Thread definitions */
-osThreadDef(ESP_Update, ESP_Update_Thread, osPriorityNormal, 0, configMINIMAL_STACK_SIZE);
-osThreadDef(ESP_Main, ESP_Main_Thread, osPriorityNormal, 0, configMINIMAL_STACK_SIZE);
-
-osThreadId ESP_Update_ThreadId, ESP_Main_ThreadId;
+/* Array for access points search */
+uint32_t time;
 
 /* ESP callback declaration */
 int ESP_Callback(ESP_Event_t evt, ESP_EventParams_t* params);
+
+static
+PT_THREAD(PING_THREAD(struct pt* pt)) {
+    PT_BEGIN(pt);
+    
+    PT_WAIT_UNTIL(pt, ESP_IsReady(&ESP) == espOK);          /* Wait to be ready first */
+    
+    /* Start ping procedure in non-blocking mode */
+    if ((espRes = ESP_Ping(&ESP, "example.com", &time, 0)) == espOK) {
+        printf("Network scan has started successfully!\r\n");
+        
+        PT_WAIT_UNTIL(pt, ESP_IsReady(&ESP) == espOK);      /* Wait ESP to be ready */
+        espRes = ESP_GetLastReturnStatus(&ESP);             /* Get actual result status from ESP device */
+        
+        if (espRes == espOK) {                              /* ESP device returned OK? */
+            printf("Ping successful in %d ms\r\n", time);
+        } else {
+            printf("Ping failed with error: %d\r\n", espRes);
+        }
+    } else {
+        printf("Problems with starting ping prodecure: %d\r\n", espRes);
+    }
+    
+    ping = 0;                                               /* Finished with pinging */
+    PT_END(pt);
+}
 
 int main(void) {
     TM_RCC_InitSystem();                                    /* Init system */
@@ -99,43 +110,9 @@ int main(void) {
 
     /* Print first screen message */
     printf("ESP8266 commands parser; Compiled: %s %s\r\n", __DATE__, __TIME__);
-
-    /* Initialize threads */
-    ESP_Update_ThreadId = osThreadCreate(osThread(ESP_Update), NULL);
-    ESP_Main_ThreadId = osThreadCreate(osThread(ESP_Main), NULL);
-
-    /* Start kernel */
-    osKernelStart();
     
-    while (1) {
+    PT_INIT(&PT);                                           /* Init protothread */
 
-    }
-}
-
-/* 1ms handler function, called from SysTick interrupt */
-void TM_DELAY_1msHandler() {
-    ESP_UpdateTime(&ESP, 1);                /* Update ESP library time for 1 ms */
-    osSystickHandler();                     /* Kernel systick handler processing */
-}
-
-/***********************************************/
-/**            Thread implementations         **/
-/***********************************************/
-
-/**
- * \brief  Update ESP received data thread
- */
-void ESP_Update_Thread(void const* params) {
-    while (1) {
-        /* Process ESP update */
-        ESP_Update(&ESP);
-    }
-}
-
-/**
- * \brief  Application thread to work with ESP module only
- */
-void ESP_Main_Thread(void const* params) {
     /* Init ESP library with 115200 bauds */
     if ((espRes = ESP_Init(&ESP, 115200, ESP_Callback)) == espOK) {
         printf("ESP module init successfully!\r\n");
@@ -143,25 +120,22 @@ void ESP_Main_Thread(void const* params) {
         printf("ESP Init error. Status: %d\r\n", espRes);
     }
     
-    /* Try to connect to wifi network in blocking mode */
-    if ((espRes = ESP_STA_Connect(&ESP, WIFINAME, WIFIPASS, NULL, 0, 1)) == espOK) {
-        printf("Connected to network\r\n");
-    } else {
-        printf("Problems trying to connect to network: %d\r\n", espRes);
-    }
-    
-    while (1) {
-        ESP_ProcessCallbacks(&ESP);         /* Process all callbacks */
+	while (1) {
+        ESP_Update(&ESP);                                   /* Process ESP update */
         
-        if (TM_DISCO_ButtonOnPressed()) {   /* Handle button press */
-            /* Try to connect to server as client, connect to example.com domain */
-            if ((espRes = ESP_DOMAIN_GetIp(&ESP, "example.com", IP, 1)) == espOK) {
-                printf("We have example.com domain IP: %d.%d.%d.%d!\r\n", IP[0], IP[1], IP[2], IP[3]);
-            } else {
-                printf("Problems trying to get IP address with DNS function: %d\r\n", espRes);
-            }
+        if (ping) {                                         /* When active, process thread */
+            PING_THREAD(&PT);                               /* Call function */
         }
-    }
+        
+        if (TM_DISCO_ButtonOnPressed()) {                   /* On button press */
+            ping = 1;                                       /* Set variable for thread */
+        }
+	}
+}
+
+/* 1ms handler function, called from SysTick interrupt */
+void TM_DELAY_1msHandler(void) {
+    ESP_UpdateTime(&ESP, 1);                /* Update ESP library time for 1 ms */
 }
 
 /***********************************************/
@@ -170,7 +144,6 @@ void ESP_Main_Thread(void const* params) {
 int ESP_Callback(ESP_Event_t evt, ESP_EventParams_t* params) {
     switch (evt) {                              /* Check events */
         case espEventIdle:
-            printf("Stack is IDLE!\r\n");
             break;
         default:
             break;

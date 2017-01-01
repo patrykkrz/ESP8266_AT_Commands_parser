@@ -16,7 +16,7 @@
  *
  * \par Description
  *
- * This examples shows how you can use ESP for basic client connection
+ * This examples shows how you can use ESP for ping procedure using RTOS
  *
  * - Library is initialized using ESP_Init
  * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network

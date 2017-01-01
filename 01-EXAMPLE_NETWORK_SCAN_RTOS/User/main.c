@@ -1,5 +1,5 @@
 /**
- * Keil project example for ESP8266 ¸NETWORK SCAN mode and RTOS support
+ * Keil project example for ESP8266 NETWORK SCAN mode and RTOS support
  *
  * @note      Check defines.h file for configuration settings!
  * @note      When using Nucleo F411 board, example has set 8MHz external HSE clock!
@@ -16,7 +16,7 @@
  *
  * \par Description
  *
- * This examples shows how you can use ESP for basic server
+ * This examples shows how you can use ESP for network scan using RTOS
  *
  * - Library is initialized using ESP_Init
  * - Network scan using RTOS will begin

@@ -16,7 +16,7 @@
  *
  * \par Description
  *
- * This examples shows how you can use ESP for basic server
+ * This examples shows how you can use ESP for network scan using protothreads
  *
  * - Library is initialized using ESP_Init
  * - Network scan using Protothread will begin
