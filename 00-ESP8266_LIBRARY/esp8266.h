@@ -148,6 +148,14 @@ typedef enum _ESP_Mode_t {
 } ESP_Mode_t;
 
 /**
+ * \brief         Transfer mode enumeration
+ */
+typedef enum _ESP_TransferMode_t {
+    ESP_TransferMode_Normal = 0x00,                     /*!< Normal transfer mode of data packets */
+    ESP_TransferMode_Transparent = 0x01                 /*!< UART<->WiFi transparent (passthrough) data mode */
+} ESP_TransferMode_t;
+
+/**
  * \brief         Security settings for wifi network
  */
 typedef enum _ESP_Ecn_t {
@@ -300,6 +308,7 @@ typedef enum _ESP_Event_t {
     espEventConnClosed,                                 /*!< Connection is just closed, either client or server mode */
     espEventDataSent,                                   /*!< Data were sent on connection */
     espEventDataSentError,                              /*!< Error trying to sent data on connection */
+    espEventTransparentReceived,                        /*!< Byte has been received from transparent connection mode */
 } ESP_Event_t;
 
 /**
@@ -361,11 +370,17 @@ typedef struct _ESP_t {
     
     /*!< Incoming data structure */
     ESP_IPD_t IPD;                                      /*!< IPD network data structure */
+    
+#if ESP_SINGLE_CONN
+    /*!< Transfer mode */
+    ESP_TransferMode_t TransferMode;                    /*!< Data transfer mode in use */
+#endif
 
 	union {
 		struct {
             uint8_t IsBlocking:1;                       /*!< Status whether action was called as blocking */
             uint8_t Call_Idle:1;                        /*!< Status whether idle status event should be called before we can proceed with another action */
+            uint8_t InTransparentMode:1;                /*!< Status whether we are currently in transparent mode and transfer is active */
 		} F;
 		uint32_t Value;
 	} Flags;                                            /*!< Flags for library purpose */
@@ -905,8 +920,52 @@ ESP_Result_t ESP_Ping(evol ESP_t* ESP, const char* addr, uint32_t* time, uint32_
  * \}
  */
  
-//TODO for transparent connection
-ESP_Result_t ESP_SetMode(evol ESP_t* ESP, ESP_Mode_t Mode, uint32_t blocking);
+/**
+ * \defgroup      TRANSFER_API
+ * \brief         Transfer based functions for UART->Wifi passthrough mode
+ * \note          This API is available only if single connection mode is used
+ * \{
+ */
+ 
+/**
+ * \brief         Set mode for transfer, either normal or passthrough (stream) mode
+ * \note          All connections have to be closed in order to set new mode type
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]     mode: Transfer mode. To use other transfer functions, mode must be \ref ESP_TransferMode_Transparent
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_TRANSFER_SetMode(evol ESP_t* ESP, ESP_TransferMode_t mode, uint32_t blocking);
+
+/**
+ * \brief         Start transparent mode by start sending data to server
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_TRANSFER_Start(evol ESP_t* ESP, uint32_t blocking);
+
+/**
+ * \brief         Data to send over ESP device
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]     *data: Pointer to data to send
+ * \param[in]     btw: Number of bytes to write
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_TRANSFER_Send(evol ESP_t* ESP, const void* data, uint32_t btw, uint32_t blocking);
+
+/**
+ * \brief         Stop transparent mode by writing '+++' to device and 1 second delay after it
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_TRANSFER_Stop(evol ESP_t* ESP, uint32_t blocking);
+
+/**
+ * \}
+ */
 
 /**
  * \}

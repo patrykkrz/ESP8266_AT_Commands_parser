@@ -36,6 +36,7 @@ typedef struct {
 } Received_t;
 #define RECEIVED_ADD(c)                     do { Received.Data[Received.Length++] = (c); Received.Data[Received.Length] = 0; } while (0)
 #define RECEIVED_RESET()                    do { Received.Length = 0; Received.Data[0] = 0; } while (0)
+#define RECEIVED_SHIFT()                    do { uint16_t i = 0; for (i = 0; i < Received.Length; i++) { Received.Data[i] = Received.Data[i + 1]; } Received.Data[i] = 0; if (Received.Length) { Received.Length--; } } while (0);
 #define RECEIVED_LENGTH()                   Received.Length
 
 typedef struct {
@@ -148,6 +149,8 @@ typedef struct {
 #define CMD_TCPIP_CIUPDATE                  ((uint16_t)0x3013)
 #define CMD_TCPIP_CIPDINFO                  ((uint16_t)0x3014)
 #define CMD_TCPIP_IPD                       ((uint16_t)0x3015)
+#define CMD_TCPIP_TRANSFER_SEND             ((uint16_t)0x3016)
+#define CMD_TCPIP_TRANSFER_STOP             ((uint16_t)0x3017)
 
 #define CMD_TCPIP_SERVERENABLE              ((uint16_t)0x3101)
 #define CMD_TCPIP_SERVERDISABLE             ((uint16_t)0x3102)
@@ -580,7 +583,7 @@ ESP_Result_t StartCommand(evol ESP_t* ESP, uint16_t cmd, const char* cmdResp) {
 /* Converts number to string */
 estatic
 void NumberToString(char* str, uint32_t number) {
-    sprintf(str, "%d", number);
+    sprintf(str, "%u", number);
 }
 
 /* Converts number to hex for MAC */
@@ -604,11 +607,11 @@ void EscapeStringAndSend(const char* str) {
 
 /* Process received character */
 estatic 
-void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
-    char* str = (char *)Received->Data;
+void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
+    char* str = (char *)Received_p->Data;
     
     uint8_t is_ok = 0, is_error = 0, len;
-    len = strlen(str);                                      /* String length */
+    len = Received_p->Length;                               /* String length */
     
     if (*str == '\r' && *(str + 1) == '\n') {               /* Check empty line */
         return;
@@ -796,7 +799,7 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received) {
         ParseIPD(ESP, str + 5, (ESP_IPD_t *)&ESP->IPD);     /* Parse incoming data string */
         ESP->IPD.InIPD = 1;                                 /* Start with data reading */
         if (!ESP->IPD.Conn->TotalBytesReceived) {
-            ESP->IPD.Conn->DataStartTime = ESP->Time;       /* Set time when first IPD received on connection */
+            ESP->IPD.Conn->DataStartTime = (uint32_t)ESP->Time; /* Set time when first IPD received on connection */
         }
         ESP->IPD.Conn->TotalBytesReceived += ESP->IPD.BytesRemaining;   /* Increase total bytes received so far */
     }
@@ -1445,12 +1448,16 @@ cmd_tcpip_cipstart_clean:
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPCLOSE) {      /* Close connection */
         __CMD_SAVE(ESP);                                    /* Save current command */
         
-        NumberToString(str, Pointers.UI);                   /* Close specific connection */
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+#if !ESP_SINGLE_CONN
+        NumberToString(str, Pointers.UI);                   /* Close specific connection */
         UART_SEND_STR(FROMMEM("AT+CIPCLOSE="));             /* Send data */
         UART_SEND_STR(FROMMEM(str));
+#else
+        UART_SEND_STR(FROMMEM("AT+CIPCLOSE"));              /* Send data */ 
+#endif
         UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPSERVER, NULL);       /* Start command */
+        StartCommand(ESP, CMD_TCPIP_CIPCLOSE, NULL);        /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -1465,63 +1472,79 @@ cmd_tcpip_cipstart_clean:
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSEND) {       /* Send data on connection */
         __CMD_SAVE(ESP);                                    /* Save command */
         
-        if (Pointers.Ptr2 != NULL) {
-            *(uint32_t *)Pointers.Ptr2 = 0;                 /* Set sent bytes to zero first */
-        }
-        
-        tries = 3;                                          /* Give 3 tries to send each packet */
-        do {
-            btw = Pointers.UI > ESP_MAX_SEND_DATA_LEN ? ESP_MAX_SEND_DATA_LEN : Pointers.UI;    /* Set length to send */
-            
+#if ESP_SINGLE_CONN
+        if (ESP->TransferMode == ESP_TransferMode_Transparent) {/* If connection is not specified and transparent mode is in use */
             __RST_EVENTS_RESP(ESP);                         /* Reset events */
-            UART_SEND_STR(FROMMEM("AT+CIPSEND="));          /* Send number to ESP */
-#if !ESP_SINGLE_CONN
-            NumberToString(str, ((ESP_CONN_t *)Pointers.Ptr1)->Number);
-            UART_SEND_STR(FROMMEM(str));
-            UART_SEND_STR(FROMMEM(","));
-#endif /* ESP_SINGLE_CONN */
-            NumberToString(str, btw);                       /* Get string from number */
-            UART_SEND_STR(str);
+            UART_SEND_STR(FROMMEM("AT+CIPSEND"));           /* Send number to ESP */
             UART_SEND_STR(_CRLF);
             StartCommand(ESP, CMD_TCPIP_CIPSEND, NULL);     /* Start command */
-            
+                
             PT_WAIT_UNTIL(pt, ESP->Events.F.RespBracket ||
                                 ESP->Events.F.RespError);   /* Wait for > character and timeout */
             
-            if (ESP->Events.F.RespBracket) {                /* We received bracket */
+            ESP->ActiveResult = ESP->Events.F.RespBracket ? espOK : espERROR;
+            ESP->Flags.F.InTransparentMode = ESP->ActiveResult == espOK;    /* Transfer mode status */
+        } else 
+#endif
+        {
+            if (Pointers.Ptr2 != NULL) {
+                *(uint32_t *)Pointers.Ptr2 = 0;             /* Set sent bytes to zero first */
+            }
+            
+            tries = 3;                                      /* Give 3 tries to send each packet */
+            do {
+                btw = Pointers.UI > ESP_MAX_SEND_DATA_LEN ? ESP_MAX_SEND_DATA_LEN : Pointers.UI;    /* Set length to send */
+                
                 __RST_EVENTS_RESP(ESP);                     /* Reset events */
-                UART_SEND((uint8_t *)Pointers.CPtr1, btw);  /* Send data */
+                UART_SEND_STR(FROMMEM("AT+CIPSEND="));      /* Send number to ESP */
+#if !ESP_SINGLE_CONN
+                NumberToString(str, ((ESP_CONN_t *)Pointers.Ptr1)->Number);
+                UART_SEND_STR(FROMMEM(str));
+                UART_SEND_STR(FROMMEM(","));
+#endif /* ESP_SINGLE_CONN */
+                NumberToString(str, btw);                   /* Get string from number */
+                UART_SEND_STR(str);
+                UART_SEND_STR(_CRLF);
+                StartCommand(ESP, CMD_TCPIP_CIPSEND, NULL); /* Start command */
                 
-                PT_WAIT_UNTIL(pt, ESP->Events.F.RespSendOk ||
-                                    ESP->Events.F.RespSendFail ||
-                                    ESP->Events.F.RespError);   /* Wait for OK or ERROR */
+                PT_WAIT_UNTIL(pt, ESP->Events.F.RespBracket ||
+                                    ESP->Events.F.RespError);   /* Wait for > character and timeout */
                 
-                ESP->ActiveResult = ESP->Events.F.RespSendOk ? espOK : espSENDERROR; /* Set result to return */
-                
-                if (ESP->ActiveResult == espOK) {
-                    if (Pointers.Ptr2 != NULL) {
-                        *(uint32_t *)Pointers.Ptr2 = *(uint32_t *)Pointers.Ptr2 + btw;  /* Increase number of sent bytes */
+                if (ESP->Events.F.RespBracket) {            /* We received bracket */
+                    __RST_EVENTS_RESP(ESP);                 /* Reset events */
+                    UART_SEND((uint8_t *)Pointers.CPtr1, btw);  /* Send data */
+                    
+                    PT_WAIT_UNTIL(pt, ESP->Events.F.RespSendOk ||
+                                        ESP->Events.F.RespSendFail ||
+                                        ESP->Events.F.RespError);   /* Wait for OK or ERROR */
+                    
+                    ESP->ActiveResult = ESP->Events.F.RespSendOk ? espOK : espSENDERROR; /* Set result to return */
+                    
+                    if (ESP->ActiveResult == espOK) {
+                        if (Pointers.Ptr2 != NULL) {
+                            *(uint32_t *)Pointers.Ptr2 = *(uint32_t *)Pointers.Ptr2 + btw;  /* Increase number of sent bytes */
+                        }
                     }
+                } else if (ESP->Events.F.RespError) {
+                    ESP->ActiveResult = espERROR;           /* Process error */
                 }
-            } else if (ESP->Events.F.RespError) {
-                ESP->ActiveResult = espERROR;               /* Process error */
+                if (ESP->ActiveResult == espOK) {
+                    tries = 3;                              /* Reset number of tries */
+                    
+                    Pointers.UI -= btw;                     /* Decrease number of sent bytes */
+                    Pointers.CPtr1 = (uint8_t *)Pointers.CPtr1 + btw;   /* Set new data memory location to send */
+                } else if (ESP->Events.F.RespSendFail) {    /* Send failed */
+                    tries--;                                /* We failed, decrease number of tries and start over */
+                } else {                                    /* Error was received, link is probably not active */
+                    tries = 0;                              /* Stop execution here */
+                }
+            } while (Pointers.UI && tries);                 /* Until anything to send or max tries reached */
+            
+            if (tries) {
+                ((ESP_CONN_t *)Pointers.Ptr1)->Callback.F.DataSent = 1; /* Set flag for callback */
+            } else {
+                ((ESP_CONN_t *)Pointers.Ptr1)->Callback.F.DataError = 1;/* Set flag for callback */
             }
-            if (ESP->ActiveResult == espOK) {
-                tries = 3;                                  /* Reset number of tries */
-                
-                Pointers.UI -= btw;                         /* Decrease number of sent bytes */
-                Pointers.CPtr1 = (uint8_t *)Pointers.CPtr1 + btw;   /* Set new data memory location to send */
-            } else if (ESP->Events.F.RespSendFail) {        /* Send failed */
-                tries--;                                    /* We failed, decrease number of tries and start over */
-            } else {                                        /* Error was received, link is probably not active */
-                tries = 0;                                  /* Stop execution here */
-            }
-        } while (Pointers.UI && tries);                     /* Until anything to send or max tries reached */
-        
-        if (tries) {
-            ((ESP_CONN_t *)Pointers.Ptr1)->Callback.F.DataSent = 1; /* Set flag for callback */
-        } else {
-            ((ESP_CONN_t *)Pointers.Ptr1)->Callback.F.DataError = 1;/* Set flag for callback */
         }
         
         __CMD_RESTORE(ESP);                                 /* Restore command */
@@ -1581,6 +1604,54 @@ cmd_tcpip_cipstart_clean:
         
         __IDLE(ESP);                                        /* Go IDLE mode */
     }
+#if ESP_SINGLE_CONN
+    else if (ESP->ActiveCmd == CMD_TCPIP_CIPMODE) {         /* Set transfer CIP mode */
+        NumberToString(str, Pointers.UI);                   /* Close specific connection */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        UART_SEND_STR(FROMMEM("AT+CIPMODE="));              /* Send data */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_TCPIP_CIPMODE, NULL);         /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        if (ESP->ActiveResult == espOK) {
+            ESP->TransferMode = (ESP_TransferMode_t) Pointers.UI;
+        }
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_TCPIP_TRANSFER_STOP) {
+        volatile static uint32_t StartTime = 0;
+        
+        /****** Execute AT check ******/
+        StartTime = ESP->Time;                              /* Set start time */
+        PT_WAIT_UNTIL(pt, (ESP->Time - StartTime) > 100);   /* Wait some time first */
+        
+        UART_SEND((uint8_t *)"+++", 3);                     /* Send data to stop transfer mode */
+        
+        StartTime = ESP->Time;                              /* Set new start time */
+        PT_WAIT_UNTIL(pt, (ESP->Time - StartTime) > 1100);  /* Wait at least 1 second for next command */
+        
+        ESP->Flags.F.InTransparentMode = 0;                 /* Temporarly disable transparent mode */
+        RECEIVED_RESET();
+        
+        /****** Execute AT check ******/
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        UART_SEND_STR(FROMMEM("AT"));                       /* Send data */
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_TCPIP_TRANSFER_STOP, NULL);   /* Start command, use CMD_TCPIP_TRANSFER_STOP to prevent proto thread switch */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        ESP->Flags.F.InTransparentMode = ESP->ActiveResult == espOK ? 0 : 1;    /* Set transparent mode status */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    }
+#endif
     
     PT_END(pt);
 }
@@ -1772,6 +1843,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     while (i) {
         __ACTIVE_CMD(ESP, CMD_TCPIP_SERVERDISABLE);         /* Get AP settings */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        ESP->ActiveResult = espOK;
         __IDLE(ESP);
         break;                                              /* Ignore response */
     }
@@ -1799,7 +1871,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
     }
     
     while (
-#if !GSM_RTOS && GSM_ASYNC
+#if !ESP_RTOS && ESP_ASYNC
         processedCount-- &&
 #else
         processedCount &&
@@ -1839,8 +1911,25 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
                 }
                 ESP->IPD.BytesRead = 0;                     /* Reset buffer and prepare for new packet */
             }
+#if ESP_SINGLE_CONN
+        } else if (ESP->TransferMode == ESP_TransferMode_Transparent && ESP->Flags.F.InTransparentMode) {
+            RECEIVED_ADD(ch);                               /* Add character to received data */
+            if (RECEIVED_LENGTH() >= 8) {                   /* If greater than 8 for some reason */
+                while (RECEIVED_LENGTH() > 8) {             /* Shift it up to 8 bytes long */
+                    RECEIVED_SHIFT();
+                }
+                if (strncmp((const char *)Received.Data, FROMMEM("CLOSED\r\n"), 8) == 0) {
+                    ESP->Flags.F.InTransparentMode = 0;     /* Not in transparent mode anymore */
+                    __CONN_RESET(&ESP->Conn[0]);            /* Reset connection */
+                    ESP->Conn[0].Callback.F.Closed = 1;     /* Set callback for connection */
+                }
+            }
+            
+            ESP->CallbackParams.CP1 = (const void *) &ch;
+            ESP_CALL_CALLBACK(ESP, espEventTransparentReceived);
+#endif
         } else {
-            if (ISVALIDASCII(ch)) {
+            if (ISVALIDASCII(ch)) { /* Handle transparent mode receive data */
                 switch (ch) {
                     case '\n':
                         RECEIVED_ADD(ch);                   /* Add character */
@@ -1848,19 +1937,24 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
                         RECEIVED_RESET();
                         break;
                     default: 
-                        if (ch == ' ' && prev1_ch == '>' && prev2_ch == '\n') { /* Check if bracket received */
+                        if ((ch == ' ' && prev1_ch == '>' && prev2_ch == '\n')
+#if ESP_SINGLE_CONN                        
+                            || (ESP->TransferMode == ESP_TransferMode_Transparent && ch == '>' && prev1_ch == '\n')
+#endif
+                        ) {   /* Check if bracket received */
                             ESP->Events.F.RespBracket = 1;  /* We receive bracket on command */
-                        }
-                        RECEIVED_ADD(ch);                   /* Add character to buffer */
-                        
-                        /*!< Check IPD statement */
-                        if (ch == ':' && RECEIVED_LENGTH() > 4) {   /* Maybe +IPD was received* */
-                            if (Received.Data[0] == '+' && strncmp(FROMMEM(Received.Data), FROMMEM("+IPD"), 4) == 0) {  /* Check for IPD statement */
-                                ParseReceived(ESP, &Received);  /* Process parsing received data */
-                                RECEIVED_RESET();       /* Reset received object! */
+                        } else {
+                            RECEIVED_ADD(ch);               /* Add character to buffer */
+                            
+                            /*!< Check IPD statement */
+                            if (ch == ':' && RECEIVED_LENGTH() > 4) {   /* Maybe +IPD was received* */
+                                if (Received.Data[0] == '+' && strncmp(FROMMEM(Received.Data), FROMMEM("+IPD"), 4) == 0) {  /* Check for IPD statement */
+                                    ParseReceived(ESP, &Received);  /* Process parsing received data */
+                                    RECEIVED_RESET();       /* Reset received object! */
+                                }
                             }
                         }
-                    break;
+                        break;
                 } 
             } else {
                 RECEIVED_RESET();                           /* Reset invalid received character */
@@ -2288,6 +2382,56 @@ ESP_Result_t ESP_SetSSLBufferSize(evol ESP_t* ESP, uint32_t size, uint32_t block
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
+
+#if ESP_SINGLE_CONN
+/******************************************************************************/
+/***                           Transparent transfer                          **/
+/******************************************************************************/
+ESP_Result_t ESP_TRANSFER_SetMode(evol ESP_t* ESP, ESP_TransferMode_t Mode, uint32_t blocking) {
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPMODE);                   /* Set active command */
+
+    Pointers.UI = (uint8_t)Mode;                            /* Close all connections */
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_TRANSFER_Start(evol ESP_t* ESP, uint32_t blocking) {
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    if (ESP->TransferMode != ESP_TransferMode_Transparent) {
+        return espERROR;
+    }
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPSEND);                   /* Set active command */
+    
+    /* Set up send without parameters, execute only AT+CIPSEND command to start transparent mode */
+    memset((void *)&Pointers, 0x00, sizeof(Pointers));
+    
+    __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
+}
+
+ESP_Result_t ESP_TRANSFER_Send(evol ESP_t* ESP, const void* data, uint32_t length, uint32_t blocking) {
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    if (!ESP->Flags.F.InTransparentMode) {
+        return espERROR;
+    }
+    __ACTIVE_CMD(ESP, CMD_TCPIP_TRANSFER_SEND);             /* Set active command */
+    
+    UART_SEND((uint8_t *)data, length);                     /* Send data to wifi directly */
+    
+    ESP->ActiveResult = espOK;                              /* Return OK */
+    __IDLE(ESP);
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_TRANSFER_Stop(evol ESP_t* ESP, uint32_t blocking) {
+    if (!ESP->Flags.F.InTransparentMode) {
+        return espERROR;
+    }
+    __ACTIVE_CMD(ESP, CMD_TCPIP_TRANSFER_STOP);             /* Set active command */
+    
+    __RETURN_BLOCKING(ESP, blocking, 2000);                 /* Return with blocking support */
+}
+#endif /* ESP_SINGLE_CONN */
 
 /******************************************************************************/
 /***                            Miscellanious                                **/
