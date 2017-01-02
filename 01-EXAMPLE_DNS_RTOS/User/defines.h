@@ -39,7 +39,12 @@
 //#define RCC_PLLQ              7                      /*!< Used for PLL Q parameter */
 //#define RCC_PLLR              10                     /*!< Used for PLL R parameter, available on STM32F446xx */
 
+#if defined(STM32F769_DISCOVERY)
+/* Use custom IRQ handler function for USART */
+#define TM_UART5_USE_CUSTOM_IRQ  
+#else
 /* Use custom IRQ handler function for USART */
 #define TM_USART1_USE_CUSTOM_IRQ  
+#endif /* defined(STM32F769_DISCOVERY) */
 
 #endif
