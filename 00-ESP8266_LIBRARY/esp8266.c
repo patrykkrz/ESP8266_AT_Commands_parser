@@ -180,7 +180,7 @@ typedef struct {
 
 #define __CONN_RESET(c)                     do { memset((void *)c, 0x00, sizeof(ESP_CONN_t)); } while (0)
 
-#if ESP_RTOS == 1
+#if ESP_RTOS
 #define __IDLE(p)                           do {\
     if (ESP_SYS_Release((ESP_RTOS_SYNC_t *)&(p)->Sync)) {   \
     }                                           \
@@ -219,7 +219,7 @@ typedef struct {
     }                                           \
     (p)->ActiveCmd = (cmd);                     \
 } while (0)
-#endif
+#endif /* ESP_RTOS */
 
 #define __CMD_SAVE(p)                       (p)->ActiveCmdSaved = (p)->ActiveCmd
 #define __CMD_RESTORE(p)                    (p)->ActiveCmd = (p)->ActiveCmdSaved
@@ -255,7 +255,7 @@ typedef struct {
 } while (0)
 #else
 #define ESP_SET_RTS(p, s)                   (void)0
-#endif
+#endif /* ESP_USE_CTS */
      
 /* Check device CIPSTATUS */
 #define __CHECK_CIPSTATUS(p)                do {\
@@ -275,7 +275,7 @@ typedef struct {
 #if ESP_USE_CTS
 static 
 uint8_t RTSStatus;                                          /* RTS pin status */
-#endif
+#endif /* ESP_USE_CTS */
 
 /* Buffers */
 static BUFFER_t Buffer;                                     /* Buffer structure */
@@ -285,7 +285,7 @@ static Pointers_t Pointers;                                 /* Pointers object *
 static ESP_t* _ESP;
 #if ESP_CONN_SINGLEBUFFER
 static uint8_t IPD_Data[ESP_CONNBUFFER_SIZE + 1];           /* Data buffer for incoming connection */
-#endif
+#endif /* ESP_CONN_SINGLEBUFFER */
 
 static
 struct pt pt_BASIC, pt_WIFI, pt_TCPIP;
@@ -495,7 +495,7 @@ void ParseIPD(evol ESP_t* ESP, const char* str, ESP_IPD_t* IPD) {
     str += cnt + 1;
 #else
     IPD->Conn = (ESP_CONN_t *)&ESP->Conn[0];                /* Get connection */
-#endif /* ESP_SINGLE_CONN */
+#endif /* !ESP_SINGLE_CONN */
     IPD->BytesRemaining = ParseNumber(str, &cnt);           /* Set bytes remaining to read */
 }
 
@@ -535,7 +535,7 @@ void ParseCIPSTATUS(evol ESP_t* ESP, uint8_t* value, const char* str) {
     
 #if !ESP_SINGLE_CONN
     connNumber = CHARTONUM(*str);                           /* Get connection number */
-#endif    /* ESP_SINGLE_CONN */
+#endif /* !ESP_SINGLE_CONN */
     *value |= 1 << connNumber;                              /* Set bit according to active connection */
     
     /* Parse connection parameters */
@@ -764,7 +764,7 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
         __CONN_RESET(conn);                                 /* Reset connection */
         conn->Callback.F.Closed = 1;
     }
-#endif /* ESP_SINGLE_CONN */
+#endif /* !ESP_SINGLE_CONN */
     
     /* Manage connection status */
     if (ESP->ActiveCmd == CMD_TCPIP_CIPSTATUS) {
@@ -795,7 +795,7 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
     }
     
     /* Manage receive data */
-    if (strncmp(str, FROMMEM("+IPD"), 4) == 0) {                     /* Check for incoming data */
+    if (strncmp(str, FROMMEM("+IPD"), 4) == 0) {            /* Check for incoming data */
         ParseIPD(ESP, str + 5, (ESP_IPD_t *)&ESP->IPD);     /* Parse incoming data string */
         ESP->IPD.InIPD = 1;                                 /* Start with data reading */
         if (!ESP->IPD.Conn->TotalBytesReceived) {
@@ -889,7 +889,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(FROMMEM(",8,1,0,2"));                 /* Enable hardware CTS pin on ESP device */
 #else
         UART_SEND_STR(FROMMEM(",8,1,0,0"));                 /* No flow control for ESP */
-#endif
+#endif /* ESP_USE_CTS */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_BASIC_UART, NULL);            /* Start command */
         
@@ -1117,6 +1117,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_WIFI_LISTACCESSPOINTS) {   /* List available access points */
+        /***** Setup options returned by list access *****/
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWLAPOPT=1,127"));        /* Send data */
         UART_SEND_STR(_CRLF);
@@ -1130,6 +1131,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
             goto cmd_wifi_listaccesspoints_clean;           /* Clean thread and stop execution */  
         }
         
+        /***** Execute access point search *****/
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CWLAP"));                 /* Send data */
         UART_SEND_STR(_CRLF);
@@ -1455,7 +1457,7 @@ cmd_tcpip_cipstart_clean:
         UART_SEND_STR(FROMMEM(str));
 #else
         UART_SEND_STR(FROMMEM("AT+CIPCLOSE"));              /* Send data */ 
-#endif
+#endif /* !ESP_SINGLE_CONN */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_TCPIP_CIPCLOSE, NULL);        /* Start command */
         
@@ -1485,7 +1487,7 @@ cmd_tcpip_cipstart_clean:
             ESP->ActiveResult = ESP->Events.F.RespBracket ? espOK : espERROR;
             ESP->Flags.F.InTransparentMode = ESP->ActiveResult == espOK;    /* Transfer mode status */
         } else 
-#endif
+#endif /* ESP_SINGLE_CONN */
         {
             if (Pointers.Ptr2 != NULL) {
                 *(uint32_t *)Pointers.Ptr2 = 0;             /* Set sent bytes to zero first */
@@ -1651,7 +1653,7 @@ cmd_tcpip_cipstart_clean:
         
         __IDLE(ESP);                                        /* Go IDLE mode */
     }
-#endif
+#endif /* ESP_SINGLE_CONN */
     
     PT_END(pt);
 }
@@ -1760,7 +1762,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
         }
         i--;
     }
-#endif /*!< ESP_USE_CTS */
+#endif /* ESP_USE_CTS */
     while (i) {
         Pointers.UI = 3;
         __ACTIVE_CMD(ESP, CMD_WIFI_CWMODE);                 /* Set device mode */
@@ -1875,7 +1877,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
         processedCount-- &&
 #else
         processedCount &&
-#endif
+#endif /* !ESP_RTOS && ESP_ASYNC */
         BUFFER_Read(Buff, (uint8_t *)&ch, 1)                /* Read single character from buffer */
     ) {
         ESP_SET_RTS(ESP, ESP_RTS_CLR);                      /* Clear RTS pin */
@@ -1902,7 +1904,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
                 if (ESP->IPD.BytesRemaining
 #if ESP_CONN_SINGLEBUFFER
                     || (!ESP->IPD.BytesRemaining && ESP->ActiveCmd == CMD_IDLE) /*!< Do this only if low of RAM (Do not USE RTOS in this mode) */
-#endif      
+#endif /* ESP_CONN_SINGLEBUFFER */
                 ) {
                     ESP_CALL_CALLBACK(ESP, espEventDataReceived);   /* Process callback */
                     ESP->IPD.Conn->Callback.F.CallLastPartOfPacketReceived = 0;
@@ -1927,7 +1929,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
             
             ESP->CallbackParams.CP1 = (const void *) &ch;
             ESP_CALL_CALLBACK(ESP, espEventTransparentReceived);
-#endif
+#endif /* ESP_SINGLE_CONN */
         } else {
             if (ISVALIDASCII(ch)) { /* Handle transparent mode receive data */
                 switch (ch) {
@@ -1940,7 +1942,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
                         if ((ch == ' ' && prev1_ch == '>' && prev2_ch == '\n')
 #if ESP_SINGLE_CONN                        
                             || (ESP->TransferMode == ESP_TransferMode_Transparent && ch == '>' && prev1_ch == '\n')
-#endif
+#endif /* ESP_SINGLE_CONN */
                         ) {   /* Check if bracket received */
                             ESP->Events.F.RespBracket = 1;  /* We receive bracket on command */
                         } else {
@@ -2042,7 +2044,7 @@ uint16_t ESP_DataReceived(uint8_t* ch, uint16_t count) {
     if (BUFFER_GetFree(&Buffer) <= 3) {
         ESP_SET_RTS(_ESP, ESP_RTS_SET);                     /* Set RTS pin */
     }
-#endif
+#endif /* ESP_USE_CTS */
     return r;
 }
 
@@ -2056,7 +2058,7 @@ ESP_Result_t ESP_WaitReady(evol ESP_t* ESP, uint32_t timeout) {
         ESP_Update(ESP);                                    /* Update stack if we are in synchronous mode */
 #else
         ESP_ProcessCallbacks(ESP);                          /* Process callbacks when not in synchronous mode */
-#endif
+#endif /* !ESP_RTOS && !ESP_ASYNC */
     } while (__IS_BUSY(ESP));
     __RETURN(ESP, ESP->ActiveResult);                       /* Return active result from command */
 }
@@ -2066,7 +2068,7 @@ ESP_Result_t ESP_Delay(evol ESP_t* ESP, uint32_t timeout) {
     do {
 #if !ESP_RTOS && !ESP_ASYNC
         ESP_Update(ESP);
-#endif
+#endif /* !ESP_RTOS && !ESP_ASYNC */
     } while (ESP->Time - start < timeout);
     __RETURN(ESP, espOK);
 }

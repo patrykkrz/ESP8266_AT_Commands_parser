@@ -513,72 +513,15 @@ uint16_t ESP_DataReceived(uint8_t* ch, uint16_t count);
 ESP_Result_t ESP_GetLastReturnStatus(evol ESP_t* ESP);
 
 /**
- * \defgroup      MISC_API
- * \brief         Miscellaneous functions
- * \{
- */
-
-/**
- * \brief         Set RF power for hardware
- * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
- * \param[in]     pwr: Power in units of dBm
- * \param[in]     blocking: Status whether this function should be blocking to check for response
- * \retval        Member of \ref ESP_Result_t enumeration
- */
-ESP_Result_t ESP_SetRFPower(evol ESP_t* ESP, float pwr, uint32_t blocking);
-
-/**
- * \brief         Set current UART baudrate for ESP8266 device
- * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
- * \param[in]     baudrate: Baudrate in units of bauds for ESP8266 communication purpose
- * \param[in]     def: Status whether this IP should be stored to ESP flash or not
- * \param[in]     blocking: Status whether this function should be blocking to check for response
- * \retval        Member of \ref ESP_Result_t enumeration
- */
-ESP_Result_t ESP_SetUART(evol ESP_t* ESP, uint32_t baudrate, uint32_t def, uint32_t blocking);
-
-/**
- * \brief         Restore ESP8266 flash settings to default values
- * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
- * \param[in]     blocking: Status whether this function should be blocking to check for response
- * \retval        Member of \ref ESP_Result_t enumeration
- */
-ESP_Result_t ESP_RestoreDefault(evol ESP_t* ESP, uint32_t blocking);
-
-/**
- * \brief         Update ESP8266 firmware update with remote process
- * \note          ESP8266 must be connected to network and have access to internet
- * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
- * \param[in]     blocking: Status whether this function should be blocking to check for response
- * \retval        Member of \ref ESP_Result_t enumeration
- */
-ESP_Result_t ESP_FirmwareUpdate(evol ESP_t* ESP, uint32_t blocking);
-
-/**
- * \brief         Get AT software info on ESP8266 device
- * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
- * \param[out]    *atv: Pointer to array of string to save AT version.
- *                   Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
- *                   Use NULL if you don't need AT version
- * \param[out]    *sdkv: Pointer to array of string to save SDK version.
- *                   Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
- *                   Use NULL if you don't need SDK version
- * \param[out]    *cmpt: Pointer to array of string to save compile time version.
- *                   Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
- *                   Use NULL if you don't need compile time
- * \param[in]     blocking: Status whether this function should be blocking to check for response
- * \retval        Member of \ref ESP_Result_t enumeration
- */
-ESP_Result_t ESP_GetSoftwareInfo(evol ESP_t* ESP, char* atv, char* sdkv, char* cmpt, uint32_t blocking);
-
-/**
- * \}
- */
-
-/**
  * \defgroup      STATION_API
  * \brief         Functions regarding ESP as station device
  * \{
+ *
+ * Functions regarding ESP as station device connected to other WIFI networks.
+ *
+ * You can set or get IP address for station, set or get MAC address for station,
+ * list available access points to connect to, 
+ * connect to access point and read informations about currently connected AP.
  */
 
 /**
@@ -679,6 +622,11 @@ ESP_Result_t ESP_STA_ListAccessPoints(evol ESP_t* ESP, ESP_AP_t* APs, uint16_t a
  * \defgroup      AP_API
  * \brief         Functions regarding SoftAP (software Access Point) on ESP 
  * \{
+ *
+ * Functions regarding Access Point (AP) for ESP.
+ *
+ * Implements functions to get or set IP address, get or set MAC address,
+ * set access point settings and list devices connected on access point.
  */
 
 /**
@@ -757,6 +705,12 @@ ESP_Result_t ESP_AP_SetConfig(evol ESP_t* ESP, ESP_APConfig_t* conf, uint8_t def
  * \defgroup      SERVER_API
  * \brief         Functions regarding server functionality
  * \{
+ *
+ * Functions regarding setting up server features.
+ * You can easily enable or disable server on specific port
+ * and set server timeout before automatic disconnection if no client activity.
+ *
+ * \note         Server mode can only be used when \ref ESP_SINGLE_CONN is disabled
  */
 
 /**
@@ -793,6 +747,12 @@ ESP_Result_t ESP_SERVER_SetTimeout(evol ESP_t* ESP, uint16_t timeout, uint32_t b
  * \defgroup      CONN_API
  * \brief         Connection management with client and server connection interaction
  * \{
+ *
+ * Connection API is the most important ESP feature since ESP 
+ * is wifi device to connect somewhere or listen for connections when in server mode.
+ *
+ * This section implements API functions for connecting to other servers as client
+ * and how to manipulate connection (send data, close, start).
  */
 
 /**
@@ -885,6 +845,15 @@ ESP_Result_t ESP_SetSSLBufferSize(evol ESP_t* ESP, uint32_t size, uint32_t block
  * \defgroup      MISC_API
  * \brief         Miscellaneous functions
  * \{
+ *
+ * You will find different functions in this section which are useful but
+ * have no other common sections to put them here.
+ *
+ * Some features:
+ *  - DNS function to retrieve IP address for specific domain name
+ *  - WPS function for ESP device
+ *  - Ping other server using ESP device
+ *  - and more..
  */
 
 /**
@@ -917,14 +886,80 @@ ESP_Result_t ESP_SetWPS(evol ESP_t* ESP, uint8_t wps, uint32_t blocking);
 ESP_Result_t ESP_Ping(evol ESP_t* ESP, const char* addr, uint32_t* time, uint32_t blocking);
 
 /**
+ * \brief         Set RF power for hardware
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]     pwr: Power in units of dBm
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SetRFPower(evol ESP_t* ESP, float pwr, uint32_t blocking);
+
+/**
+ * \brief         Set current UART baudrate for ESP8266 device
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]     baudrate: Baudrate in units of bauds for ESP8266 communication purpose
+ * \param[in]     def: Status whether this IP should be stored to ESP flash or not
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SetUART(evol ESP_t* ESP, uint32_t baudrate, uint32_t def, uint32_t blocking);
+
+/**
+ * \brief         Restore ESP8266 flash settings to default values
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_RestoreDefault(evol ESP_t* ESP, uint32_t blocking);
+
+/**
+ * \brief         Update ESP8266 firmware update with remote process
+ * \note          ESP8266 must be connected to network and have access to internet
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_FirmwareUpdate(evol ESP_t* ESP, uint32_t blocking);
+
+/**
+ * \brief         Get AT software info on ESP8266 device
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[out]    *atv: Pointer to array of string to save AT version.
+ *                   Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
+ *                   Use NULL if you don't need AT version
+ * \param[out]    *sdkv: Pointer to array of string to save SDK version.
+ *                   Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
+ *                   Use NULL if you don't need SDK version
+ * \param[out]    *cmpt: Pointer to array of string to save compile time version.
+ *                   Length of array should be at least 30 bytes but mostly depends on actual ESP8266 AT software.
+ *                   Use NULL if you don't need compile time
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_GetSoftwareInfo(evol ESP_t* ESP, char* atv, char* sdkv, char* cmpt, uint32_t blocking);
+
+/**
  * \}
  */
  
 /**
  * \defgroup      TRANSFER_API
- * \brief         Transfer based functions for UART->Wifi passthrough mode
+ * \brief         Transfer based functions for UART <-> WIFI passthrough mode
  * \note          This API is available only if single connection mode is used
  * \{
+ *
+ * When transfer mode is set to transparent and connection to server is established,
+ * any data sent to ESP device will be sent directly to server. 
+ *
+ * This mode can be used in case of streaming data for any applications or
+ * for UART <-> WIFI passthrough mode to server directly.
+ *
+ * The same thing goes for received data.
+ * Each byte received over TCP/UDP protocol is directly sent from WIFI to UART,
+ * which gives you full UART<->WIFI transparent mode.
+ *
+ * Transfer mode can only be used when \ref ESP_SINGLE_CONN is enabled
+ * 
  */
  
 /**
