@@ -840,22 +840,23 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
     } else if (ESP->ActiveCmd == CMD_BASIC_RST) {           /* Process device reset */
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         
-        /* Software reset first */
-        UART_SEND_STR(FROMMEM("AT+RST"));                   /* Send data */
-        UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_BASIC_RST, NULL);             /* Start command */
+        /***** Hardware reset *****/
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_SET);   /* Set reset */
+        time = ESP->Time;
+        PT_WAIT_UNTIL(pt, ESP->Time - time > 2);            /* Wait reset time */
+        ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_CLR);   /* Clear reset */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady ||
-                            ESP->Events.F.RespError);       /* Wait for response */
+                            ESP->Events.F.RespError);   /* Wait for response */
         
         ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR; /* Check response */
         
+        /***** Software reset *****/
         if (ESP->ActiveResult != espOK) {
-            __RST_EVENTS_RESP(ESP);                         /* Reset all events */
-            /* Try hardware reset */
-            ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_SET);   /* Set reset */
-            time = 4000; while (time--);
-            ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_CLR);   /* Clear reset */
+            UART_SEND_STR(FROMMEM("AT+RST"));               /* Send data */
+            UART_SEND_STR(_CRLF);
+            StartCommand(ESP, CMD_BASIC_RST, NULL);         /* Start command */
             
             PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady ||
                                 ESP->Events.F.RespError);   /* Wait for response */
@@ -1624,17 +1625,15 @@ cmd_tcpip_cipstart_clean:
         }
         
         __IDLE(ESP);                                        /* Go IDLE mode */
-    } else if (ESP->ActiveCmd == CMD_TCPIP_TRANSFER_STOP) {
-        volatile static uint32_t StartTime = 0;
-        
+    } else if (ESP->ActiveCmd == CMD_TCPIP_TRANSFER_STOP) {        
         /****** Execute AT check ******/
-        StartTime = ESP->Time;                              /* Set start time */
-        PT_WAIT_UNTIL(pt, (ESP->Time - StartTime) > 100);   /* Wait some time first */
+        btw = ESP->Time;                                    /* Set start time */
+        PT_WAIT_UNTIL(pt, (ESP->Time - btw) > 100);         /* Wait some time first */
         
         UART_SEND((uint8_t *)"+++", 3);                     /* Send data to stop transfer mode */
         
-        StartTime = ESP->Time;                              /* Set new start time */
-        PT_WAIT_UNTIL(pt, (ESP->Time - StartTime) > 1100);  /* Wait at least 1 second for next command */
+        btw = ESP->Time;                                    /* Set new start time */
+        PT_WAIT_UNTIL(pt, (ESP->Time - btw) > 1100);        /* Wait at least 1 second for next command */
         
         ESP->Flags.F.InTransparentMode = 0;                 /* Temporarly disable transparent mode */
         RECEIVED_RESET();
@@ -1876,7 +1875,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
 #if !ESP_RTOS && ESP_ASYNC
         processedCount-- &&
 #else
-        processedCount &&
+        processedCount-- &&
 #endif /* !ESP_RTOS && ESP_ASYNC */
         BUFFER_Read(Buff, (uint8_t *)&ch, 1)                /* Read single character from buffer */
     ) {
@@ -1920,15 +1919,18 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
                 while (RECEIVED_LENGTH() > 8) {             /* Shift it up to 8 bytes long */
                     RECEIVED_SHIFT();
                 }
-                if (strncmp((const char *)Received.Data, FROMMEM("CLOSED\r\n"), 8) == 0) {
+                if (Received.Data[0] == 'C' && strncmp((const char *)Received.Data, FROMMEM("CLOSED\r\n"), 8) == 0) {
                     ESP->Flags.F.InTransparentMode = 0;     /* Not in transparent mode anymore */
                     __CONN_RESET(&ESP->Conn[0]);            /* Reset connection */
                     ESP->Conn[0].Callback.F.Closed = 1;     /* Set callback for connection */
                 }
             }
-            
-            ESP->CallbackParams.CP1 = (const void *) &ch;
-            ESP_CALL_CALLBACK(ESP, espEventTransparentReceived);
+            if (ESP->ActiveCmd == CMD_IDLE) {
+                ESP->CallbackParams.CP1 = (const void *) &ESP->Conn[0];
+                ESP->CallbackParams.CP2 = (const void *) &ch;
+                ESP->CallbackParams.UI = 1;
+                ESP_CALL_CALLBACK(ESP, espEventTransparentReceived);
+            }
 #endif /* ESP_SINGLE_CONN */
         } else {
             if (ISVALIDASCII(ch)) { /* Handle transparent mode receive data */
@@ -1963,7 +1965,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
             }
         }
         prev2_ch = prev1_ch;                                /* Save previous character to prevprev character */
-        prev1_ch = ch;                                      /* Save current character as previous */      
+        prev1_ch = ch;                                      /* Save current character as previous */
     }
     
     return ProcessThreads(ESP);                             /* Process stack */
@@ -2037,8 +2039,7 @@ ESP_Result_t ESP_GetLastReturnStatus(evol ESP_t* ESP) {
 }
 
 uint16_t ESP_DataReceived(uint8_t* ch, uint16_t count) {
-    uint32_t r;
-    
+    uint16_t r;
     r = BUFFER_Write(&Buffer, ch, count);                   /* Writes data to USART buffer */
 #if ESP_USE_CTS
     if (BUFFER_GetFree(&Buffer) <= 3) {
@@ -2099,7 +2100,7 @@ ESP_Result_t ESP_SetUART(evol ESP_t* ESP, uint32_t baudrate, uint32_t def, uint3
 }
 
 ESP_Result_t ESP_SetRFPower(evol ESP_t* ESP, float pwr, uint32_t blocking) {
-    __CHECK_INPUTS(pwr > 0 && (pwr / 0.25f) <= 82);         /* Check inputs */
+    __CHECK_INPUTS(pwr > 0 && (pwr / 0.25f) <= ESP_MAX_RFPWR);  /* Check inputs */
     __CHECK_BUSY(ESP);                                      /* Check busy status */
     __ACTIVE_CMD(ESP, CMD_BASIC_RFPOWER);                   /* Set active command */
     
@@ -2431,7 +2432,7 @@ ESP_Result_t ESP_TRANSFER_Stop(evol ESP_t* ESP, uint32_t blocking) {
     }
     __ACTIVE_CMD(ESP, CMD_TCPIP_TRANSFER_STOP);             /* Set active command */
     
-    __RETURN_BLOCKING(ESP, blocking, 2000);                 /* Return with blocking support */
+    __RETURN_BLOCKING(ESP, blocking, 5000);                 /* Return with blocking support */
 }
 #endif /* ESP_SINGLE_CONN */
 
