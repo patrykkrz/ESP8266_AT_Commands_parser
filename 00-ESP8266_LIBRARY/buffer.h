@@ -140,7 +140,7 @@ typedef struct _BUFFER_t {
  *            - 0: Buffer initialized OK
  *            - > 0: Buffer initialization error. Malloc has failed with allocation
  */
-uint8_t BUFFER_Init(BUFFER_t* Buffer, uint32_t Size, uint8_t* BufferPtr);
+uint8_t BUFFER_Init(BUFFER_t* Buffer, uint32_t Size, void* BufferPtr);
 
 /**
  * \brief  Free memory for buffer allocated using \ref malloc
@@ -157,7 +157,7 @@ void BUFFER_Free(BUFFER_t* Buffer);
  * \param  count: Number of elements of type unsigned char to write
  * \retval Number of elements written in buffer 
  */
-uint32_t BUFFER_Write(BUFFER_t* Buffer, uint8_t* Data, uint32_t count);
+uint32_t BUFFER_Write(BUFFER_t* Buffer, const void* Data, uint32_t count);
 
 /**
  * \brief  Writes data to buffer to top of buffer in reversed order
@@ -167,7 +167,7 @@ uint32_t BUFFER_Write(BUFFER_t* Buffer, uint8_t* Data, uint32_t count);
  * \param  count: Number of elements of type unsigned char to write
  * \retval Number of elements written in buffer on top in reverse order
  */
-uint32_t BUFFER_WriteToTop(BUFFER_t* Buffer, uint8_t* Data, uint32_t count);
+uint32_t BUFFER_WriteToTop(BUFFER_t* Buffer, const void* Data, uint32_t count);
 
 /**
  * \brief  Reads data from buffer
@@ -176,7 +176,7 @@ uint32_t BUFFER_WriteToTop(BUFFER_t* Buffer, uint8_t* Data, uint32_t count);
  * \param  count: Number of elements of type unsigned char to read
  * \retval Number of elements read from buffer 
  */
-uint32_t BUFFER_Read(BUFFER_t* Buffer, uint8_t* Data, uint32_t count);
+uint32_t BUFFER_Read(BUFFER_t* Buffer, void* Data, uint32_t count);
 
 /**
  * \brief  Gets number of free elements in buffer 
@@ -220,7 +220,7 @@ int32_t BUFFER_FindElement(BUFFER_t* Buffer, uint8_t Element);
  *            -  < 0: Sequence was not found
  *            - >= 0: Sequence found, start sequence location in buffer is returned
  */
-int32_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint32_t Size);
+int32_t BUFFER_Find(BUFFER_t* Buffer, const void* Data, uint32_t Size);
 
 /**
  * \brief  Sets string delimiter character when reading from buffer as string
@@ -236,7 +236,7 @@ int32_t BUFFER_Find(BUFFER_t* Buffer, uint8_t* Data, uint32_t Size);
  * \param  *buff: Pointer to string to write 
  * \retval Number of characters written
  */
-uint32_t BUFFER_WriteString(BUFFER_t* Buffer, char* buff);
+uint32_t BUFFER_WriteString(BUFFER_t* Buffer, const char* buff);
 
 /**
  * \brief  Reads from buffer as string
