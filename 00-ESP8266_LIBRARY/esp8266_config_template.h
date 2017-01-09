@@ -93,9 +93,14 @@
 #define ESP_CONN_SINGLEBUFFER               0
 
 /**
- * \brief  Enables (1) or disables (0) RTOS support for library.
+ * \brief  Enables (1) or disables (0) RTOS support (re-entrancy) for library.
  *
  *         When using RTOS, some additional configuration must be set, listed below.
+ *
+ * \note   This mode should be enabled only when processing function (ESP_Update) is called from separate thread.
+ *         When everything is done in single thread regarding ESP, there is no need for this feature to be enabled.
+ *
+ * \note   When this mode is enabled, RTOS dependant locking system is required for thread synchrnozation.
  */
 #define ESP_RTOS                            0
 
