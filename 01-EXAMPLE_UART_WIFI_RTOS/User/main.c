@@ -62,8 +62,8 @@ CTS         PA3                 RTS from ST to CTS from ESP
 #define DEBUG_USART_PP      TM_USART_PinsPack_1
 
 /* Wifi network settings, replace with your settings */
-#define WIFINAME            "Majerle WiFi"//"wifi_ssid"
-#define WIFIPASS            "majerle_internet"//"wifi_password"
+#define WIFINAME            "wifi_ssid"
+#define WIFIPASS            "wifi_password"
 
 /* Set up your server settings to connect to */
 #define IP_ADDR             "192.168.0.106"
@@ -197,7 +197,7 @@ void ESP_Main_Thread(void const* params) {
                     }
                     
                     /* Go back to normal mode */
-                    if ((espRes = ESP_TRANSFER_SetMode(&ESP, ESP_TransferMode_Transparent, 1)) == espOK) {
+                    if ((espRes = ESP_TRANSFER_SetMode(&ESP, ESP_TransferMode_Normal, 1)) == espOK) {
                         printf("Mode set back to normal\r\n");
                         
                         /* Close connection */
