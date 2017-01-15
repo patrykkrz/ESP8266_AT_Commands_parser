@@ -248,7 +248,7 @@ typedef struct {
 
 #if ESP_USE_CTS
 #define ESP_SET_RTS(p, s)                   do {\
-    if (RTSStatus != (s)) {                     \
+    if (RTSStatus != (s) && !(p)->Flags.F.RTSForced) {  \
         RTSStatus = (s);                        \
         ESP_LL_SetRTS((ESP_LL_t *)&(p)->LL, (s));   \
     }                                           \
@@ -2495,4 +2495,16 @@ ESP_Result_t ESP_SetWPS(evol ESP_t* ESP, uint8_t wps, uint32_t blocking) {
     Pointers.UI = wps ? 1 : 0;
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+void ESP_AssertRTS(evol ESP_t* ESP) {
+    ESP->Flags.F.RTSForced = 1;
+    ESP_LL_SetRTS((ESP_LL_t* )&ESP->LL, ESP_RTS_SET);
+}
+
+void ESP_DesertRTS(evol ESP_t* ESP) {
+    if (ESP->Flags.F.RTSForced) {
+        ESP_LL_SetRTS((ESP_LL_t* )&ESP->LL, ESP_RTS_CLR);
+        ESP->Flags.F.RTSForced = 0;
+    }
 }
