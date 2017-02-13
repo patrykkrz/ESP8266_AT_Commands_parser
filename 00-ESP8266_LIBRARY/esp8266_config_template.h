@@ -93,6 +93,13 @@
 #define ESP_CONN_SINGLEBUFFER               0
 
 /**
+ * \brief   Enables (1) or disables (0) echo from ESP module
+ *
+ * \note    This is useful for debug mode.
+  */
+#define ESP_ECHO                            0
+
+/**
  * \brief  Enables (1) or disables (0) RTOS support (re-entrancy) for library.
  *
  *         When using RTOS, some additional configuration must be set, listed below.

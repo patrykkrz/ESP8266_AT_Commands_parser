@@ -837,6 +837,22 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
         __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_BASIC_ATE) {           /* Set echo */
+        NumberToString(str, Pointers.UI);                   /* Get echo parameter as string */
+
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+
+        UART_SEND_STR(FROMMEM("ATE"));                       /* Send data */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_ATE, NULL);              /* Start command */
+
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk ||
+                            ESP->Events.F.RespError);       /* Wait for response */
+
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+
+        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_BASIC_RST) {           /* Process device reset */
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         
@@ -1733,6 +1749,16 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     ESP->ActiveCmdTimeout = 100;                            /* Set response timeout */
     while (i) {
         __ACTIVE_CMD(ESP, CMD_BASIC_AT);                    /* Check AT response */
+        ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
+        __IDLE(ESP);
+        if (ESP->ActiveResult == espOK) {
+            break;
+        }
+        i--;
+    }
+    while (i) {
+        Pointers.UI = ESP_ECHO ? 1 : 0;
+        __ACTIVE_CMD(ESP, CMD_BASIC_ATE);                    /* Check AT response */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
