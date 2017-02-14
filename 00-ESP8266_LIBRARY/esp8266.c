@@ -1758,7 +1758,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     }
     while (i) {
         Pointers.UI = ESP_ECHO ? 1 : 0;
-        __ACTIVE_CMD(ESP, CMD_BASIC_ATE);                    /* Check AT response */
+        __ACTIVE_CMD(ESP, CMD_BASIC_ATE);                    /* Check ATE response */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
         __IDLE(ESP);
         if (ESP->ActiveResult == espOK) {
