@@ -98,8 +98,8 @@ extern "C" {
 #define estatic                     static
 
 /* Check debug */
-#ifndef ESP_ECHO
-#define ESP_ECHO                    1
+#if !defined(ESP_ECHO)
+#define ESP_ECHO                    0   /*!< Echo mode */
 #endif
 
 /* Public defines */
