@@ -962,7 +962,9 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
     if (ESP->ActiveCmd == CMD_WIFI_CWMODE) {                /* Set device mode */
         NumberToString(str, Pointers.UI);                   /* Convert mode to string */
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
-        UART_SEND_STR(FROMMEM("AT+CWMODE="));               /* Send data */
+        UART_SEND_STR(FROMMEM("AT+CWMODE_"));               /* Send data */
+        UART_SEND_STR(FROMMEM(Pointers.CPtr1));
+        UART_SEND_STR(FROMMEM("="));
         UART_SEND_STR(FROMMEM(str));
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CWMODE, NULL);           /* Start command */
@@ -1789,6 +1791,7 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     }
 #endif /* ESP_USE_CTS */
     while (i) {
+        Pointers.CPtr1 = FROMMEM("CUR");
         Pointers.UI = 3;
         __ACTIVE_CMD(ESP, CMD_WIFI_CWMODE);                 /* Set device mode */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
@@ -2153,6 +2156,16 @@ ESP_Result_t ESP_GetSoftwareInfo(evol ESP_t* ESP, char* atv, char* sdkv, char* c
     Pointers.CPtr3 = (const void *)cmpt;
     
     __RETURN_BLOCKING(ESP, blocking, 180000);               /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SetMode(evol ESP_t* ESP, ESP_Mode_t mode, uint32_t def, uint32_t blocking) {
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_CWMODE);                     /* Set active command */
+
+    Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
+    Pointers.UI = (uint8_t)mode;
+
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
 /******************************************************************************/

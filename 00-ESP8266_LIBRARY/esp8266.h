@@ -939,6 +939,16 @@ ESP_Result_t ESP_FirmwareUpdate(evol ESP_t* ESP, uint32_t blocking);
 ESP_Result_t ESP_GetSoftwareInfo(evol ESP_t* ESP, char* atv, char* sdkv, char* cmpt, uint32_t blocking);
 
 /**
+ * \brief         Set WIFI mode for ESP8266 device, either STA, AP or both
+ * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]     mode: ESP8266 working mode. This parameter can be a value of \ref ESP_Mode_t enumeration
+ * \param[in]     def: Status whether this mode should be stored to ESP flash or not
+ * \param[in]     blocking: Status whether this function should be blocking to check for response
+ * \retval        Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SetMode(evol ESP_t* ESP, ESP_Mode_t mode, uint32_t def, uint32_t blocking);
+
+/**
  * \}
  */
  
