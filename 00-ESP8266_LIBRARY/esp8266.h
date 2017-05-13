@@ -2,7 +2,7 @@
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
  * \website https://majerle.eu/projects/esp8266-at-commands-parser-for-embedded-systems
- * \version v2.2.0
+ * \version v2.3.0
  * \license MIT
  * \brief   Library for ESP8266 module using AT commands for embedded systems
  *	
@@ -33,7 +33,7 @@
 \endverbatim
  */
 #ifndef ESP_H
-#define ESP_H 220
+#define ESP_H 230
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -65,11 +65,6 @@ extern "C" {
 
 /* Buffer implementation */
 #include "pt/pt.h"
-
-/* When RTOS is enabled */
-#if ESP_RTOS
-#include "esp8266_sys.h"
-#endif
 
 /* Check values */
 #if !defined(ESP_CONF_H) || ESP_CONF_H != ESP_H

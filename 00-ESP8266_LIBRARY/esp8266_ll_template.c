@@ -31,51 +31,89 @@
 /******************************************************************************/
 /******************************************************************************/
 
-uint8_t ESP_LL_Init(ESP_LL_t* LL) {
-    /* Init UART with desired baudrated passed in LL structure */
 
-    /* Init reset pin and set it high */
+#if ESP_RTOS
+osMutexId id;
+#endif /* ESP_RTOS */
 
-#if ESP_USE_CTS
-    /* Init RTS pin as output and set it low */
-#endif
+uint8_t ESP_LL_Callback(ESP_LL_Control_t ctrl, void* param, void* result) {
+    switch (ctrl) {
+        case ESP_LL_Control_Init: {                 /* Initialize low-level part of communication */
+            ESP_LL_t* LL = (ESP_LL_t *)param;       /* Get low-level value from callback */
+            
+            /************************************/
+            /*  Device specific initialization  */
+            /************************************/
 
-    return 0;
-}
+            
+            if (result) {
+                *(uint8_t *)result = 0;             /* Successfully initialized */
+            }
+            return 1;                               /* Return 1 = command was processed */
+        }
+        case ESP_LL_Control_Send: {
+            ESP_LL_Send_t* send = (ESP_LL_Send_t *)param;   /* Get send parameters */
+            
+            /* Send actual data to UART, implement function to send data */
+        	send(send->Data, send->Count);
+            
+            if (result) {
+                *(uint8_t *)result = 0;             /* Successfully send */
+            }
+            return 1;                               /* Command processed */
+        }
+        case ESP_LL_Control_SetReset: {             /* Set reset value */
+            uint8_t state = *(uint8_t *)param;      /* Get state packed in uint8_t variable */
+            if (state == ESP_RESET_SET) {           /* Check state value */
 
+            } else {
 
-uint8_t ESP_LL_SendData(ESP_LL_t* LL, const uint8_t* data, uint16_t count) {
-    /* Send data via UART */
-
-    /* Everything OK, data sent */
-    return 0;
-}
-
-
-uint8_t ESP_LL_SetReset(ESP_LL_t* LL, uint8_t state) {
-    /* Set reset pin */
-    if (state == ESP_RESET_SET) {
-        /* Set pin low */
-    } else {
-        /* Set pin high */
+            }
+            return 1;                               /* Command has been processed */
+        }
+        case ESP_LL_Control_SetRTS: {               /* Set RTS value */
+            uint8_t state = *(uint8_t *)param;      /* Get state packed in uint8_t variable */
+            (void)state;                            /* Prevent compiler warnings */
+            return 1;                               /* Command has been processed */
+        }
+#if ESP_RTOS
+        case ESP_LL_Control_SYS_Create: {           /* Create system synchronization object */
+            ESP_RTOS_SYNC_t* Sync = (ESP_RTOS_SYNC_t *)param;   /* Get pointer to sync object */
+            id = osMutexCreate(Sync);               /* Create mutex */
+            
+            if (result) {
+                *(uint8_t *)result = id == NULL;    /*!< Set result value */
+            }
+            return 1;                               /* Command processed */
+        }
+        case ESP_LL_Control_SYS_Delete: {           /* Delete system synchronization object */
+            ESP_RTOS_SYNC_t* Sync = (ESP_RTOS_SYNC_t *)param;   /* Get pointer to sync object */
+            osMutexDelete(Sync);                    /* Delete mutex object */
+            
+            if (result) {
+                *(uint8_t *)result = id == NULL;    /*!< Set result value */
+            }
+            return 1;                               /* Command processed */
+        }
+        case ESP_LL_Control_SYS_Request: {          /* Request system synchronization object */
+            ESP_RTOS_SYNC_t* Sync = (ESP_RTOS_SYNC_t *)param;   /* Get pointer to sync object */
+            (void)Sync;                             /* Prevent compiler warnings */
+            
+            *(uint8_t *)result = osMutexWait(id, 1000) == osOK ? 0 : 1; /* Set result according to response */
+            return 1;                               /* Command processed */
+        }
+        case ESP_LL_Control_SYS_Release: {          /* Release system synchronization object */
+            ESP_RTOS_SYNC_t* Sync = (ESP_RTOS_SYNC_t *)param;   /* Get pointer to sync object */
+            (void)Sync;                             /* Prevent compiler warnings */
+            
+            *(uint8_t *)result = osMutexRelease(id) == osOK ? 0 : 1;    /* Set result according to response */
+            return 1;                               /* Command processed */
+        }
+#endif /* ESP_RTOS */
+        default: 
+            return 0;
     }
-
-    /* Everything OK, RST pin set according to state */
-    return 0;
 }
-
-uint8_t ESP_LL_SetRTS(ESP_LL_t* LL, uint8_t state) {
-    if (state == ESP_RTS_SET) {
-        /* Set pin high */
-    } else {
-        /* Set pin low */
-    }
-
-    /* Everything OK, RTS pin set according to state */
-    return 0;
-}
-
-
 
 /* UART receive interrupt handler */
 void USART_RX_INTERRUPT_HANDLER_FUNCTION_NAME(void) {
