@@ -64,7 +64,6 @@
  *
  *          In this mode, only one connection is allowed and only client can be used.
  *          Server mode is disabled and can not be enabled by user.
- *
  */
 #define ESP_SINGLE_CONN                     1
 
@@ -107,7 +106,7 @@
  * \note   This mode should be enabled only when processing function (ESP_Update) is called from separate thread.
  *         When everything is done in single thread regarding ESP, there is no need for this feature to be enabled.
  *
- * \note   When this mode is enabled, RTOS dependant locking system is required for thread synchrnozation.
+ * \note   When this mode is enabled, RTOS dependant locking system is required for thread synchronization.
  */
 #define ESP_RTOS                            0
 
@@ -128,7 +127,7 @@
  *
  * \note   This feature has sense when in non-RTOS mode and you wanna process income data async (in interrupt).
  * 
- *         When this feature is enabled, you HAVE TO do processing (\ref ESP_Update) in interrupt.
+ *         When this feature is enabled, you HAVE TO do processing (ESP_Update) in interrupt.
  */
 #define ESP_ASYNC                           1
 

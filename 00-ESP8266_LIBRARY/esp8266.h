@@ -2,7 +2,7 @@
  * \author  Tilen Majerle
  * \email   tilen@majerle.eu
  * \website https://majerle.eu/projects/esp8266-at-commands-parser-for-embedded-systems
- * \version v2.2.0
+ * \version v2.3.0
  * \license MIT
  * \brief   Library for ESP8266 module using AT commands for embedded systems
  *	
@@ -33,7 +33,7 @@
 \endverbatim
  */
 #ifndef ESP_H
-#define ESP_H 220
+#define ESP_H 230
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -65,11 +65,6 @@ extern "C" {
 
 /* Buffer implementation */
 #include "pt/pt.h"
-
-/* When RTOS is enabled */
-#if ESP_RTOS
-#include "esp8266_sys.h"
-#endif
 
 /* Check values */
 #if !defined(ESP_CONF_H) || ESP_CONF_H != ESP_H
@@ -381,6 +376,7 @@ typedef struct _ESP_t {
             uint8_t IsBlocking:1;                       /*!< Status whether action was called as blocking */
             uint8_t Call_Idle:1;                        /*!< Status whether idle status event should be called before we can proceed with another action */
             uint8_t InTransparentMode:1;                /*!< Status whether we are currently in transparent mode and transfer is active */
+            uint8_t RTSForced:1;                        /*!< Status whether RTS pin was forced by user */
 		} F;
 		uint32_t Value;
 	} Flags;                                            /*!< Flags for library purpose */
@@ -805,7 +801,7 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking);
  * \note          In this revision function is declared as macro
  * \hideinitializer
  */
-#define ESP_CONN_IsClient(ESP, conn)        ((conn)->Flags.F.Client)
+#define ESP_CONN_IsClient(ESP, conn)        ((conn) && (conn)->Flags.F.Client)
 
 /**
  * \brief         Status if desired connection is active as server
@@ -815,7 +811,7 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking);
  * \note          In this revision function is declared as macro
  * \hideinitializer
  */
-#define ESP_CONN_IsServer(ESP, conn)       (!ESP_CONN_IsClient(ESP, conn))
+#define ESP_CONN_IsServer(ESP, conn)        ((conn) && !ESP_CONN_IsClient(ESP, conn))
 
 /**
  * \brief         Status if desired connection is active
@@ -825,7 +821,7 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking);
  * \note          In this revision function is declared as macro
  * \hideinitializer
  */
-#define ESP_CONN_IsActive(ESP, conn)        ((conn)->Flags.F.Active)
+#define ESP_CONN_IsActive(ESP, conn)        ((conn) && (conn)->Flags.F.Active)
 
 /**
  * \brief         Set SSL buffer size for connection
@@ -937,6 +933,9 @@ ESP_Result_t ESP_FirmwareUpdate(evol ESP_t* ESP, uint32_t blocking);
  * \retval        Member of \ref ESP_Result_t enumeration
  */
 ESP_Result_t ESP_GetSoftwareInfo(evol ESP_t* ESP, char* atv, char* sdkv, char* cmpt, uint32_t blocking);
+
+void ESP_AssertRTS(evol ESP_t* ESP);
+void ESP_DesertRTS(evol ESP_t* ESP);
 
 /**
  * \}

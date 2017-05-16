@@ -55,8 +55,8 @@ CTS         PA3                 RTS from ST to CTS from ESP
 #define DEBUG_USART_PP      TM_USART_PinsPack_1
 
 /* Wifi network settings, replace with your settings */
-#define WIFINAME            "Slikop."//"wifi_network_SSID"
-#define WIFIPASS            "slikop2012"//"wifi_password"
+#define WIFINAME            "wifi_network_SSID"
+#define WIFIPASS            "wifi_password"
 
 /* ESP working structure and result enumeration */
 evol ESP_t ESP;

@@ -62,9 +62,9 @@ typedef struct {
 #define FROMMEM(x)                          ((const char *)(x))
 
 /* LL drivers */
-#define UART_SEND_STR(str)                  ESP_LL_SendData((ESP_LL_t *)&_ESP->LL, (const uint8_t *)(str), strlen((const char *)(str)))
-#define UART_SEND(str, len)                 ESP_LL_SendData((ESP_LL_t *)&_ESP->LL, (const uint8_t *)(str), (len))
-#define UART_SEND_CH(ch)                    ESP_LL_SendData((ESP_LL_t *)&_ESP->LL, (const uint8_t *)(ch), 1)
+#define UART_SEND_STR(str)                  do { Send.Data = (const uint8_t *)(str); Send.Count = strlen((const char *)(str)); ESP_LL_Callback(ESP_LL_Control_Send, &Send, &Send.Result); } while (0)
+#define UART_SEND(str, len)                 do { Send.Data = (const uint8_t *)(str); Send.Count = (len); ESP_LL_Callback(ESP_LL_Control_Send, &Send, &Send.Result); } while (0)
+#define UART_SEND_CH(ch)                    do { Send.Data = (const uint8_t *)(ch); Send.Count = 1; ESP_LL_Callback(ESP_LL_Control_Send, &Send, &Send.Result); } while (0)
 
 #define RESP_OK                             FROMMEM("OK\r\n")
 #define RESP_ERROR                          FROMMEM("ERROR\r\n")
@@ -178,14 +178,16 @@ typedef struct {
 #define __CHECK_BUSY(p)                     do { if (__IS_BUSY(p)) { __RETURN(ESP, espBUSY); } } while (0)
 #define __CHECK_INPUTS(c)                   do { if (!(c)) { __RETURN(ESP, espPARERROR); } } while (0)
 
-#define __CONN_RESET(c)                     do { memset((void *)c, 0x00, sizeof(ESP_CONN_t)); } while (0)
+#define __CONN_RESET(c)                     do { uint8_t number = c->Number; memset((void *)c, 0x00, sizeof(ESP_CONN_t)); c->Number = number; } while (0)
 
 #if ESP_RTOS
 #define __IDLE(p)                           do {\
-    if (ESP_SYS_Release((ESP_RTOS_SYNC_t *)&(p)->Sync)) {   \
+    uint8_t result = 1;                         \
+    if (ESP_LL_Callback(ESP_LL_Control_SYS_Release, (void *)&(p)->Sync, &result) || result) {   \
+                                                \
     }                                           \
     (p)->ActiveCmd = CMD_IDLE;                  \
-    __RESET_THREADS(p);                          \
+    __RESET_THREADS(p);                         \
     if (!(p)->Flags.F.IsBlocking) {             \
         (p)->Flags.F.Call_Idle = 1;             \
     }                                           \
@@ -204,8 +206,9 @@ typedef struct {
 
 #if ESP_RTOS
 #define __ACTIVE_CMD(p, cmd)                do {\
-    if (ESP_SYS_Request((ESP_RTOS_SYNC_t *)&(p)->Sync)) {   \
-        return espTIMEOUT;                      \
+    uint8_t result = 1;                         \
+    if (ESP_LL_Callback(ESP_LL_Control_SYS_Request, (void *)&(p)->Sync, &result) || result) {   \
+                                                \
     }                                           \
     if ((p)->ActiveCmd == CMD_IDLE) {           \
         (p)->ActiveCmdStart = (p)->Time;        \
@@ -225,22 +228,7 @@ typedef struct {
 #define __CMD_RESTORE(p)                    (p)->ActiveCmd = (p)->ActiveCmdSaved
 
 #define __RETURN(p, v)                      do { (p)->RetVal = (v); return (v); } while (0)
-#define __RETURN_BLOCKING(p, b, mt)         do {\
-    ESP_Result_t res;                           \
-    (p)->ActiveCmdTimeout = mt;                 \
-    if (!(b)) {                                 \
-        (p)->Flags.F.IsBlocking = 0;            \
-        __RETURN(p, espOK);                     \
-    }                                           \
-    (p)->Flags.F.IsBlocking = 1;                \
-    res = ESP_WaitReady(p, mt);                 \
-    if (res == espTIMEOUT) {                    \
-        return espTIMEOUT;                      \
-    }                                           \
-    res = (p)->ActiveResult;                    \
-    (p)->ActiveResult = espOK;                  \
-    return res;                                 \
-} while (0)
+#define __RETURN_BLOCKING(p, b, mt)         return __return_blocking(p, b, mt);
 
 #define __RST_EVENTS_RESP(p)                do { (p)->Events.Value = 0; (p)->ActiveCmdStart = (p)->Time; } while (0)
 
@@ -248,7 +236,7 @@ typedef struct {
 
 #if ESP_USE_CTS
 #define ESP_SET_RTS(p, s)                   do {\
-    if (RTSStatus != (s)) {                     \
+    if (RTSStatus != (s) && !(p)->Flags.F.RTSForced) {  \
         RTSStatus = (s);                        \
         ESP_LL_SetRTS((ESP_LL_t *)&(p)->LL, (s));   \
     }                                           \
@@ -282,13 +270,15 @@ static BUFFER_t Buffer;                                     /* Buffer structure 
 static uint8_t Buffer_Data[ESP_BUFFER_SIZE + 1];            /* Buffer data array */
 static Received_t Received;                                 /* Received data structure */
 static Pointers_t Pointers;                                 /* Pointers object */
-static ESP_t* _ESP;
 #if ESP_CONN_SINGLEBUFFER
 static uint8_t IPD_Data[ESP_CONNBUFFER_SIZE + 1];           /* Data buffer for incoming connection */
 #endif /* ESP_CONN_SINGLEBUFFER */
 
 static
-struct pt pt_BASIC, pt_WIFI, pt_TCPIP;
+struct pt pt_BASIC, pt_WIFI, pt_TCPIP;                      /* Protothread setup */
+
+static
+ESP_LL_Send_t Send;                                         /* Send data setup */
 
 #define __RESET_THREADS(GSM)                  do {          \
 PT_INIT(&pt_BASIC); PT_INIT(&pt_WIFI); PT_INIT(&pt_TCPIP);  \
@@ -299,6 +289,24 @@ PT_INIT(&pt_BASIC); PT_INIT(&pt_WIFI); PT_INIT(&pt_TCPIP);  \
 /***                            Private functions                            **/
 /******************************************************************************/
 /******************************************************************************/
+/* Blocking return */
+ESP_Result_t __return_blocking(evol ESP_t* p, uint32_t b, uint32_t mt) {
+    ESP_Result_t res;
+    (p)->ActiveCmdTimeout = mt;
+    if (!(b)) {
+        (p)->Flags.F.IsBlocking = 0;
+        __RETURN(p, espOK);
+    }
+    (p)->Flags.F.IsBlocking = 1;
+    res = ESP_WaitReady(p, mt);
+    if (res == espTIMEOUT) {
+        return espTIMEOUT;
+    }
+    res = (p)->ActiveResult;
+    (p)->ActiveResult = espOK;
+    return res;
+}
+
 /* Default callback for events */
 estatic
 int ESP_CallbackDefault(ESP_Event_t evt, ESP_EventParams_t* params) {
@@ -821,6 +829,7 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
 estatic
 PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
     static volatile uint32_t time;
+    static uint8_t rst;
     char str[8];
     PT_BEGIN(pt);
     
@@ -858,10 +867,12 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         
         /***** Hardware reset *****/
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
-        ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_SET);   /* Set reset */
+        rst = ESP_RESET_SET;
+        ESP_LL_Callback(ESP_LL_Control_SetReset, &rst, 0);  /* Process callback with reset set */
         time = ESP->Time;
         PT_WAIT_UNTIL(pt, ESP->Time - time > 2);            /* Wait reset time */
-        ESP_LL_SetReset((ESP_LL_t *)&ESP->LL, ESP_RESET_CLR);   /* Clear reset */
+        rst = ESP_RESET_CLR;
+        ESP_LL_Callback(ESP_LL_Control_SetReset, &rst, 0);  /* Process callback with reset clear */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady ||
                             ESP->Events.F.RespError);   /* Wait for response */
@@ -915,10 +926,11 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         if (ESP->ActiveResult == espOK) {
+            uint8_t result;
             BUFFER_Reset(&Buffer);                          /* Reset buffer */
             
             ESP->LL.Baudrate = Pointers.UI;
-            ESP_LL_Init((ESP_LL_t *)&ESP->LL);              /* Init low-level layer again */
+            ESP_LL_Callback(ESP_LL_Control_Init, (void *)&ESP->LL, &result);    /* Init low-level layer again */
         }
         
         __IDLE(ESP);                                        /* Go IDLE mode */
@@ -1697,8 +1709,8 @@ ESP_Result_t ProcessThreads(evol ESP_t* ESP) {
 ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t callback) {
     uint32_t i = 50;
     BUFFER_t* Buff = &Buffer;
+    uint8_t result;
     
-    _ESP = (ESP_t *)ESP;
     memset((void *)ESP, 0x00, sizeof(ESP_t));               /* Clear structure first */
     
     ESP->Callback = callback;                               /* Set event callback */
@@ -1719,16 +1731,20 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     BUFFER_Init(Buff, sizeof(Buffer_Data) - 1, Buffer_Data);    /* Init buffer for receive */
     
     /* Low-Level initialization */
+    result = 1;                                             /* Set to default value first */
     ESP->LL.Baudrate = baudrate;
-    if (ESP_LL_Init((ESP_LL_t *)&ESP->LL)) {                /* Init low-level */
+    if (!ESP_LL_Callback(ESP_LL_Control_Init, (void *)&ESP->LL, &result) || result) {   /* Init low-level */
         __RETURN(ESP, espLLERROR);                          /* Return error */
     }
     
 #if ESP_RTOS
     /* RTOS support */
-    if (ESP_SYS_Create((ESP_RTOS_SYNC_t *)&ESP->Sync)) {    /* Init sync object */
-        __RETURN(ESP, espSYSERROR);
-    }
+    do {
+        uint8_t result = 1;
+        if (!ESP_LL_Callback(ESP_LL_Control_SYS_Create, (void *)&ESP->Sync, &result) || result) {
+            __RETURN(ESP, espSYSERROR);
+        }
+    } while (0);
 #endif /*!< ESP_RTOS */
 
     /* Init all threads */
@@ -1992,6 +2008,9 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
         }
         prev2_ch = prev1_ch;                                /* Save previous character to prevprev character */
         prev1_ch = ch;                                      /* Save current character as previous */
+        if (ESP->IPD.Conn && ESP->IPD.Conn->Callback.F.CallLastPartOfPacketReceived) {
+            break;
+        }
     }
     
     return ProcessThreads(ESP);                             /* Process stack */
@@ -2495,4 +2514,22 @@ ESP_Result_t ESP_SetWPS(evol ESP_t* ESP, uint8_t wps, uint32_t blocking) {
     Pointers.UI = wps ? 1 : 0;
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+void ESP_AssertRTS(evol ESP_t* ESP) {
+    uint8_t state = ESP_RTS_SET;
+    uint8_t result = 1;
+    
+    ESP->Flags.F.RTSForced = 1;
+    ESP_LL_Callback(ESP_LL_Control_SetRTS, &state, &result);
+}
+
+void ESP_DesertRTS(evol ESP_t* ESP) {
+    if (ESP->Flags.F.RTSForced) {
+        uint8_t state = ESP_RTS_CLR;
+        uint8_t result = 1;
+        
+        ESP_LL_Callback(ESP_LL_Control_SetRTS, &state, &result);
+        ESP->Flags.F.RTSForced = 1;
+    }
 }

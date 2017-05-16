@@ -1167,11 +1167,6 @@
               <FilePath>..\00-ESP8266_LIBRARY\esp8266.c</FilePath>
             </File>
             <File>
-              <FileName>esp8266_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\esp8266_sys.c</FilePath>
-            </File>
-            <File>
               <FileName>esp8266_ll.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\esp8266_ll.c</FilePath>
@@ -2389,11 +2384,6 @@
               <FileName>esp8266.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\00-ESP8266_LIBRARY\esp8266.c</FilePath>
-            </File>
-            <File>
-              <FileName>esp8266_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\esp8266_sys.c</FilePath>
             </File>
             <File>
               <FileName>esp8266_ll.c</FileName>
@@ -3615,11 +3605,6 @@
               <FilePath>..\00-ESP8266_LIBRARY\esp8266.c</FilePath>
             </File>
             <File>
-              <FileName>esp8266_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\esp8266_sys.c</FilePath>
-            </File>
-            <File>
               <FileName>esp8266_ll.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\esp8266_ll.c</FilePath>
@@ -4611,11 +4596,6 @@
               <FilePath>..\00-ESP8266_LIBRARY\esp8266.c</FilePath>
             </File>
             <File>
-              <FileName>esp8266_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\esp8266_sys.c</FilePath>
-            </File>
-            <File>
               <FileName>esp8266_ll.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\esp8266_ll.c</FilePath>
@@ -4678,7 +4658,7 @@
       <TargetName>STM32F769_DISCOVERY</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5060300::V5.06 update 3 (build 300)::ARMCC</pCCUsed>
+      <pCCUsed>5060528::V5.06 update 5 (build 528)::ARMCC</pCCUsed>
       <TargetOption>
         <TargetCommonOption>
           <Device>STM32F769NIHx</Device>
@@ -5607,11 +5587,6 @@
               <FilePath>..\00-ESP8266_LIBRARY\esp8266.c</FilePath>
             </File>
             <File>
-              <FileName>esp8266_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\esp8266_sys.c</FilePath>
-            </File>
-            <File>
               <FileName>esp8266_ll.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\User\esp8266_ll.c</FilePath>
@@ -5671,5 +5646,11 @@
       </Groups>
     </Target>
   </Targets>
+
+  <RTE>
+    <apis/>
+    <components/>
+    <files/>
+  </RTE>
 
 </Project>
