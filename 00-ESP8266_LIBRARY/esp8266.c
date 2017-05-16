@@ -2212,7 +2212,7 @@ ESP_Result_t ESP_STA_SetIP(evol ESP_t* ESP, const uint8_t* ip, const uint8_t* gw
     
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.CPtr2 = ip;
-    Pointers.CPtr3 = gw_msq;
+    Pointers.CPtr3 = gw_msk;
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
