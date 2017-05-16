@@ -1105,25 +1105,25 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
             }
         }
         UART_SEND_STR(FROMMEM("\""));
-        if (Pointers.CPtr3 != NULL){
-          ptr = (uint8_t *) Pointers.CPtr3;
-          UART_SEND_STR(FROMMEM(",\""));
-          i = 4;
-          while (i--) {                                       /* Send gateway address */
-              NumberToString(str, *ptr++);                    /* Convert to hex number */
-              UART_SEND_STR(FROMMEM(str));
-              if (i) {
-                  UART_SEND_CH(FROMMEM(&ch));
-              }
-          }
-          UART_SEND_STR(FROMMEM("\",\""));
-          while (i--) {                                       /* Send net mask */
-              NumberToString(str, *ptr++);                    /* Convert to hex number */
-              UART_SEND_STR(FROMMEM(str));
-              if (i) {
-                  UART_SEND_CH(FROMMEM(&ch));
-              }
-          }
+        if (Pointers.CPtr3 != NULL) {
+            ptr = (uint8_t *) Pointers.CPtr3;
+            UART_SEND_STR(FROMMEM(",\""));
+            i = 4;
+            while (i--) {                                   /* Send gateway address */
+                NumberToString(str, *ptr++);                /* Convert to hex number */
+                UART_SEND_STR(FROMMEM(str));
+                if (i) {
+                    UART_SEND_CH(FROMMEM(&ch));
+                }
+            }
+            UART_SEND_STR(FROMMEM("\",\""));
+            while (i--) {                                   /* Send net mask */
+                NumberToString(str, *ptr++);                /* Convert to hex number */
+                UART_SEND_STR(FROMMEM(str));
+                if (i) {
+                    UART_SEND_CH(FROMMEM(&ch));
+                }
+            }
         }
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CIPSTA, NULL);           /* Start command */
