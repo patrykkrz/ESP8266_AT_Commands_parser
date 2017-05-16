@@ -1105,6 +1105,26 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
             }
         }
         UART_SEND_STR(FROMMEM("\""));
+        if (Pointers.CPtr3 != NULL){
+          ptr = (uint8_t *) Pointers.CPtr3;
+          UART_SEND_STR(FROMMEM(",\""));
+          i = 4;
+          while (i--) {                                       /* Send gateway address */
+              NumberToString(str, *ptr++);                    /* Convert to hex number */
+              UART_SEND_STR(FROMMEM(str));
+              if (i) {
+                  UART_SEND_CH(FROMMEM(&ch));
+              }
+          }
+          UART_SEND_STR(FROMMEM("\",\""));
+          while (i--) {                                       /* Send net mask */
+              NumberToString(str, *ptr++);                    /* Convert to hex number */
+              UART_SEND_STR(FROMMEM(str));
+              if (i) {
+                  UART_SEND_CH(FROMMEM(&ch));
+              }
+          }
+        }
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_CIPSTA, NULL);           /* Start command */
         
@@ -2186,12 +2206,13 @@ ESP_Result_t ESP_STA_GetIP(evol ESP_t* ESP, uint8_t* ip, uint32_t blocking) {
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
-ESP_Result_t ESP_STA_SetIP(evol ESP_t* ESP, const uint8_t* ip, uint8_t def, uint32_t blocking) {
+ESP_Result_t ESP_STA_SetIP(evol ESP_t* ESP, const uint8_t* ip, const uint8_t* gw_msk, uint8_t def, uint32_t blocking) {
     __CHECK_BUSY(ESP);                                      /* Check busy status */
     __ACTIVE_CMD(ESP, CMD_WIFI_SETSTAIP);                   /* Set active command */
     
     Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
     Pointers.CPtr2 = ip;
+    Pointers.CPtr3 = gw_msk;
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
