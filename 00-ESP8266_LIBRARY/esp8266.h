@@ -533,11 +533,12 @@ ESP_Result_t ESP_STA_GetIP(evol ESP_t* ESP, uint8_t* ip, uint32_t blocking);
  * \brief         Set IP address of station
  * \param[in,out] *ESP: Pointer to working \ref ESP_t structure
  * \param[in]     *ip: Pointer to 4 bytes long memory with IP address, MSB first
+ * \param[in]     *gw_msk: Pointer to 8 bytes long memory with gateway address and network mask; in case of NULL nothing will be changed
  * \param[in]     def: Status whether this IP should be stored to ESP flash or not
  * \param[in]     blocking: Status whether this function should be blocking to check for response
  * \retval        Member of \ref ESP_Result_t enumeration
  */
-ESP_Result_t ESP_STA_SetIP(evol ESP_t* ESP, const uint8_t* ip, uint8_t def, uint32_t blocking);
+ESP_Result_t ESP_STA_SetIP(evol ESP_t* ESP, const uint8_t* ip, const uint8_t* gw_msk, uint8_t def, uint32_t blocking);
 
 /**
  * \brief         Get MAC address of station
