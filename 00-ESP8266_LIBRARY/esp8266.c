@@ -159,11 +159,21 @@ typedef struct {
 #define ESP_DEFAULT_BAUDRATE                115200              /* Default ESP8266 baudrate */
 #define ESP_TIMEOUT                         30000               /* Timeout value in milliseconds */
 
+/* In case ESP_RTOS_YIELD hasn't been defined */
+#ifndef ESP_RTOS_YIELD
+#define ESP_RTOS_YIELD()
+#endif
+
+
 /* Debug */
 #define __DEBUG(fmt, ...)                   printf(fmt, ##__VA_ARGS__)
 
 /* Delay milliseconds */
+#if ESP_RTOS
+#define __DELAYMS(ESP, x)                   do { volatile uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x)){ESP_RTOS_YIELD();} } while (0)
+#else
 #define __DELAYMS(ESP, x)                   do { volatile uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x)); } while (0)
+#endif
 
 /* Constants */
 #define ESP_MAX_RFPWR                       82
@@ -2124,6 +2134,7 @@ ESP_Result_t ESP_WaitReady(evol ESP_t* ESP, uint32_t timeout) {
         ESP_Update(ESP);                                    /* Update stack if we are in synchronous mode */
 #else
         ESP_ProcessCallbacks(ESP);                          /* Process callbacks when not in synchronous mode */
+        ESP_RTOS_YIELD();
 #endif /* !ESP_RTOS && !ESP_ASYNC */
     } while (__IS_BUSY(ESP));
     __RETURN(ESP, ESP->ActiveResult);                       /* Return active result from command */
@@ -2134,6 +2145,8 @@ ESP_Result_t ESP_Delay(evol ESP_t* ESP, uint32_t timeout) {
     do {
 #if !ESP_RTOS && !ESP_ASYNC
         ESP_Update(ESP);
+#else
+        ESP_RTOS_YIELD();
 #endif /* !ESP_RTOS && !ESP_ASYNC */
     } while (ESP->Time - start < timeout);
     __RETURN(ESP, espOK);

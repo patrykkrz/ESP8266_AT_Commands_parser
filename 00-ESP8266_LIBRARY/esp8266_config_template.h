@@ -116,6 +116,18 @@
 #define ESP_RTOS_SYNC_t                     osMutexDef_t
 
 /**
+ * \brief  RTOS specific macro for yielding
+ * 
+ *         This macro is placed in places where code might block when RTOS is 
+ *         being run in tickless mode - when one thread is waiting for other one
+ *         to complete some actions.
+ *
+ * \note   If RTOS is not being used or scheduler is running in normal mode,
+ *         leave it undefined. 
+ */
+#define ESP_RTOS_YIELD()                    taskYIELD()
+
+/**
  * \brief  Timeout in milliseconds for mutex to access API
  *
  * \note   Should be set to the larger possible timeout from ESP8266
