@@ -170,7 +170,7 @@ typedef struct {
 
 /* Delay milliseconds */
 #if ESP_RTOS
-#define __DELAYMS(ESP, x)                   do { volatile uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x)){ESP_RTOS_YIELD();} } while (0)
+#define __DELAYMS(ESP, x)                   do { volatile uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x)) { ESP_RTOS_YIELD(); } } while (0)
 #else
 #define __DELAYMS(ESP, x)                   do { volatile uint32_t t = (ESP)->Time; while (((ESP)->Time - t) < (x)); } while (0)
 #endif
