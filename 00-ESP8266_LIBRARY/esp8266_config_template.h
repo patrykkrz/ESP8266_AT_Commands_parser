@@ -124,6 +124,9 @@
  *
  * \note   If RTOS is not being used or scheduler is running in normal mode,
  *         leave it undefined. 
+ *         
+ * \note   User have add yield on his own in Update thread and the one
+ *         which is processing callbacks.
  */
 #define ESP_RTOS_YIELD()                    taskYIELD()
 
