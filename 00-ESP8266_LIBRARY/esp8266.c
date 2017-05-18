@@ -320,6 +320,8 @@ ESP_Result_t __return_blocking(evol ESP_t* p, uint32_t b, uint32_t mt) {
 /* Default callback for events */
 estatic
 int ESP_CallbackDefault(ESP_Event_t evt, ESP_EventParams_t* params) {
+	(void)evt;
+	(void)params;
     return 0;
 }
 
@@ -384,6 +386,7 @@ uint32_t ParseHexNumber(const char* ptr, uint8_t* cnt) {
 /* Parse MAC number in string format xx:xx:xx:xx:xx:xx */
 estatic
 void ParseMAC(evol ESP_t* ESP, const char* str, uint8_t* mac, uint8_t* cnt) {
+	(void)ESP;
     uint8_t i = 6;
     while (i--) {
         *mac++ = ParseHexNumber(str, NULL);
@@ -397,6 +400,7 @@ void ParseMAC(evol ESP_t* ESP, const char* str, uint8_t* mac, uint8_t* cnt) {
 /* Parse IP number in string format xxx.xxx.xxx.xxx */
 estatic
 void ParseIP(evol ESP_t* ESP, const char* str, uint8_t* ip, uint8_t* cnt) {
+	(void)ESP;
     uint8_t i = 4;
     uint8_t c = 0;
     if (cnt) {
@@ -520,6 +524,7 @@ void ParseIPD(evol ESP_t* ESP, const char* str, ESP_IPD_t* IPD) {
 /* Parses +CWSAP statement */
 estatic
 void ParseCWSAP(evol ESP_t* ESP, const char* ptr, ESP_APConfig_t* AP) {
+	(void)ESP;
     uint8_t cnt, i;
     
     memset((void *)AP, 0x00, sizeof(ESP_APConfig_t));       /* Reset structure */
@@ -601,7 +606,7 @@ ESP_Result_t StartCommand(evol ESP_t* ESP, uint16_t cmd, const char* cmdResp) {
 /* Converts number to string */
 estatic
 void NumberToString(char* str, uint32_t number) {
-    sprintf(str, "%u", number);
+    sprintf(str, "%u", (unsigned int)number);
 }
 
 /* Converts number to hex for MAC */
