@@ -606,7 +606,7 @@ ESP_Result_t StartCommand(evol ESP_t* ESP, uint16_t cmd, const char* cmdResp) {
 /* Converts number to string */
 estatic
 void NumberToString(char* str, uint32_t number) {
-    sprintf(str, "%u", (unsigned int)number);
+    sprintf(str, "%lu", (unsigned long)number);
 }
 
 /* Converts number to hex for MAC */
