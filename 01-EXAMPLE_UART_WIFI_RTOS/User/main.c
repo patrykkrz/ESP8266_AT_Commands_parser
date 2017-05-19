@@ -58,9 +58,6 @@ CTS         PA3                 RTS from ST to CTS from ESP
 #include "esp8266.h"
 #include "cmsis_os.h"
 
-#define DEBUG_USART         USART2
-#define DEBUG_USART_PP      TM_USART_PinsPack_1
-
 /* Wifi network settings, replace with your settings */
 #define WIFINAME            "wifi_ssid"
 #define WIFIPASS            "wifi_password"
@@ -95,7 +92,7 @@ int main(void) {
     TM_DISCO_LedInit();                                     /* Init leds */
     TM_DISCO_ButtonInit();                                  /* Init button */
     TM_DELAY_Init();                                        /* Init delay */
-    TM_USART_Init(DEBUG_USART, DEBUG_USART_PP, 921600);     /* Init USART for debug purpose */
+    TM_USART_Init(DISCO_USART, DISCO_USART_PP, 921600);     /* Init USART for debug purpose */
 
     /* Print first screen message */
     printf("ESP8266 commands parser; Compiled: %s %s\r\n", __DATE__, __TIME__);
@@ -254,6 +251,6 @@ int ESP_Callback(ESP_Event_t evt, ESP_EventParams_t* params) {
 
 /* printf handler */
 int fputc(int ch, FILE* fil) {
-    TM_USART_Putc(DEBUG_USART, ch);         /* Send over debug USART */
+    TM_USART_Putc(DISCO_USART, ch);         /* Send over debug USART */
     return ch;                              /* Return OK */
 }

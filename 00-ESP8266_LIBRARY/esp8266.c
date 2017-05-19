@@ -188,7 +188,7 @@ typedef struct {
 #define __CHECK_BUSY(p)                     do { if (__IS_BUSY(p)) { __RETURN(ESP, espBUSY); } } while (0)
 #define __CHECK_INPUTS(c)                   do { if (!(c)) { __RETURN(ESP, espPARERROR); } } while (0)
 
-#define __CONN_RESET(c)                     do { uint8_t number = c->Number; memset((void *)c, 0x00, sizeof(ESP_CONN_t)); c->Number = number; } while (0)
+#define __CONN_RESET(c)                     do { uint8_t number = (c)->Number; memset((void *)(c), 0x00, sizeof(ESP_CONN_t)); (c)->Number = number; } while (0)
 
 #if ESP_RTOS
 #define __IDLE(p)                           do {\
