@@ -386,7 +386,6 @@ uint32_t ParseHexNumber(const char* ptr, uint8_t* cnt) {
 /* Parse MAC number in string format xx:xx:xx:xx:xx:xx */
 estatic
 void ParseMAC(evol ESP_t* ESP, const char* str, uint8_t* mac, uint8_t* cnt) {
-	(void)ESP;
     uint8_t i = 6;
     while (i--) {
         *mac++ = ParseHexNumber(str, NULL);
@@ -395,12 +394,12 @@ void ParseMAC(evol ESP_t* ESP, const char* str, uint8_t* mac, uint8_t* cnt) {
     if (cnt) {
         *cnt = 17;
     }
+	(void)ESP;
 }
 
 /* Parse IP number in string format xxx.xxx.xxx.xxx */
 estatic
 void ParseIP(evol ESP_t* ESP, const char* str, uint8_t* ip, uint8_t* cnt) {
-	(void)ESP;
     uint8_t i = 4;
     uint8_t c = 0;
     if (cnt) {
@@ -416,6 +415,7 @@ void ParseIP(evol ESP_t* ESP, const char* str, uint8_t* ip, uint8_t* cnt) {
             }
         }
     }
+	(void)ESP;
 }
 
 /* Parse +CWLAP statement */
@@ -524,7 +524,6 @@ void ParseIPD(evol ESP_t* ESP, const char* str, ESP_IPD_t* IPD) {
 /* Parses +CWSAP statement */
 estatic
 void ParseCWSAP(evol ESP_t* ESP, const char* ptr, ESP_APConfig_t* AP) {
-	(void)ESP;
     uint8_t cnt, i;
     
     memset((void *)AP, 0x00, sizeof(ESP_APConfig_t));       /* Reset structure */
@@ -548,6 +547,7 @@ void ParseCWSAP(evol ESP_t* ESP, const char* ptr, ESP_APConfig_t* AP) {
     AP->MaxConnections = ParseNumber(ptr, &cnt);            /* Get max connections value */
     ptr += cnt + 1;                                    		/* Increase pointer and comma */
     AP->Hidden = ParseNumber(ptr, &cnt);    		        /* Get hidden value */
+	(void)ESP;
 }
 
 /* Parse CIPSTATUS value */
