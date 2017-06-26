@@ -1120,7 +1120,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
             }
         }
         UART_SEND_STR(FROMMEM("\""));
-        if (Pointers.CPtr3 != NULL) {
+        if (Pointers.CPtr3 != NULL) {                       /* Check for gateway and netmask addresses */
             ptr = (uint8_t *) Pointers.CPtr3;
             UART_SEND_STR(FROMMEM(",\""));
             i = 4;
@@ -1150,7 +1150,11 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         if (ESP->ActiveResult == espOK) {                   /* Copy data as new MAC address */
-            memcpy((void *)&ESP->STAIP, ptr - 4, 4);
+            memcpy((void *)&ESP->STAIP, (void *)Pointers.CPtr2, 4);
+            if (Pointers.CPtr3 != NULL) {                   /* Check network mask and gateway */
+                memcpy((void *)&ESP->STAGateway, ((uint8_t *) Pointers.CPtr3), 4);  /* Copy gateway address */
+                memcpy((void *)&ESP->STANetmask, ((uint8_t *) Pointers.CPtr3) + 4, 4);  /* Copy netmas address */
+            }
         }
         
         __IDLE(ESP);                                        /* Go IDLE mode */
