@@ -88,6 +88,14 @@ typedef struct {
 #define CMD_BASIC_WAKEUPGPIO                ((uint16_t)0x1009)
 #define CMD_BASIC_RFPOWER                   ((uint16_t)0x100A)
 #define CMD_BASIC_RFVDD                     ((uint16_t)0x100B)
+#define CMD_BASIC_GETSYSRAM                 ((uint16_t)0x100C)
+#define CMD_BASIC_GETSYSADC                 ((uint16_t)0x100D)
+#define CMD_BASIC_SYSIOSETCFG               ((uint16_t)0x100E)
+#define CMD_BASIC_SYSIOGETCFG               ((uint16_t)0x100F)
+#define CMD_BASIC_SYSGPIOSETDIR             ((uint16_t)0x1010)
+#define CMD_BASIC_SYSGPIOGETDIR             ((uint16_t)0x1011)
+#define CMD_BASIC_SYSGPIOWRITE              ((uint16_t)0x1012)
+#define CMD_BASIC_SYSGPIOREAD               ((uint16_t)0x1013)
 #define CMD_IS_ACTIVE_BASIC(p)              ((p)->ActiveCmd >= 0x1000 && (p)->ActiveCmd < 0x2000)
 
 /* Wifi commands */
@@ -125,6 +133,8 @@ typedef struct {
 #define CMD_WIFI_SETCWSAP                   ((uint16_t)0x210A)
 #define CMD_WIFI_SETSTAIP                   ((uint16_t)0x210B)
 #define CMD_WIFI_SETAPIP                    ((uint16_t)0x210C)
+#define CMD_WIFI_SETHOSTNAME                ((uint16_t)0x200D)
+#define CMD_WIFI_GETHOSTNAME                ((uint16_t)0x200E)
 #define CMD_IS_ACTIVE_WIFI(p)               ((p)->ActiveCmd >= 0x2000 && (p)->ActiveCmd < 0x3000)
 
 #define CMD_TCPIP                           ((uint16_t)0x3000)
@@ -457,15 +467,11 @@ void ParseCWLAP(evol ESP_t* ESP, const char* str, ESP_AP_t* AP) {
         str++;
     }
     ParseMAC(ESP, str, AP->MAC, NULL);                      /* Parse MAC */
-    
     str += 19;                                              /* Ignore mac, " and comma */
-    
     AP->Channel = ParseNumber(str, &cnt);                   /* Parse channel for wifi */
     str += cnt + 1;
-    
     AP->Offset = ParseNumber(str, &cnt);                    /* Parse offset */
     str += cnt + 1;
-    
     AP->Calibration = ParseNumber(str, &cnt);               /* Parse calibration number */
     str += cnt + 1;
 }
@@ -588,6 +594,55 @@ void ParseCIPSTATUS(evol ESP_t* ESP, uint8_t* value, const char* str) {
     ESP->Conn[connNumber].Flags.F.Client = CHARTONUM(*str) == 0;
 }
 
+/* Parse SYSGPIOREAD value */
+estatic
+void ParseSysGPIORead(evol ESP_t* ESP, const char* str, uint8_t* level, ESP_GPIO_Dir_t* dir) {
+    uint8_t cnt;
+    
+    ParseNumber(str, &cnt);                                 /* Parse GPIO number */
+    str += cnt + 1;
+    
+    if (dir) {                                              /* If pointer to direction is set */
+        *dir = (ESP_GPIO_Dir_t)ParseNumber(str, &cnt);      /* Parse number and return value */
+    } else {
+        ParseNumber(str, &cnt);                             /* Perform dummy read only */  
+    }
+    str += cnt + 1;
+    
+    if (level) {                                            /* Save level value */
+        *level = ParseNumber(str, NULL);
+    }
+}
+
+/* Parse CWHOSTNAME value */
+estatic 
+void ParseHostName(evol ESP_t* ESP, const char* str, char* dest) {
+    if (*str == '"') {                                      /* Ignore " on beginning */
+        str++;
+    }
+    
+    while (*str) {                                          /* Parse entire string */
+        if (*str == '"' && (*(str + 1) == ',' || *(str + 1) == '\n')) {
+            break;
+        }
+        *dest++ = *str++;
+    }
+}
+
+/* Parse SYSIOGETCFG value */
+estatic
+void ParseSysIOGetCfg(evol ESP_t* ESP, const char* str, ESP_GPIO_t* conf) {
+    uint8_t cnt;
+    
+    conf->Pin = ParseNumber(str, &cnt);                     /* Parse pin number */
+    str += cnt + 1;
+    
+    conf->Mode = (ESP_GPIO_Mode_t)ParseNumber(str, &cnt);   /* Get GPIO mode */
+    str += cnt + 1;
+    
+    conf->Pull = (ESP_GPIO_Pull_t)ParseNumber(str, &cnt);   /* Set pull resistor value */
+}
+
 /* Starts command and sets pointer for return statement */
 estatic 
 ESP_Result_t StartCommand(evol ESP_t* ESP, uint16_t cmd, const char* cmdResp) {
@@ -670,43 +725,6 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
         }
     }
     
-    if (ESP->ActiveCmd == CMD_WIFI_CIPSTAMAC && str[0] == '+' && strncmp(str, FROMMEM("+CIPSTAMAC"), 10) == 0) {    /* On CIPSTAMAC active command */
-        ParseMAC(ESP, str + 16, (uint8_t *)&ESP->STAMAC, NULL); /* Parse MAC */
-        if (Pointers.Ptr1) {
-            memcpy((void *)Pointers.Ptr1, (void *)&ESP->STAMAC, 6);
-        }
-    }
-    if (ESP->ActiveCmd == CMD_WIFI_CIPAPMAC && str[0] == '+' && strncmp(str, FROMMEM("+CIPAPMAC"), 9) == 0) {   /* On CIPSTAMAC active command */
-        ParseMAC(ESP, str + 15, (uint8_t *)&ESP->APMAC, NULL);  /* Parse MAC */
-        if (Pointers.Ptr1) {
-            memcpy((void *)Pointers.Ptr1, (void *)&ESP->APMAC, 6);
-        }
-    }
-    if (ESP->ActiveCmd == CMD_WIFI_CIPSTA && str[0] == '+' && strncmp(str, FROMMEM("+CIPSTA_"), 8) == 0) {  /* +CIPSTA received */
-        if (str[12] == 'i') {                               /* +CIPSTA_CUR:ip received */
-            ParseIP(ESP, str + 16, (uint8_t *)&ESP->STAIP, NULL);   /* Parse IP string */
-            if (Pointers.Ptr1) {
-                memcpy((void *)Pointers.Ptr1, (void *)&ESP->STAIP, 4);
-            }
-        } else if (str[12] == 'g') {
-            ParseIP(ESP, str + 21, (uint8_t *)&ESP->STAGateway, NULL);  /* Parse IP string */
-        } else if (str[12] == 'n') {
-            ParseIP(ESP, str + 21, (uint8_t *)&ESP->STANetmask, NULL);  /* Parse IP string */
-        }
-    }
-    if (ESP->ActiveCmd == CMD_WIFI_CIPAP && str[0] == '+' && strncmp(str, FROMMEM("+CIPAP_"), 7) == 0) {    /* +CIPAP received */
-        if (str[11] == 'i') {                               /* +CIPSTA_CUR:ip received */
-            ParseIP(ESP, str + 15, (uint8_t *)&ESP->APIP, NULL);    /* Parse IP string */
-            if (Pointers.Ptr1) {
-                memcpy((void *)Pointers.Ptr1, (void *)&ESP->STAIP, 4);
-            }
-        } else if (str[11] == 'g') {
-            ParseIP(ESP, str + 20, (uint8_t *)&ESP->APGateway, NULL);   /* Parse IP string */
-        } else if (str[11] == 'n') {
-            ParseIP(ESP, str + 20, (uint8_t *)&ESP->APNetmask, NULL);   /* Parse IP string */
-        }
-    }
-    
     if (ESP->ActiveCmd == CMD_WIFI_CWLIF && CHARISNUM(str[0])) {    /* IP of device connected to AP received */
         if (*(uint16_t *)Pointers.Ptr2 < Pointers.UI) {     /* Check if memory still available */
             ParseCWLIF(ESP, str, (ESP_ConnectedStation_t *)Pointers.Ptr1);  /* Parse CWLIF statement */
@@ -717,18 +735,67 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
     
     /* We received string starting with + sign = some useful data! */
     if (*str == '+') {
-        if (ESP->ActiveCmd == CMD_WIFI_CWLAP && strncmp(str, FROMMEM("+CWLAP"), 6) == 0) {  /* When active command is listing wifi stations */
-            if (*(uint16_t *)Pointers.Ptr2 < Pointers.UI) {     /* Check if memory still available */
-                ParseCWLAP(ESP, str + 7, (ESP_AP_t *)Pointers.Ptr1);  /* Parse CWLAP statement */
+        if (strncmp(str, FROMMEM("+IPD"), 4) == 0) {        /* Check for incoming data */
+            ParseIPD(ESP, str + 5, (ESP_IPD_t *)&ESP->IPD); /* Parse incoming data string */
+            ESP->IPD.InIPD = 1;                             /* Start with data reading */
+            if (!ESP->IPD.Conn->TotalBytesReceived) {
+                ESP->IPD.Conn->DataStartTime = (uint32_t)ESP->Time; /* Set time when first IPD received on connection */
+            }
+            ESP->IPD.Conn->TotalBytesReceived += ESP->IPD.BytesRemaining;   /* Increase total bytes received so far */
+        } else if (ESP->ActiveCmd == CMD_WIFI_CWLAP && strncmp(str, FROMMEM("+CWLAP"), 6) == 0) {  /* When active command is listing wifi stations */
+            if (*(uint16_t *)Pointers.Ptr2 < Pointers.UI) { /* Check if memory still available */
+                ParseCWLAP(ESP, str + 7, (ESP_AP_t *)Pointers.Ptr1);    /* Parse CWLAP statement */
                 Pointers.Ptr1 = ((ESP_AP_t *)Pointers.Ptr1) + 1;
                 *(uint32_t *)Pointers.Ptr2 = (*(uint16_t *)Pointers.Ptr2) + 1;  /* Increase number of parsed elements */
             }
-        }
-    }
-    
-    if (ESP->ActiveCmd == CMD_WIFI_CWSAP) {
-        if (strncmp(str, FROMMEM("+CWSAP"), 6) == 0) {      /* Check for response */
-            ParseCWSAP(ESP, str + 12, (ESP_APConfig_t *)&ESP->APConf);   /* Parse config from AP */             
+        } else if (ESP->ActiveCmd == CMD_WIFI_CWSAP && strncmp(str, FROMMEM("+CWSAP"), 6) == 0) {   /* Check CWSAP response */
+            ParseCWSAP(ESP, str + 12, (ESP_APConfig_t *)&ESP->APConf);  /* Parse config from AP */             
+        } else if (ESP->ActiveCmd == CMD_TCPIP_PING && CHARISNUM(str[1])) {
+            *(uint32_t *)Pointers.Ptr1 = ParseNumber(str + 1, NULL);    /* Parse response time */
+        } else if (ESP->ActiveCmd == CMD_BASIC_GETSYSRAM && strncmp(str, FROMMEM("+SYSRAM"), 7) == 0) {
+            *(uint32_t *)Pointers.Ptr1 = ParseNumber(str + 8, NULL);    /* Parse RAM value */
+        } else if (ESP->ActiveCmd == CMD_BASIC_GETSYSADC && strncmp(str, FROMMEM("+SYSADC"), 7) == 0) {
+            *(uint32_t *)Pointers.Ptr1 = ParseNumber(str + 8, NULL);    /* Parse ADC value */
+        } else if (ESP->ActiveCmd == CMD_BASIC_SYSGPIOREAD && strncmp(str, FROMMEM("+SYSGPIOREAD"), 12) == 0) {
+            ParseSysGPIORead(ESP, str + 13, (uint8_t *)Pointers.Ptr1, (ESP_GPIO_Dir_t *)Pointers.Ptr2);
+        } else if (ESP->ActiveCmd == CMD_BASIC_SYSIOGETCFG && strncmp(str, FROMMEM("+SYSIOGETCFG"), 12) == 0) {
+            ParseSysIOGetCfg(ESP, str + 13, (ESP_GPIO_t *)Pointers.Ptr1);
+        } else if (ESP->ActiveCmd == CMD_WIFI_CIPAP && strncmp(str, FROMMEM("+CIPAP_"), 7) == 0) {  /* +CIPAP received */
+            if (str[11] == 'i') {                           /* +CIPAP_CUR:ip received */
+                ParseIP(ESP, str + 15, (uint8_t *)&ESP->APIP, NULL);    /* Parse IP string */
+                if (Pointers.Ptr1) {
+                    memcpy((void *)Pointers.Ptr1, (void *)&ESP->APIP, 4);
+                }
+            } else if (str[11] == 'g') {
+                ParseIP(ESP, str + 20, (uint8_t *)&ESP->APGateway, NULL);   /* Parse IP string */
+            } else if (str[11] == 'n') {
+                ParseIP(ESP, str + 20, (uint8_t *)&ESP->APNetmask, NULL);   /* Parse IP string */
+            }
+        } else  if (ESP->ActiveCmd == CMD_WIFI_CIPSTA && strncmp(str, FROMMEM("+CIPSTA_"), 8) == 0) {   /* +CIPSTA received */
+            if (str[12] == 'i') {                               /* +CIPSTA_CUR:ip received */
+                ParseIP(ESP, str + 16, (uint8_t *)&ESP->STAIP, NULL);   /* Parse IP string */
+                if (Pointers.Ptr1) {
+                    memcpy((void *)Pointers.Ptr1, (void *)&ESP->STAIP, 4);
+                }
+            } else if (str[12] == 'g') {
+                ParseIP(ESP, str + 21, (uint8_t *)&ESP->STAGateway, NULL);  /* Parse IP string */
+            } else if (str[12] == 'n') {
+                ParseIP(ESP, str + 21, (uint8_t *)&ESP->STANetmask, NULL);  /* Parse IP string */
+            }
+        } else if (ESP->ActiveCmd == CMD_WIFI_CIPSTAMAC && strncmp(str, FROMMEM("+CIPSTAMAC"), 10) == 0) {  /* On CIPSTAMAC active command */
+            ParseMAC(ESP, str + 16, (uint8_t *)&ESP->STAMAC, NULL); /* Parse MAC */
+            if (Pointers.Ptr1) {
+                memcpy((void *)Pointers.Ptr1, (void *)&ESP->STAMAC, 6);
+            }
+        } else if (ESP->ActiveCmd == CMD_WIFI_CIPAPMAC && strncmp(str, FROMMEM("+CIPAPMAC"), 9) == 0) { /* On CIPAPMAC active command */
+            ParseMAC(ESP, str + 15, (uint8_t *)&ESP->APMAC, NULL);  /* Parse MAC */
+            if (Pointers.Ptr1) {
+                memcpy((void *)Pointers.Ptr1, (void *)&ESP->APMAC, 6);
+            }
+        } else if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN && strncmp(str, FROMMEM("+CIPDOMAIN"), 10) == 0) {
+            ParseIP(ESP, str + 11, (uint8_t *)Pointers.Ptr1, NULL); /* Parse IP and save it to user location */
+        } else if (ESP->ActiveCmd == CMD_WIFI_GETHOSTNAME && strncmp(str, FROMMEM("+CWHOSTNAME"), 11) == 0) {
+            ParseHostName(ESP, str + 12, (char *)Pointers.Ptr1, NULL);  /* Parse IP and save it to user location */
         }
     }
     
@@ -739,11 +806,6 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
         } else if (strncmp(str, FROMMEM("+CWJAP_CUR"), 10) == 0) {  /* Received currently connected AP info */
             ParseCWJAP(ESP, str + 10, (ESP_ConnectedAP_t *)Pointers.Ptr1);  /* Parse and save */
         }
-    }
-    
-    /* Pinging */
-    if (ESP->ActiveCmd == CMD_TCPIP_PING && str[0] == '+' && CHARISNUM(str[1])) {
-        *(uint32_t *)Pointers.Ptr1 = ParseNumber(str + 1, NULL);    /* Parse response time */
     }
     
     /* Wifi management informations */
@@ -810,21 +872,6 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
         } else if (strncmp(str, FROMMEM("SEND FAIL"), 9) == 0) {    /* Data sent error */
             ESP->Events.F.RespSendFail = 1;
         }
-    }
-    
-    /* DNS function */
-    if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN && strncmp(str, FROMMEM("+CIPDOMAIN"), 10) == 0) {
-        ParseIP(ESP, &str[11], (uint8_t *)Pointers.Ptr1, NULL); /* Parse IP and save it to user location */
-    }
-    
-    /* Manage receive data */
-    if (strncmp(str, FROMMEM("+IPD"), 4) == 0) {            /* Check for incoming data */
-        ParseIPD(ESP, str + 5, (ESP_IPD_t *)&ESP->IPD);     /* Parse incoming data string */
-        ESP->IPD.InIPD = 1;                                 /* Start with data reading */
-        if (!ESP->IPD.Conn->TotalBytesReceived) {
-            ESP->IPD.Conn->DataStartTime = (uint32_t)ESP->Time; /* Set time when first IPD received on connection */
-        }
-        ESP->IPD.Conn->TotalBytesReceived += ESP->IPD.BytesRemaining;   /* Increase total bytes received so far */
     }
     
     if (is_ok) {
@@ -976,6 +1023,119 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR;    /* Check response */
         
         __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_BASIC_GETSYSRAM) {     /* Get available RAM */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+SYSRAM?"));               /* Send data */
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_GETSYSRAM, NULL);       /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_BASIC_GETSYSADC) {     /* Read ADC channel */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+SYSADC?"));               /* Send data */
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_GETSYSADC, NULL);       /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_BASIC_SYSIOSETCFG) {   /* Set GPIO config */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+SYSIOSETCFG="));          /* Send data */
+        NumberToString(str, Pointers.UI);                   /* Convert pin number to string */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(FROMMEM(","));
+        NumberToString(str, ((ESP_GPIO_t *)Pointers.CPtr1)->Mode);  /* Convert pin mode to string */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(FROMMEM(","));
+        NumberToString(str, ((ESP_GPIO_t *)Pointers.CPtr1)->Pull);  /* Convert pin pull to string */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_SYSIOSETCFG, NULL);     /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_BASIC_SYSIOGETCFG) {   /* Get GPIO config */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+SYSIOGETCFG="));          /* Send data */
+        NumberToString(str, Pointers.UI);                   /* Convert pin number to string */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_SYSIOGETCFG, NULL);     /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_BASIC_SYSGPIOSETDIR) { /* Set GPIO direction */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+SYSGPIODIR="));           /* Send data */
+        NumberToString(str, Pointers.UI);                   /* Convert pin number to string */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(FROMMEM(","));
+        NumberToString(str, ((ESP_GPIO_t *)Pointers.CPtr1)->Dir);   /* Convert pin direction to string */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_SYSGPIOSETDIR, NULL);   /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_BASIC_SYSGPIOREAD) {   /* Read GPIO value */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+SYSGPIOREAD="));          /* Send data */
+        NumberToString(str, Pointers.UI);                   /* Convert pin number to string */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_SYSGPIOREAD, NULL);   /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_BASIC_SYSGPIOWRITE) {  /* Write GPIO value */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+SYSGPIOWRITE="));         /* Send data */
+        NumberToString(str, (Pointers.UI) & 0xFF);          /* Convert pin number to string */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(FROMMEM(","));
+        NumberToString(str, (Pointers.UI >> 8) & 0xFF);     /* Convert pin value to string */
+        UART_SEND_STR(FROMMEM(str));
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_BASIC_SYSGPIOREAD, NULL);     /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
     }
     PT_END(pt);
 }
@@ -1072,7 +1232,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         if (ESP->ActiveResult == espOK) {                   /* Copy data as new MAC address */
-            memcpy((void *)&ESP->STAMAC, ptr - 6, 6);
+            memcpy((void *)&ESP->APMAC, (void *)Pointers.CPtr2, 6); /* Copy new MAC */
         }
             
         __IDLE(ESP);                                        /* Go IDLE mode */
@@ -1100,7 +1260,7 @@ PT_THREAD(PT_Thread_WIFI(struct pt* pt, evol ESP_t* ESP)) {
         
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         if (ESP->ActiveResult == espOK) {                   /* Copy data as new MAC address */
-            memcpy((void *)&ESP->APMAC, ptr - 6, 6);
+            memcpy((void *)&ESP->APMAC, (void *)Pointers.CPtr2, 6); /* Copy new MAC */
         }
         
         __IDLE(ESP);                                        /* Go IDLE mode */
@@ -1352,6 +1512,34 @@ cmd_wifi_listaccesspoints_clean:
         UART_SEND_STR(Pointers.UI ? FROMMEM("1") : FROMMEM("0"));
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_WIFI_WPS, NULL);              /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_WIFI_SETHOSTNAME) {    /* Set device hostname */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+CWHOSTNAME=\""));         /* Send data */
+        EscapeStringAndSend((char *)Pointers.CPtr1);
+        UART_SEND_STR(FROMMEM("\""));
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_WIFI_SETHOSTNAME, NULL);      /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_WIFI_GETHOSTNAME) {    /* Set device hostname */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+CWHOSTNAME?"));           /* Send data */
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_WIFI_GETHOSTNAME, NULL);      /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -2318,6 +2506,83 @@ ESP_Result_t ESP_AP_SetConfig(evol ESP_t* ESP, ESP_APConfig_t* conf, uint8_t def
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
 
+/******************************************************************************/
+/***                            SYSTEM settings                              **/
+/******************************************************************************/
+ESP_Result_t ESP_SYS_GetAvailableRAM(evol ESP_t* ESP, uint32_t* ram, uint32_t blocking) {
+    __CHECK_INPUTS(ram);                                    /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_GETSYSRAM);                 /* Set active command */
+    
+    Pointers.Ptr1 = ram;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SYS_ReadADC(evol ESP_t* ESP, uint32_t* adc, uint32_t blocking) {
+    __CHECK_INPUTS(adc);                                    /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_GETSYSADC);                 /* Set active command */
+    
+    Pointers.Ptr1 = adc;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SYS_GPIO_Read(evol ESP_t* ESP, uint8_t gpionum, uint8_t* level, ESP_GPIO_Dir_t* dir, uint32_t blocking) {
+    __CHECK_INPUTS(level);                                  /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_SYSGPIOREAD);               /* Set active command */
+    
+    Pointers.Ptr1 = level;
+    Pointers.Ptr1 = dir;
+    Pointers.UI = gpionum;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SYS_GPIO_Write(evol ESP_t* ESP, uint8_t gpionum, uint8_t val, uint32_t blocking) {
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_SYSGPIOWRITE);              /* Set active command */
+    
+    Pointers.UI = val << 8 | gpionum;                       /* Save values for gpio number and value to write */
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SYS_GPIO_SetConfig(evol ESP_t* ESP, uint8_t gpionum, const ESP_GPIO_t* conf, uint32_t blocking) {
+    __CHECK_INPUTS(conf);                                   /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_SYSIOSETCFG);               /* Set active command */
+    
+    Pointers.CPtr1 = conf;
+    Pointers.UI = gpionum;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SYS_GPIO_GetConfig(evol ESP_t* ESP, uint8_t gpionum, ESP_GPIO_t* conf, uint32_t blocking) {
+    __CHECK_INPUTS(conf);                                   /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_SYSIOGETCFG);               /* Set active command */
+    
+    Pointers.Ptr1 = conf;
+    Pointers.UI = gpionum;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SYS_GPIO_SetDir(evol ESP_t* ESP, uint8_t gpionum, const ESP_GPIO_t* conf, uint32_t blocking) {
+    __CHECK_INPUTS(conf);                                   /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_BASIC_SYSGPIOSETDIR);             /* Set active command */
+    
+    Pointers.CPtr1 = conf;
+    Pointers.UI = gpionum;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
 #if !ESP_SINGLE_CONN
 /******************************************************************************/
 /***                            SERVER settings                              **/
@@ -2557,6 +2822,26 @@ ESP_Result_t ESP_SetWPS(evol ESP_t* ESP, uint8_t wps, uint32_t blocking) {
     __ACTIVE_CMD(ESP, CMD_WIFI_WPS);                        /* Set active command */
 
     Pointers.UI = wps ? 1 : 0;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SetHostName(evol ESP_t* ESP, const char* hostname, uint32_t blocking) {
+    __CHECK_INPUTS(hostname);                               /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_SETHOSTNAME);                /* Set active command */
+
+    Pointers.CPtr1 = hostname;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_GetHostName(evol ESP_t* ESP, char* hostname, uint32_t blocking) {
+    __CHECK_INPUTS(hostname);                               /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_WIFI_GETHOSTNAME);                /* Set active command */
+
+    Pointers.Ptr1 = hostname;
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
