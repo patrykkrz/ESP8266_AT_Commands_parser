@@ -161,9 +161,12 @@ typedef struct {
 #define CMD_TCPIP_IPD                       ((uint16_t)0x3015)
 #define CMD_TCPIP_TRANSFER_SEND             ((uint16_t)0x3016)
 #define CMD_TCPIP_TRANSFER_STOP             ((uint16_t)0x3017)
+#define CMD_TCPIP_CIPSNTPTIME               ((uint16_t)0x3018)
 
 #define CMD_TCPIP_SERVERENABLE              ((uint16_t)0x3101)
 #define CMD_TCPIP_SERVERDISABLE             ((uint16_t)0x3102)
+#define CMD_TCPIP_SNTPSETCFG                ((uint16_t)0x3103)
+#define CMD_TCPIP_SNTPGETCFG                ((uint16_t)0x3104)
 #define CMD_IS_ACTIVE_TCPIP(p)              ((p)->ActiveCmd >= 0x3000 && (p)->ActiveCmd < 0x4000)
  
 #define ESP_DEFAULT_BAUDRATE                115200              /* Default ESP8266 baudrate */
@@ -629,6 +632,72 @@ void ParseHostName(evol ESP_t* ESP, const char* str, char* dest) {
     }
 }
 
+/* Parse CIPSNTPTIME value: "Thu Aug 04 14:48:05 2016" */
+estatic
+void ParseSNTPTime(evol ESP_t* ESP, const char* str, ESP_DateTime_t* dt) {
+    uint8_t cnt;
+    
+    /* Find day in a week */
+    if (strncmp(str, "Mon", 3) == 0) {
+        dt->Day = 1;
+    } else if (strncmp(str, "Tue", 3) == 0) {
+        dt->Day = 2;
+    } else if (strncmp(str, "Wed", 3) == 0) {
+        dt->Day = 3;
+    } else if (strncmp(str, "Thu", 3) == 0) {
+        dt->Day = 4;
+    } else if (strncmp(str, "Fri", 3) == 0) {
+        dt->Day = 5;
+    } else if (strncmp(str, "Sat", 3) == 0) {
+        dt->Day = 6;
+    } else if (strncmp(str, "Sun", 3) == 0) {
+        dt->Day = 7;
+    }
+    str += 4;
+    
+    /* Find month in a year */
+    if (strncmp(str, "Jan", 3) == 0) {
+        dt->Month = 1;
+    } else if (strncmp(str, "Feb", 3) == 0) {
+        dt->Month = 2;
+    } else if (strncmp(str, "Mar", 3) == 0) {
+        dt->Month = 3;
+    } else if (strncmp(str, "Apr", 3) == 0) {
+        dt->Month = 4;
+    } else if (strncmp(str, "May", 3) == 0) {
+        dt->Month = 5;
+    } else if (strncmp(str, "Jun", 3) == 0) {
+        dt->Month = 6;
+    } else if (strncmp(str, "Jul", 3) == 0) {
+        dt->Month = 7;
+    } else if (strncmp(str, "Aug", 3) == 0) {
+        dt->Month = 8;
+    } else if (strncmp(str, "Sep", 3) == 0) {
+        dt->Month = 9;
+    } else if (strncmp(str, "Oct", 3) == 0) {
+        dt->Month = 10;
+    } else if (strncmp(str, "Nov", 3) == 0) {
+        dt->Month = 11;
+    } else if (strncmp(str, "Dec", 3) == 0) {
+        dt->Month = 12;
+    }
+    str += 3;
+    while (str && *str != ' ') {                            /* Ignore all possible entries (JunE, JulY, etc) from month and go to next valid entry */
+        str++;  
+    }
+    str++;
+    
+    dt->Date = ParseNumber(str, &cnt);                      /* Get day in month */
+    str += cnt + 1;
+    dt->Hours = ParseNumber(str, &cnt);                     /* Get hours in day */
+    str += cnt + 1;
+    dt->Minutes = ParseNumber(str, &cnt);                   /* Get minutes in hour */
+    str += cnt + 1;
+    dt->Seconds = ParseNumber(str, &cnt);                   /* Get seconds in minute */
+    str += cnt + 1;
+    dt->Year = ParseNumber(str, &cnt);                      /* Get year */
+}
+
 /* Parse SYSIOGETCFG value */
 estatic
 void ParseSysIOGetCfg(evol ESP_t* ESP, const char* str, ESP_GPIO_t* conf) {
@@ -795,7 +864,9 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
         } else if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN && strncmp(str, FROMMEM("+CIPDOMAIN"), 10) == 0) {
             ParseIP(ESP, str + 11, (uint8_t *)Pointers.Ptr1, NULL); /* Parse IP and save it to user location */
         } else if (ESP->ActiveCmd == CMD_WIFI_GETHOSTNAME && strncmp(str, FROMMEM("+CWHOSTNAME"), 11) == 0) {
-            ParseHostName(ESP, str + 12, (char *)Pointers.Ptr1, NULL);  /* Parse IP and save it to user location */
+            ParseHostName(ESP, str + 12, (char *)Pointers.Ptr1);    /* Parse IP and save it to user location */
+        } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSNTPTIME && strncmp(str, FROMMEM("+CIPSNTPTIME"), 12) == 0) {
+            ParseSNTPTime(ESP, str + 13, (ESP_DateTime_t *)Pointers.Ptr1);  /* Parse received time */
         }
     }
     
@@ -1910,6 +1981,56 @@ cmd_tcpip_cipstart_clean:
         __IDLE(ESP);                                        /* Go IDLE mode */
     }
 #endif /* ESP_SINGLE_CONN */
+    else if (ESP->ActiveCmd == CMD_TCPIP_SNTPSETCFG) {      /* Set SNTP configuration */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        
+        UART_SEND_STR(FROMMEM("AT+CIPSNTPCFG="));           /* Send data */
+        NumberToString(str, (Pointers.UI) & 0xFF);
+        UART_SEND_STR(FROMMEM(str));
+        if ((Pointers.UI) & 0xFF) {                         /* SNTP is enabled, send other settings */
+            sprintf(str, "%d", (signed)((Pointers.UI >> 8) & 0xFF));
+            UART_SEND_STR(FROMMEM(","));
+            UART_SEND_STR(FROMMEM(str));                    /* Send timezone */
+            if (Pointers.CPtr1) {                           /* Check first server address */
+                UART_SEND_STR(FROMMEM(",\""));
+                UART_SEND_STR(FROMMEM(Pointers.CPtr1));     /* Send first server address */
+                UART_SEND_STR(FROMMEM("\""));
+                if (Pointers.CPtr2) {                       /* Check for second address */
+                    UART_SEND_STR(FROMMEM(",\""));
+                    UART_SEND_STR(FROMMEM(Pointers.CPtr2)); /* Send second server address */
+                    UART_SEND_STR(FROMMEM("\""));
+                    if (Pointers.CPtr3) {                   /* Check for third address */
+                        UART_SEND_STR(FROMMEM(",\""));
+                        UART_SEND_STR(FROMMEM(Pointers.CPtr3)); /* Send third server address */
+                        UART_SEND_STR(FROMMEM("\""));
+                    }
+                }
+            }
+        }
+        UART_SEND_STR(_CRLF);
+        
+        StartCommand(ESP, CMD_TCPIP_SNTPSETCFG, NULL);      /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSNTPTIME) {   /* Get time via SNTP */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        UART_SEND_STR(FROMMEM("AT+CIPSNTPTIME?"));          /* Send data */
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_TCPIP_CIPSNTPTIME, NULL);     /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    }
+    
     
     PT_END(pt);
 }
@@ -2790,6 +2911,34 @@ ESP_Result_t ESP_TRANSFER_Stop(evol ESP_t* ESP, uint32_t blocking) {
     __RETURN_BLOCKING(ESP, blocking, 5000);                 /* Return with blocking support */
 }
 #endif /* ESP_SINGLE_CONN */
+
+/******************************************************************************/
+/***                              SNTP API                                   **/
+/******************************************************************************/
+ESP_Result_t ESP_SNTP_SetConfig(evol ESP_t* ESP, uint8_t enable, int8_t tz, const char* a1, const char* a2, const char* a3, uint32_t blocking) {
+    __CHECK_INPUTS(!enable || (enable && tz >= -11 && tz <= 13 && a1)); /* Check input parameters */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_SNTPSETCFG);                /* Set active command */
+
+    enable = !!enable;
+    Pointers.UI = ((uint8_t)tz) << 8 | enable;              /* Set value for enable and timezone */
+    
+    Pointers.CPtr1 = a1;
+    Pointers.CPtr2 = a2;
+    Pointers.CPtr3 = a3;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SNTP_GetDateTime(evol ESP_t* ESP, ESP_DateTime_t* dt, uint32_t blocking) {
+    __CHECK_INPUTS(dt);                                     /* Check input parameters */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPSNTPTIME);               /* Set active command */
+    
+    Pointers.Ptr1 = dt;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
 
 /******************************************************************************/
 /***                            Miscellanious                                **/

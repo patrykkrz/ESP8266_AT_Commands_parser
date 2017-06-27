@@ -324,6 +324,19 @@ typedef struct _ESP_GPIO_t {
 } ESP_GPIO_t;
 
 /**
+ * \brief           Date and time structure
+ */
+typedef struct _ESP_DateTime_t {
+    uint8_t Day;                                        /*!< Day in a week, Monday = 1, Sunday = 7 */
+    uint8_t Date;                                       /*!< Day in month, 1st to 31st */
+    uint8_t Month;                                      /*!< Month in year, 1st to 12th */
+    uint16_t Year;                                      /*!< Year value itself */
+    uint8_t Hours;                                      /*!< HOurs between 0 and 23 */
+    uint8_t Minutes;                                    /*!< Minutes between 0 and 59 */
+    uint8_t Seconds;                                    /*!< Seconds between 0 and 59 */
+} ESP_DateTime_t;
+
+/**
  * \brief           Event enumeration for callback
  */
 typedef enum _ESP_Event_t {
@@ -1085,6 +1098,38 @@ void ESP_DesertRTS(evol ESP_t* ESP);
  */
  
 /**
+ * \defgroup        SNTP_API SNTP API
+ * \brief           Simple network time protocol
+ * \{
+ */
+
+/**
+ * \brief           Set SNTP configuration
+ * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]       enable: Value to enable or disable SNTP functionality, either 1 or 0
+ * \param[in]       tz: When enabled, time zone must be set with values between (and including) -11 and 13
+ * \param[in]       *a1: Optional first SNTP server address. If not specified (NULL) default will be used
+ * \param[in]       *a2: Optional second SNTP server address. If not specified (NULL) default will be used
+ * \param[in]       *a3: Optional third SNTP server address. If not specified (NULL) default will be used
+ * \param[in]       blocking: Status whether this function should be blocking to check for response
+ * \retval          Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SNTP_SetConfig(evol ESP_t* ESP, uint8_t enable, int8_t tz, const char* a1, const char* a2, const char* a3, uint32_t blocking);
+
+/**
+ * \brief           Get date and time from SNTP
+ * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
+ * \param[out]      *dt: Pointer to \ref ESP_DateTime_t structure to fill received data with date and time
+ * \param[in]       blocking: Status whether this function should be blocking to check for response
+ * \retval          Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SNTP_GetDateTime(evol ESP_t* ESP, ESP_DateTime_t* dt, uint32_t blocking);
+
+/**
+ * \}
+ */
+ 
+/**
  * \defgroup        TRANSFER_API Transparent transfer API
  * \brief           Transfer based functions for UART <-> WIFI passthrough mode
  * \note            This API is available only if single connection mode is used
@@ -1101,7 +1146,6 @@ void ESP_DesertRTS(evol ESP_t* ESP);
  * which gives you full UART<->WIFI transparent mode.
  *
  * Transfer mode can only be used when \ref ESP_SINGLE_CONN is enabled
- * 
  */
  
 /**
