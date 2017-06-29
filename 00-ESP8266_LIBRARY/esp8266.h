@@ -1153,7 +1153,24 @@ ESP_Result_t ESP_SNTP_GetDateTime(evol ESP_t* ESP, ESP_DateTime_t* dt, uint32_t 
  * \{
  */
 
+/**
+ * \brief           Set DNS server configuration in case custom DNS servers should be used
+ * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]       *dns: Pointer to \ref ESP_DNS_t structure with enable status and servers to use
+ * \param[in]       def: Status whether this IP should be stored to ESP flash or not
+ * \param[in]       blocking: Status whether this function should be blocking to check for response
+ * \retval          Member of \ref ESP_Result_t enumeration
+ */
 ESP_Result_t ESP_DNS_SetConfig(evol ESP_t* ESP, const ESP_DNS_t* dns, uint8_t def, uint32_t blocking);
+
+/**
+ * \brief           Read current DNS servers configuration
+ * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]       *dns: Pointer to \ref ESP_DNS_t structure with enable status and servers to use. \note To get info about sntp server addresses, Addr member of \ref ESP_DNS_t structure must point to RAM memory to save data to!
+ * \param[in]       def: Status whether you are interested in default setup or current setup
+ * \param[in]       blocking: Status whether this function should be blocking to check for response
+ * \retval          Member of \ref ESP_Result_t enumeration
+ */
 ESP_Result_t ESP_DNS_GetConfig(evol ESP_t* ESP, ESP_DNS_t* dns, uint8_t def, uint32_t blocking);
 
 /**
