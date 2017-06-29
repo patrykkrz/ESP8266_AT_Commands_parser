@@ -154,7 +154,7 @@ void ESP_Main_Thread(void const* params) {
         
         if (TM_DISCO_ButtonOnPressed()) {   /* Handle button press */
             /* Try to connect to server as client, connect to example.com domain */
-            if ((espRes = ESP_DOMAIN_GetIp(&ESP, "example.com", IP, 1)) == espOK) {
+            if ((espRes = ESP_DNS_GetIp(&ESP, "example.com", IP, 1)) == espOK) {
                 printf("We have example.com domain IP: %d.%d.%d.%d!\r\n", IP[0], IP[1], IP[2], IP[3]);
             } else {
                 printf("Problems trying to get IP address with DNS function: %d\r\n", espRes);

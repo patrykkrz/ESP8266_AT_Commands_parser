@@ -337,6 +337,30 @@ typedef struct _ESP_DateTime_t {
 } ESP_DateTime_t;
 
 /**
+ * \brief           SNTP config structure
+ */
+typedef struct _ESP_SNTP_t {
+    uint8_t Enable;                                     /*!< SNTP enable status */
+    int8_t Timezone;                                    /*!< Timezone used for SNTP calculation, from -11 to 13 is valid number */
+    char* Addr[3];                                      /*!< Pointers to SNTP addresses. 
+                                                            \note When using structure for reading, 
+                                                                    these pointers must be prefilled with valid memory to save data
+                                                                    to or set to NULL if entires should be ignored when reading */
+} ESP_SNTP_t;
+
+/**
+ * \brief           SNTP config structure
+ */
+typedef struct _ESP_DNS_t {
+    uint8_t _ptr;                                       /*!< For internal use only */
+    uint8_t Enable;                                     /*!< DNS enable custom servers */
+    char* Addr[2];                                      /* Pointers to DNS IP addresses. 
+                                                            \note When using structure for reading, 
+                                                                    these pointers must be prefilled with valid memory to save data
+                                                                    to or set to NULL if entires should be ignored when reading */
+} ESP_DNS_t;
+
+/**
  * \brief           Event enumeration for callback
  */
 typedef enum _ESP_Event_t {
@@ -981,21 +1005,10 @@ ESP_Result_t ESP_SetSSLBufferSize(evol ESP_t* ESP, uint32_t size, uint32_t block
  * have no other common sections to put them here.
  *
  * Some features:
- *  - DNS function to retrieve IP address for specific domain name
  *  - WPS function for ESP device
  *  - Ping other server using ESP device
- *  - and more..
+ *  - Set RF power
  */
-
-/**
- * \brief           Get IP address for specific domain name (DNS function)
- * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
- * \param[in]       *domain: Pointer to domain name to get IP address
- * \param[out]      *ip: Pointer to 4 bytes long memory for saving received IP address
- * \param[in]       blocking: Status whether this function should be blocking to check for response
- * \retval          Member of \ref ESP_Result_t enumeration
- */
-ESP_Result_t ESP_DOMAIN_GetIp(evol ESP_t* ESP, const char* domain, uint8_t* ip, uint32_t blocking);
 
 /**
  * \brief           Set WPS function for ESP
@@ -1106,15 +1119,20 @@ void ESP_DesertRTS(evol ESP_t* ESP);
 /**
  * \brief           Set SNTP configuration
  * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
- * \param[in]       enable: Value to enable or disable SNTP functionality, either 1 or 0
- * \param[in]       tz: When enabled, time zone must be set with values between (and including) -11 and 13
- * \param[in]       *a1: Optional first SNTP server address. If not specified (NULL) default will be used
- * \param[in]       *a2: Optional second SNTP server address. If not specified (NULL) default will be used
- * \param[in]       *a3: Optional third SNTP server address. If not specified (NULL) default will be used
+ * \param[in]       *sntp: Pointer to \ref ESP_SNTP_t structure with config data
  * \param[in]       blocking: Status whether this function should be blocking to check for response
  * \retval          Member of \ref ESP_Result_t enumeration
  */
-ESP_Result_t ESP_SNTP_SetConfig(evol ESP_t* ESP, uint8_t enable, int8_t tz, const char* a1, const char* a2, const char* a3, uint32_t blocking);
+ESP_Result_t ESP_SNTP_SetConfig(evol ESP_t* ESP, const ESP_SNTP_t* sntp, uint32_t blocking);
+
+/**
+ * \brief           Get SNTP configuration
+ * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]       *sntp: Pointer to \ref ESP_SNTP_t structure to fill data to. \note To get info about sntp server addresses, Addr member of \ref ESP_SNTP_t structure must point to RAM memory to save data to!
+ * \param[in]       blocking: Status whether this function should be blocking to check for response
+ * \retval          Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_SNTP_GetConfig(evol ESP_t* ESP, ESP_SNTP_t* sntp, uint32_t blocking);
 
 /**
  * \brief           Get date and time from SNTP
@@ -1125,6 +1143,29 @@ ESP_Result_t ESP_SNTP_SetConfig(evol ESP_t* ESP, uint8_t enable, int8_t tz, cons
  */
 ESP_Result_t ESP_SNTP_GetDateTime(evol ESP_t* ESP, ESP_DateTime_t* dt, uint32_t blocking);
 
+/**
+ * \}
+ */
+ 
+/**
+ * \defgroup        DNS_API Domain name system API
+ * \brief           Functions regarding domain name system
+ * \{
+ */
+
+ESP_Result_t ESP_DNS_SetConfig(evol ESP_t* ESP, const ESP_DNS_t* dns, uint8_t def, uint32_t blocking);
+ESP_Result_t ESP_DNS_GetConfig(evol ESP_t* ESP, ESP_DNS_t* dns, uint8_t def, uint32_t blocking);
+
+/**
+ * \brief           Get IP address for specific domain name
+ * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]       *domain: Pointer to domain name to get IP address
+ * \param[out]      *ip: Pointer to 4 bytes long memory for saving received IP address
+ * \param[in]       blocking: Status whether this function should be blocking to check for response
+ * \retval          Member of \ref ESP_Result_t enumeration
+ */
+ESP_Result_t ESP_DNS_GetIp(evol ESP_t* ESP, const char* domain, uint8_t* ip, uint32_t blocking);
+ 
 /**
  * \}
  */

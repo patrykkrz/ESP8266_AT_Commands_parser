@@ -162,11 +162,14 @@ typedef struct {
 #define CMD_TCPIP_TRANSFER_SEND             ((uint16_t)0x3016)
 #define CMD_TCPIP_TRANSFER_STOP             ((uint16_t)0x3017)
 #define CMD_TCPIP_CIPSNTPTIME               ((uint16_t)0x3018)
+#define CMD_TCPIP_CIPDNS                    ((uint16_t)0x3119)
 
 #define CMD_TCPIP_SERVERENABLE              ((uint16_t)0x3101)
 #define CMD_TCPIP_SERVERDISABLE             ((uint16_t)0x3102)
 #define CMD_TCPIP_SNTPSETCFG                ((uint16_t)0x3103)
 #define CMD_TCPIP_SNTPGETCFG                ((uint16_t)0x3104)
+#define CMD_TCPIP_CIPSETDNS                 ((uint16_t)0x3105)
+#define CMD_TCPIP_CIPGETDNS                 ((uint16_t)0x3106)
 #define CMD_IS_ACTIVE_TCPIP(p)              ((p)->ActiveCmd >= 0x3000 && (p)->ActiveCmd < 0x4000)
  
 #define ESP_DEFAULT_BAUDRATE                115200              /* Default ESP8266 baudrate */
@@ -698,6 +701,43 @@ void ParseSNTPTime(evol ESP_t* ESP, const char* str, ESP_DateTime_t* dt) {
     dt->Year = ParseNumber(str, &cnt);                      /* Get year */
 }
 
+/* Parse SNTP config */
+estatic
+void ParseSNTPConfig(evol ESP_t* ESP, const char* str, ESP_SNTP_t* conf) {
+    uint8_t cnt, i;
+    char *dst;
+    
+    conf->Enable = ParseNumber(str, &cnt);                  /* Get enabled status */
+    str += cnt + 1;
+    
+    conf->Timezone = (int8_t)ParseNumber(str, &cnt);        /* Get timezone */
+    str += cnt + 1;
+    
+    /* Parse server addresses */
+    for (i = 0; i < sizeof(conf->Addr) / sizeof(conf->Addr[0]); i++) {
+        if (!conf->Addr[i]) {                               /* Check if memory is set */
+            break;
+        }
+        dst = conf->Addr[0];                                /* Set destination pointer */
+        if (*str == '"') {
+            str++;
+        }
+        while (*str) {                                      /* Process entire string */
+            if (*str == '"') {                              /* Check if end of server received */
+                if (*(str + 1) == ',') {                    /* If comma is next */
+                    str += 2;                               /* Ignore this char and next one */
+                    break;                                  /* Stop parsing this server and go to next one */
+                } else if (*(str + 1) == '\n') {            /* If new line received */
+                    return;                                 /* Stop function execution */
+                }
+            }
+            *dst = *str;
+            str++;
+            dst++;
+        }
+    }
+}
+
 /* Parse SYSIOGETCFG value */
 estatic
 void ParseSysIOGetCfg(evol ESP_t* ESP, const char* str, ESP_GPIO_t* conf) {
@@ -710,6 +750,30 @@ void ParseSysIOGetCfg(evol ESP_t* ESP, const char* str, ESP_GPIO_t* conf) {
     str += cnt + 1;
     
     conf->Pull = (ESP_GPIO_Pull_t)ParseNumber(str, &cnt);   /* Set pull resistor value */
+}
+
+/* Parse CIPDNS value */
+estatic
+void ParseCIPDNS(evol ESP_t* ESP, const char* str, ESP_DNS_t* dns) {
+    char* dst;
+    if (dns->_ptr >= (sizeof(dns->Addr) / sizeof(dns->Addr[0]))) {  /* Check if any available memory */
+        return;
+    }
+    if (*str == '"') {
+        str++;
+    }
+    dst = dns->Addr[dns->_ptr];                             /* Get server pointer */
+    if (dst) {                                              /* If pointer by user is set */
+        while (*str) {
+            if (*str == '"') {
+                break;
+            }
+            *dst = *str;
+            str++;
+            dst++;
+        }
+    }
+    dns->_ptr++;                                            /* Increase DNS pointer by 1 */
 }
 
 /* Starts command and sets pointer for return statement */
@@ -861,12 +925,16 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
             if (Pointers.Ptr1) {
                 memcpy((void *)Pointers.Ptr1, (void *)&ESP->APMAC, 6);
             }
-        } else if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN && strncmp(str, FROMMEM("+CIPDOMAIN"), 10) == 0) {
-            ParseIP(ESP, str + 11, (uint8_t *)Pointers.Ptr1, NULL); /* Parse IP and save it to user location */
         } else if (ESP->ActiveCmd == CMD_WIFI_GETHOSTNAME && strncmp(str, FROMMEM("+CWHOSTNAME"), 11) == 0) {
             ParseHostName(ESP, str + 12, (char *)Pointers.Ptr1);    /* Parse IP and save it to user location */
         } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSNTPTIME && strncmp(str, FROMMEM("+CIPSNTPTIME"), 12) == 0) {
             ParseSNTPTime(ESP, str + 13, (ESP_DateTime_t *)Pointers.Ptr1);  /* Parse received time */
+        } else if (ESP->ActiveCmd == CMD_TCPIP_SNTPGETCFG && strncmp(str, FROMMEM("+CIPSNTPCFG"), 11) == 0) {
+            ParseSNTPConfig(ESP, str + 12, (ESP_SNTP_t *)Pointers.Ptr1);    /* Parse received time */
+        } else if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN && strncmp(str, FROMMEM("+CIPDOMAIN"), 10) == 0) {
+            ParseIP(ESP, str + 11, (uint8_t *)Pointers.Ptr1, NULL); /* Parse IP and save it to user location */
+        } else if (ESP->ActiveCmd == CMD_TCPIP_CIPGETDNS && strncmp(str, FROMMEM("+CIPDNS_"), 8) == 0) {
+            ParseCIPDNS(ESP, str + 12, (ESP_DNS_t *)Pointers.Ptr1); /* Parse DNS server */
         }
     }
     
@@ -1894,20 +1962,6 @@ cmd_tcpip_cipstart_clean:
         ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
         
         __IDLE(ESP);                                        /* Go IDLE mode */
-    } else if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN) {     /* Get IP address from domain name */
-        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
-        UART_SEND_STR(FROMMEM("AT+CIPDOMAIN=\""));          /* Send data */
-        UART_SEND_STR(FROMMEM(Pointers.CPtr1));
-        UART_SEND_STR(FROMMEM("\""));
-        UART_SEND_STR(_CRLF);
-        StartCommand(ESP, CMD_TCPIP_CIPDOMAIN, NULL);       /* Start command */
-        
-        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
-                            ESP->Events.F.RespError);       /* Wait for response */
-        
-        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
-        
-        __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_PING) {          /* Ping domain or IP */
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+PING=\""));               /* Send data */
@@ -1985,31 +2039,34 @@ cmd_tcpip_cipstart_clean:
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         
         UART_SEND_STR(FROMMEM("AT+CIPSNTPCFG="));           /* Send data */
-        NumberToString(str, (Pointers.UI) & 0xFF);
+        NumberToString(str, !!((ESP_SNTP_t *)Pointers.CPtr1)->Enable);
         UART_SEND_STR(FROMMEM(str));
-        if ((Pointers.UI) & 0xFF) {                         /* SNTP is enabled, send other settings */
-            sprintf(str, "%d", (signed)((Pointers.UI >> 8) & 0xFF));
+        if (((ESP_SNTP_t *)Pointers.CPtr1)->Enable) {       /* SNTP is enabled, send other settings */
+            sprintf(str, "%d", (signed)((ESP_SNTP_t *)Pointers.CPtr1)->Timezone);
             UART_SEND_STR(FROMMEM(","));
             UART_SEND_STR(FROMMEM(str));                    /* Send timezone */
-            if (Pointers.CPtr1) {                           /* Check first server address */
-                UART_SEND_STR(FROMMEM(",\""));
-                UART_SEND_STR(FROMMEM(Pointers.CPtr1));     /* Send first server address */
-                UART_SEND_STR(FROMMEM("\""));
-                if (Pointers.CPtr2) {                       /* Check for second address */
+            for (i = 0; i < sizeof(((ESP_SNTP_t *)Pointers.CPtr1)->Addr) / sizeof(((ESP_SNTP_t *)Pointers.CPtr1)->Addr[0]); i++) {  /* Check all servers if exists */
+                if (((ESP_SNTP_t *)Pointers.CPtr1)->Addr[i]) {
                     UART_SEND_STR(FROMMEM(",\""));
-                    UART_SEND_STR(FROMMEM(Pointers.CPtr2)); /* Send second server address */
+                    UART_SEND_STR(FROMMEM(((ESP_SNTP_t *)Pointers.CPtr1)->Addr[i]));    /* Send first server address */
                     UART_SEND_STR(FROMMEM("\""));
-                    if (Pointers.CPtr3) {                   /* Check for third address */
-                        UART_SEND_STR(FROMMEM(",\""));
-                        UART_SEND_STR(FROMMEM(Pointers.CPtr3)); /* Send third server address */
-                        UART_SEND_STR(FROMMEM("\""));
-                    }
                 }
             }
         }
         UART_SEND_STR(_CRLF);
-        
         StartCommand(ESP, CMD_TCPIP_SNTPSETCFG, NULL);      /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_TCPIP_SNTPGETCFG) {    /* Get SNTP config */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        UART_SEND_STR(FROMMEM("AT+CIPSNTPCFG?"));           /* Send data */
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_TCPIP_SNTPGETCFG, NULL);      /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -2022,6 +2079,62 @@ cmd_tcpip_cipstart_clean:
         UART_SEND_STR(FROMMEM("AT+CIPSNTPTIME?"));          /* Send data */
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_TCPIP_CIPSNTPTIME, NULL);     /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSETDNS) {     /* Set DNS configuration */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        UART_SEND_STR(FROMMEM("AT+CIPDNS_"));               /* Send data */
+        UART_SEND_STR(FROMMEM(Pointers.CPtr1));
+        UART_SEND_STR(FROMMEM("="));
+        
+        NumberToString(str, !!((ESP_DNS_t *)Pointers.CPtr2)->Enable);
+        UART_SEND_STR(FROMMEM(str));
+        
+        /* Send addresses */
+        for (i = 0; i < sizeof(((ESP_DNS_t *)Pointers.CPtr2)->Addr) / sizeof(((ESP_DNS_t *)Pointers.CPtr2)->Addr[0]); i++) {
+            if (((ESP_DNS_t *)Pointers.CPtr2)->Addr[i]) {
+                UART_SEND_STR(FROMMEM(",\""));
+                UART_SEND_STR(FROMMEM(((ESP_DNS_t *)Pointers.CPtr2)->Addr[i]));
+                UART_SEND_STR(FROMMEM("\""));
+            }
+        }
+        
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_TCPIP_CIPSETDNS, NULL);       /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_TCPIP_CIPGETDNS) {     /* Get DNS configuration */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        UART_SEND_STR(FROMMEM("AT+CIPDNS_"));               /* Send data */
+        UART_SEND_STR(FROMMEM(Pointers.CPtr1));
+        UART_SEND_STR(FROMMEM("?"));
+        
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_TCPIP_CIPGETDNS, NULL);       /* Start command */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        __IDLE(ESP);                                        /* Go IDLE mode */
+    } else if (ESP->ActiveCmd == CMD_TCPIP_CIPDOMAIN) {     /* Get IP address from domain name */
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        UART_SEND_STR(FROMMEM("AT+CIPDOMAIN=\""));          /* Send data */
+        UART_SEND_STR(FROMMEM(Pointers.CPtr1));
+        UART_SEND_STR(FROMMEM("\""));
+        UART_SEND_STR(_CRLF);
+        StartCommand(ESP, CMD_TCPIP_CIPDOMAIN, NULL);       /* Start command */
         
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
@@ -2806,7 +2919,7 @@ ESP_Result_t ESP_STA_SetAutoConnect(evol ESP_t* ESP, uint8_t autoconn, uint32_t 
 }
 
 /******************************************************************************/
-/***                            Connection management                        **/
+/***                           Connection management                         **/
 /******************************************************************************/
 ESP_Result_t ESP_CONN_Start(evol ESP_t* ESP, ESP_CONN_t** conn, ESP_CONN_Type_t type, const char* domain, uint16_t port, uint32_t blocking) {
     __CHECK_INPUTS(conn && domain && port);                 /* Check inputs */
@@ -2915,17 +3028,22 @@ ESP_Result_t ESP_TRANSFER_Stop(evol ESP_t* ESP, uint32_t blocking) {
 /******************************************************************************/
 /***                              SNTP API                                   **/
 /******************************************************************************/
-ESP_Result_t ESP_SNTP_SetConfig(evol ESP_t* ESP, uint8_t enable, int8_t tz, const char* a1, const char* a2, const char* a3, uint32_t blocking) {
-    __CHECK_INPUTS(!enable || (enable && tz >= -11 && tz <= 13 && a1)); /* Check input parameters */
+ESP_Result_t ESP_SNTP_SetConfig(evol ESP_t* ESP, const ESP_SNTP_t* sntp, uint32_t blocking) {
+    __CHECK_INPUTS(sntp && (!sntp->Enable || (sntp->Enable && sntp->Timezone >= -11 && sntp->Timezone <= 13))); /* Check input parameters */
     __CHECK_BUSY(ESP);                                      /* Check busy status */
     __ACTIVE_CMD(ESP, CMD_TCPIP_SNTPSETCFG);                /* Set active command */
-
-    enable = !!enable;
-    Pointers.UI = ((uint8_t)tz) << 8 | enable;              /* Set value for enable and timezone */
     
-    Pointers.CPtr1 = a1;
-    Pointers.CPtr2 = a2;
-    Pointers.CPtr3 = a3;
+    Pointers.CPtr1 = sntp;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_SNTP_GetConfig(evol ESP_t* ESP, ESP_SNTP_t* sntp, uint32_t blocking) {
+    __CHECK_INPUTS(sntp);                                   /* Check input parameters */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_SNTPGETCFG);                /* Set active command */
+    
+    Pointers.Ptr1 = sntp;
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }
@@ -2941,9 +3059,32 @@ ESP_Result_t ESP_SNTP_GetDateTime(evol ESP_t* ESP, ESP_DateTime_t* dt, uint32_t 
 }
 
 /******************************************************************************/
-/***                            Miscellanious                                **/
+/***                              DNS API                                    **/
 /******************************************************************************/
-ESP_Result_t ESP_DOMAIN_GetIp(evol ESP_t* ESP, const char* domain, uint8_t* ip, uint32_t blocking) {
+ESP_Result_t ESP_DNS_SetConfig(evol ESP_t* ESP, const ESP_DNS_t* dns, uint8_t def, uint32_t blocking) {    
+    __CHECK_INPUTS(dns);                                    /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPSETDNS);                 /* Set active command */
+
+    Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
+    Pointers.CPtr2 = dns;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_DNS_GetConfig(evol ESP_t* ESP, ESP_DNS_t* dns, uint8_t def, uint32_t blocking) {
+    __CHECK_INPUTS(dns);                                    /* Check inputs */
+    __CHECK_BUSY(ESP);                                      /* Check busy status */
+    __ACTIVE_CMD(ESP, CMD_TCPIP_CIPGETDNS);                 /* Set active command */
+
+    Pointers.CPtr1 = def ? FROMMEM("DEF") : FROMMEM("CUR");
+    Pointers.Ptr1 = dns;
+    dns->_ptr = 0;
+    
+    __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_DNS_GetIp(evol ESP_t* ESP, const char* domain, uint8_t* ip, uint32_t blocking) {
     __CHECK_INPUTS(ip);                                     /* Check inputs */
     __CHECK_BUSY(ESP);                                      /* Check busy status */
     __ACTIVE_CMD(ESP, CMD_TCPIP_CIPDOMAIN);                 /* Set active command */
@@ -2954,6 +3095,9 @@ ESP_Result_t ESP_DOMAIN_GetIp(evol ESP_t* ESP, const char* domain, uint8_t* ip, 
     __RETURN_BLOCKING(ESP, blocking, 10000);                /* Return with blocking support */
 }
 
+/******************************************************************************/
+/***                            Miscellanious                                **/
+/******************************************************************************/
 ESP_Result_t ESP_Ping(evol ESP_t* ESP, const char* addr, uint32_t* time, uint32_t blocking) {
     __CHECK_INPUTS(addr && time);                           /* Check inputs */
     __CHECK_BUSY(ESP);                                      /* Check busy status */
