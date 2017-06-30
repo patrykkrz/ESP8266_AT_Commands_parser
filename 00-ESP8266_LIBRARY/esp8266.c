@@ -755,23 +755,16 @@ void ParseSysIOGetCfg(evol ESP_t* ESP, const char* str, ESP_GPIO_t* conf) {
 /* Parse CIPDNS value */
 estatic
 void ParseCIPDNS(evol ESP_t* ESP, const char* str, ESP_DNS_t* dns) {
-    char* dst;
+    uint8_t i = 0, cnt;
     if (dns->_ptr >= (sizeof(dns->Addr) / sizeof(dns->Addr[0]))) {  /* Check if any available memory */
         return;
     }
     if (*str == '"') {
         str++;
     }
-    dst = dns->Addr[dns->_ptr];                             /* Get server pointer */
-    if (dst) {                                              /* If pointer by user is set */
-        while (*str) {
-            if (*str == '"') {
-                break;
-            }
-            *dst = *str;
-            str++;
-            dst++;
-        }
+    for (i = 0; i < 4; i++) {
+        dns->Addr[dns->_ptr][i] = ParseNumber(str, &cnt);   /* Parse IP number */
+        str += cnt + 1;                                     /* Go to next number */
     }
     dns->_ptr++;                                            /* Increase DNS pointer by 1 */
 }
@@ -890,7 +883,7 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
         } else if (ESP->ActiveCmd == CMD_BASIC_GETSYSADC && strncmp(str, FROMMEM("+SYSADC"), 7) == 0) {
             *(uint32_t *)Pointers.Ptr1 = ParseNumber(str + 8, NULL);    /* Parse ADC value */
         } else if (ESP->ActiveCmd == CMD_BASIC_SYSGPIOREAD && strncmp(str, FROMMEM("+SYSGPIOREAD"), 12) == 0) {
-            ParseSysGPIORead(ESP, str + 13, (void *)Pointers.Ptr1, (ESP_GPIO_Dir_t *)Pointers.Ptr2);
+            ParseSysGPIORead(ESP, str + 13, (void *)Pointers.Ptr1, (void *)Pointers.Ptr2);
         } else if (ESP->ActiveCmd == CMD_BASIC_SYSIOGETCFG && strncmp(str, FROMMEM("+SYSIOGETCFG"), 12) == 0) {
             ParseSysIOGetCfg(ESP, str + 13, (void *)Pointers.Ptr1);
         } else if (ESP->ActiveCmd == CMD_WIFI_CIPAP && strncmp(str, FROMMEM("+CIPAP_"), 7) == 0) {  /* +CIPAP received */
@@ -1156,7 +1149,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_BASIC_RESTORE, NULL);         /* Start command */
         
-        PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady || 
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
         
         ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR;    /* Check response */
@@ -1169,7 +1162,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_BASIC_GETSYSRAM, NULL);       /* Start command */
         
-        PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady || 
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
         
         ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR;    /* Check response */
@@ -1182,7 +1175,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_BASIC_GETSYSADC, NULL);       /* Start command */
         
-        PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady || 
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
         
         ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR;    /* Check response */
@@ -2046,7 +2039,7 @@ cmd_tcpip_cipstart_clean:
             UART_SEND_STR(FROMMEM(","));
             UART_SEND_STR(FROMMEM(str));                    /* Send timezone */
             for (i = 0; i < sizeof(((ESP_SNTP_t *)Pointers.CPtr1)->Addr) / sizeof(((ESP_SNTP_t *)Pointers.CPtr1)->Addr[0]); i++) {  /* Check all servers if exists */
-                if (((ESP_SNTP_t *)Pointers.CPtr1)->Addr[i]) {
+                if (((ESP_SNTP_t *)Pointers.CPtr1)->Addr[i] && strlen(((ESP_SNTP_t *)Pointers.CPtr1)->Addr[i])) {
                     UART_SEND_STR(FROMMEM(",\""));
                     UART_SEND_STR(FROMMEM(((ESP_SNTP_t *)Pointers.CPtr1)->Addr[i]));    /* Send first server address */
                     UART_SEND_STR(FROMMEM("\""));
@@ -2087,22 +2080,36 @@ cmd_tcpip_cipstart_clean:
         
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_TCPIP_CIPSETDNS) {     /* Set DNS configuration */
+        
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+CIPDNS_"));               /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
         UART_SEND_STR(FROMMEM("="));
         
-        NumberToString(str, !!((ESP_DNS_t *)Pointers.CPtr2)->Enable);
-        UART_SEND_STR(FROMMEM(str));
-        
         /* Send addresses */
-        for (i = 0; i < sizeof(((ESP_DNS_t *)Pointers.CPtr2)->Addr) / sizeof(((ESP_DNS_t *)Pointers.CPtr2)->Addr[0]); i++) {
-            if (((ESP_DNS_t *)Pointers.CPtr2)->Addr[i]) {
-                UART_SEND_STR(FROMMEM(",\""));
-                UART_SEND_STR(FROMMEM(((ESP_DNS_t *)Pointers.CPtr2)->Addr[i]));
-                UART_SEND_STR(FROMMEM("\""));
+        do {
+            const ESP_DNS_t* dns = (ESP_DNS_t *)Pointers.CPtr2;  
+        
+            NumberToString(str, !!dns->Enable);
+            UART_SEND_STR(FROMMEM(str));      
+            
+            for (i = 0; i < sizeof(dns->Addr) / sizeof(dns->Addr[0]); i++) {
+                /* When address is not 0.0.0.0 */
+                if (*(uint32_t *)dns->Addr[i] != (uint32_t)0x00000000UL) {
+                    uint8_t tmp_i;
+                    
+                    UART_SEND_STR(FROMMEM(",\""));
+                    for (tmp_i = 0; tmp_i < 4; tmp_i++) {       /* Send 4 pieces of IP address */
+                        NumberToString(str, dns->Addr[i][tmp_i]);
+                        UART_SEND_STR(FROMMEM(str));
+                        if (tmp_i != 3) {
+                            UART_SEND_STR(FROMMEM("."));
+                        }
+                    }
+                    UART_SEND_STR(FROMMEM("\""));
+                }
             }
-        }
+        } while (0);
         
         UART_SEND_STR(_CRLF);
         StartCommand(ESP, CMD_TCPIP_CIPSETDNS, NULL);       /* Start command */
@@ -2769,7 +2776,7 @@ ESP_Result_t ESP_SYS_GPIO_Read(evol ESP_t* ESP, uint8_t gpionum, uint8_t* level,
     __ACTIVE_CMD(ESP, CMD_BASIC_SYSGPIOREAD);               /* Set active command */
     
     Pointers.Ptr1 = level;
-    Pointers.Ptr1 = dir;
+    Pointers.Ptr2 = dir;
     Pointers.UI = gpionum;
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */

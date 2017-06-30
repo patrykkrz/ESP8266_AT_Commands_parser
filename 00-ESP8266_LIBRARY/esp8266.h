@@ -354,10 +354,7 @@ typedef struct _ESP_SNTP_t {
 typedef struct _ESP_DNS_t {
     uint8_t _ptr;                                       /*!< For internal use only */
     uint8_t Enable;                                     /*!< DNS enable custom servers */
-    char* Addr[2];                                      /* Pointers to DNS IP addresses. 
-                                                            \note When using structure for reading, 
-                                                                    these pointers must be prefilled with valid memory to save data
-                                                                    to or set to NULL if entires should be ignored when reading */
+    uint8_t Addr[2][4];                                 /*!< Memory for 2 IP addresses for DNS */
 } ESP_DNS_t;
 
 /**
