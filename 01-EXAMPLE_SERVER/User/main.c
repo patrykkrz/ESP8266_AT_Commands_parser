@@ -56,7 +56,7 @@ CTS         PA3                 RTS from ST to CTS from ESP
 #define DEBUG_USART_PP      DISCO_USART_PP
 
 /* Wifi network settings, replace with your settings */
-#define WIFINAME            "wifi_network_SSID"
+#define WIFINAME            "wifi_ssid"
 #define WIFIPASS            "wifi_password"
 
 /* ESP working structure and result enumeration */

@@ -735,6 +735,7 @@ void ParseSNTPConfig(evol ESP_t* ESP, const char* str, ESP_SNTP_t* conf) {
             str++;
             dst++;
         }
+        *dst = 0;
     }
 }
 

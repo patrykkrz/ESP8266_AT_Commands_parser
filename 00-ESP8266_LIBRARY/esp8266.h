@@ -94,7 +94,7 @@ extern "C" {
 
 /* Check debug */
 #if !defined(ESP_ECHO)
-#define ESP_ECHO                    0   /*!< Echo mode */
+#define ESP_ECHO                    1   /*!< Echo mode */
 #endif
 
 /* Public defines */

@@ -1,5 +1,5 @@
 /**
- * Keil project example for ESP8266 PING feature using RTOS
+ * Keil project example for ESP8266 SNTP feature using RTOS
  *
  * @note      Check defines.h file for configuration settings!
  * @note      When using Nucleo F411 board, example has set 8MHz external HSE clock!
@@ -16,11 +16,11 @@
  *
  * \par Description
  *
- * This examples shows how you can use ESP for ping procedure using RTOS
+ * This examples shows how you can use SNTP protocol to get current time from ESP8266
  *
  * - Library is initialized using ESP_Init
  * - Device must connect to network. Check WIFINAME and WIFIPASS defines for proper settings for your wifi network
- * - Press on button to start pinging domain
+ * - Press on button to get current time from device
  * - On debug output (PA2 pin) is printf targeted via UART at 921600 bauds
  *
  * \note  Example uses single buffer for all connections.
@@ -64,16 +64,10 @@ CTS         PA3                 RTS from ST to CTS from ESP
 evol ESP_t ESP;
 ESP_Result_t espRes;
 
-/* Ping time */
-uint32_t time;
-
-/* Connection manupulation */
-uint32_t bw;
-const uint8_t requestData[] = ""
-"GET / HTTP/1.1\r\n"
-"Host: example.com\r\n"
-"Connection: close\r\n"
-"\r\n";
+/* SNTP structure */
+ESP_SNTP_t sntp;
+ESP_DateTime_t datetime;
+char sntp_server[3][50];
 
 /* Thread prototypes */
 void ESP_Update_Thread(void const* params);
@@ -135,6 +129,7 @@ void ESP_Update_Thread(void const* params) {
  * \brief  Application thread to work with ESP module only
  */
 void ESP_Main_Thread(void const* params) {
+    uint8_t i = 0;
     /* Init ESP library with 115200 bauds */
     if ((espRes = ESP_Init(&ESP, 115200, ESP_Callback)) == espOK) {
         printf("ESP module init successfully!\r\n");
@@ -149,15 +144,54 @@ void ESP_Main_Thread(void const* params) {
         printf("Problems trying to connect to network: %d\r\n", espRes);
     }
     
+    /* Get SNTP config */
+    for (i = 0; i < 3; i++) {
+        sntp.Addr[i] = sntp_server[i];
+    }
+    if ((espRes = ESP_SNTP_GetConfig(&ESP, &sntp, 1)) == espOK) {
+        printf("SNTP config received\r\n");
+        printf("SNTP enabled: %d\r\n", sntp.Enable);
+        printf("SNTP timezone: %d\r\n", sntp.Timezone);
+        printf("SNTP server 1: %s\r\n", sntp.Addr[0]);
+        printf("SNTP server 2: %s\r\n", sntp.Addr[1]);
+        printf("SNTP server 3: %s\r\n", sntp.Addr[2]);
+    } else {
+        printf("Problems to get SNTP config: %d\r\n", espRes);
+    }
+    
+    /* Set SNTP config */
+    sntp.Enable = 1;                        /* Enable SNTP */
+    sntp.Timezone = 2;                      /* Set timezone */
+    if ((espRes = ESP_SNTP_SetConfig(&ESP, &sntp, 1)) == espOK) {
+        printf("SNTP config enabled\r\n");
+    } else {
+        printf("Problems to get SNTP config: %d\r\n", espRes);
+    }
+    
+    /* Get config again */
+    if ((espRes = ESP_SNTP_GetConfig(&ESP, &sntp, 1)) == espOK) {
+        printf("SNTP config received\r\n");
+        printf("SNTP enabled: %d\r\n", sntp.Enable);
+        printf("SNTP timezone: %d\r\n", sntp.Timezone);
+        printf("SNTP server 1: %s\r\n", sntp.Addr[0]);
+        printf("SNTP server 2: %s\r\n", sntp.Addr[1]);
+        printf("SNTP server 3: %s\r\n", sntp.Addr[2]);
+    } else {
+        printf("Problems to get SNTP config: %d\r\n", espRes);
+    }
+    
     while (1) {
         ESP_ProcessCallbacks(&ESP);         /* Process all callbacks */
         
         if (TM_DISCO_ButtonOnPressed()) {   /* Handle button press */
             /* Try to connect to server as client, connect to example.com domain */
-            if ((espRes = ESP_Ping(&ESP, "example.com", &time, 1)) == espOK) {
-                printf("Pinging example.com was successful in %d milliseconds!\r\n", time);
+            if ((espRes = ESP_SNTP_GetDateTime(&ESP, &datetime, 1)) == espOK) {
+                printf("Date time received: %02d.%02d.%4d %02d:%02d:%02d\r\n", 
+                    datetime.Date, datetime.Month, datetime.Year,
+                    datetime.Hours, datetime.Minutes, datetime.Seconds
+                );
             } else {
-                printf("Problems trying to ping example.com domain: %d\r\n", espRes);
+                printf("Problems trying to get current time: %d\r\n", espRes);
             }
         }
     }
