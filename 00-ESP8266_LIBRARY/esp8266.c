@@ -718,7 +718,7 @@ void ParseSNTPConfig(evol ESP_t* ESP, const char* str, ESP_SNTP_t* conf) {
         if (!conf->Addr[i]) {                               /* Check if memory is set */
             break;
         }
-        dst = conf->Addr[0];                                /* Set destination pointer */
+        dst = conf->Addr[i];                                /* Set destination pointer */
         if (*str == '"') {
             str++;
         }
@@ -727,7 +727,7 @@ void ParseSNTPConfig(evol ESP_t* ESP, const char* str, ESP_SNTP_t* conf) {
                 if (*(str + 1) == ',') {                    /* If comma is next */
                     str += 2;                               /* Ignore this char and next one */
                     break;                                  /* Stop parsing this server and go to next one */
-                } else if (*(str + 1) == '\n') {            /* If new line received */
+                } else if (*(str + 1) == '\r') {            /* If new line received */
                     return;                                 /* Stop function execution */
                 }
             }
@@ -1152,7 +1152,14 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
         PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk || 
                             ESP->Events.F.RespError);       /* Wait for response */
         
-        ESP->ActiveResult = ESP->Events.F.RespReady ? espOK : espERROR;    /* Check response */
+        ESP->ActiveResult = ESP->Events.F.RespOk ? espOK : espERROR;    /* Check response */
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespReady || 
+                            ESP->Events.F.RespError);       /* Wait for response */
+        
+        if (!ESP->Events.F.RespReady) {
+            ESP->ActiveResult = espERROR;
+        }
         
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_BASIC_GETSYSRAM) {     /* Get available RAM */
@@ -2171,58 +2178,17 @@ ESP_Result_t ProcessThreads(evol ESP_t* ESP) {
 #endif
     __RETURN(ESP, espOK);
 }
-/******************************************************************************/
-/******************************************************************************/
-/***                              Public API                                 **/
-/******************************************************************************/
-/******************************************************************************/
-ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t callback) {
-    uint32_t i = 50;
-    BUFFER_t* Buff = &Buffer;
-    uint8_t result;
-    
-    memset((void *)ESP, 0x00, sizeof(ESP_t));               /* Clear structure first */
-    
-    ESP->Callback = callback;                               /* Set event callback */
-    if (callback == NULL) {
-        ESP->Callback = ESP_CallbackDefault;                /* Set default callback function */
-    }
-    
-#if ESP_CONN_SINGLEBUFFER
-    do {
-        uint8_t i = 0;
-        for (i = 0; i < ESP_MAX_CONNECTIONS; i++) {
-            ESP->Conn[i].Data = IPD_Data;
-        }
-    } while (0);
-#endif /*!< ESP_CONN_SINGLEBUFFER */
-    
-    ESP->Time = 0;                                          /* Reset time start time */
-    BUFFER_Init(Buff, sizeof(Buffer_Data) - 1, Buffer_Data);    /* Init buffer for receive */
-    
-    /* Low-Level initialization */
-    result = 1;                                             /* Set to default value first */
-    ESP->LL.Baudrate = baudrate;
-    if (!ESP_LL_Callback(ESP_LL_Control_Init, (void *)&ESP->LL, &result) || result) {   /* Init low-level */
-        __RETURN(ESP, espLLERROR);                          /* Return error */
-    }
-    
-#if ESP_RTOS
-    /* RTOS support */
-    do {
-        uint8_t result = 1;
-        if (!ESP_LL_Callback(ESP_LL_Control_SYS_Create, (void *)&ESP->Sync, &result) || result) {
-            __RETURN(ESP, espSYSERROR);
-        }
-    } while (0);
-#endif /*!< ESP_RTOS */
 
-    /* Init all threads */
+static
+ESP_Result_t __InitCommands(evol ESP_t* ESP) {
+    size_t i;
+    /* Reset protothreads */
     __RESET_THREADS(ESP);
-
+    
     /* Send initialization commands */
     ESP->Flags.F.IsBlocking = 1;                            /* Process blocking calls */
-    ESP->ActiveCmdTimeout = 5000;                           /* Give 1 second timeout */
+    ESP->ActiveCmdTimeout = 5000;                           /* Set response timeout */
+    i = 50;
     while (i) {
         __ACTIVE_CMD(ESP, CMD_BASIC_RST);                   /* Reset device */
         ESP_WaitReady(ESP, ESP->ActiveCmdTimeout);
@@ -2364,7 +2330,56 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
     ESP->Flags.F.IsBlocking = 0;                            /* Reset blocking calls */
     ESP->Flags.F.Call_Idle = 0;
     
-    __RETURN(ESP, ESP->ActiveResult);                       /* Return active status */
+    return ESP->ActiveResult;
+}
+
+/******************************************************************************/
+/******************************************************************************/
+/***                              Public API                                 **/
+/******************************************************************************/
+/******************************************************************************/
+ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t callback) {
+    BUFFER_t* Buff = &Buffer;
+    uint8_t result;
+    
+    memset((void *)ESP, 0x00, sizeof(ESP_t));               /* Clear structure first */
+    
+    ESP->Callback = callback;                               /* Set event callback */
+    if (callback == NULL) {
+        ESP->Callback = ESP_CallbackDefault;                /* Set default callback function */
+    }
+    
+#if ESP_CONN_SINGLEBUFFER
+    do {
+        uint8_t i = 0;
+        for (i = 0; i < ESP_MAX_CONNECTIONS; i++) {
+            ESP->Conn[i].Data = IPD_Data;
+        }
+    } while (0);
+#endif /*!< ESP_CONN_SINGLEBUFFER */
+    
+    ESP->Time = 0;                                          /* Reset time start time */
+    BUFFER_Init(Buff, sizeof(Buffer_Data) - 1, Buffer_Data);    /* Init buffer for receive */
+    
+    /* Low-Level initialization */
+    result = 1;                                             /* Set to default value first */
+    ESP->LL.Baudrate = baudrate;
+    if (!ESP_LL_Callback(ESP_LL_Control_Init, (void *)&ESP->LL, &result) || result) {   /* Init low-level */
+        __RETURN(ESP, espLLERROR);                          /* Return error */
+    }
+    
+#if ESP_RTOS
+    /* RTOS support */
+    do {
+        uint8_t result = 1;
+        if (!ESP_LL_Callback(ESP_LL_Control_SYS_Create, (void *)&ESP->Sync, &result) || result) {
+            __RETURN(ESP, espSYSERROR);
+        }
+    } while (0);
+#endif /*!< ESP_RTOS */
+
+    /* Send init commands */
+    __RETURN(ESP, __InitCommands(ESP));                     /* Return active status */
 }
 
 ESP_Result_t ESP_DeInit(evol ESP_t* ESP) {
