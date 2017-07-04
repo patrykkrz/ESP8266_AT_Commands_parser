@@ -1103,6 +1103,7 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
     } else if (ESP->ActiveCmd == CMD_BASIC_UART) {          /* Set UART */
         NumberToString(str, Pointers.UI);                   /* Get baudrate as string */
         
+        /* Send UART command */
         __RST_EVENTS_RESP(ESP);                             /* Reset all events */
         UART_SEND_STR(FROMMEM("AT+UART_"));                 /* Send data */
         UART_SEND_STR(FROMMEM(Pointers.CPtr1));
@@ -1124,9 +1125,22 @@ PT_THREAD(PT_Thread_BASIC(struct pt* pt, evol ESP_t* ESP)) {
             uint8_t result;
             BUFFER_Reset(&Buffer);                          /* Reset buffer */
             
+            /* Reinit low-level with new baudrate */
             ESP->LL.Baudrate = Pointers.UI;
             ESP_LL_Callback(ESP_LL_Control_Init, (void *)&ESP->LL, &result);    /* Init low-level layer again */
         }
+        
+        /* Now let's read default baudrate for reinit purpose */
+        time = ESP->Time;
+        PT_WAIT_UNTIL(pt, ESP->Time - time > 2);            /* Wait reset time */
+        
+        __RST_EVENTS_RESP(ESP);                             /* Reset all events */
+        UART_SEND_STR(FROMMEM("AT+UART_DEF?"));             /* Send data */
+        StartCommand(ESP, CMD_BASIC_UART, NULL);            /* Start command */
+        UART_SEND_STR(_CRLF);
+        
+        PT_WAIT_UNTIL(pt, ESP->Events.F.RespOk ||
+                            ESP->Events.F.RespError);       /* Wait for response */
         
         __IDLE(ESP);                                        /* Go IDLE mode */
     } else if (ESP->ActiveCmd == CMD_BASIC_RFPOWER) {       /* Set RF power */
@@ -2159,7 +2173,6 @@ cmd_tcpip_cipstart_clean:
         __IDLE(ESP);                                        /* Go IDLE mode */
     }
     
-    
     PT_END(pt);
 }
 
@@ -2180,11 +2193,15 @@ ESP_Result_t ProcessThreads(evol ESP_t* ESP) {
     __RETURN(ESP, espOK);
 }
 
+/* Initialize necessary parts */
 static
-ESP_Result_t __InitCommands(evol ESP_t* ESP) {
+ESP_Result_t __Init(evol ESP_t* ESP) {
     size_t i;
     /* Reset protothreads */
     __RESET_THREADS(ESP);
+    
+    /* Close all connections if not already */
+    memset((void *)&ESP->Conn, 0x00, sizeof(ESP->Conn));    /* Reset connection structure */
     
     /* Send initialization commands */
     ESP->Flags.F.IsBlocking = 1;                            /* Process blocking calls */
@@ -2380,7 +2397,11 @@ ESP_Result_t ESP_Init(evol ESP_t* ESP, uint32_t baudrate, ESP_EventCallback_t ca
 #endif /*!< ESP_RTOS */
 
     /* Send init commands */
-    __RETURN(ESP, __InitCommands(ESP));                     /* Return active status */
+    __RETURN(ESP, __Init(ESP));                             /* Return active status */
+}
+
+ESP_Result_t ESP_ReInit(evol ESP_t* ESP) {
+    __RETURN(ESP, __Init(ESP));                             /* Process with init */
 }
 
 ESP_Result_t ESP_DeInit(evol ESP_t* ESP) {
@@ -2802,7 +2823,7 @@ ESP_Result_t ESP_SYS_GPIO_Write(evol ESP_t* ESP, uint8_t gpionum, uint8_t val, u
     __CHECK_BUSY(ESP);                                      /* Check busy status */
     __ACTIVE_CMD(ESP, CMD_BASIC_SYSGPIOWRITE);              /* Set active command */
     
-    Pointers.UI = val << 8 | gpionum;                       /* Save values for gpio number and value to write */
+    Pointers.UI = (!!val) << 8 | gpionum;                   /* Save values for gpio number and value to write */
     
     __RETURN_BLOCKING(ESP, blocking, 1000);                 /* Return with blocking support */
 }

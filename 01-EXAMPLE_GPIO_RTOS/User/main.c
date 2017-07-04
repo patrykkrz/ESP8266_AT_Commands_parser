@@ -166,7 +166,6 @@ void ESP_Main_Thread(void const* params) {
             /* Write pin 12 value */
             if ((espRes = ESP_SYS_GPIO_Write(&ESP, 12, level, 1)) == espOK) {
                 printf("GPIO written ok!\r\n");
-                level = !level;             /* For toggling */
             } else {
                 printf("GPIO write failed. Status: %d\r\n", espRes);
             }
@@ -177,6 +176,8 @@ void ESP_Main_Thread(void const* params) {
             } else {
                 printf("GPIO read failed. Status: %d\r\n", espRes);
             }
+            
+            level = !level;                 /* For toggling */
         }
     }
 }
