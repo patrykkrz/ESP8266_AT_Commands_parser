@@ -57,7 +57,7 @@ typedef struct {
 #define CHARISNUM(x)                        ((x) >= '0' && (x) <= '9')
 #define CHARISHEXNUM(x)                     (((x) >= '0' && (x) <= '9') || ((x) >= 'a' && (x) <= 'f') || ((x) >= 'A' && (x) <= 'F'))
 #define CHARTONUM(x)                        ((x) - '0')
-#define CHARHEXTONUM(x)                     (((x) >= '0' && (x) <= '9') ? ((x) - '0') : (((x) >= 'a' && (x) <= 'z') ? ((x) - 'a' + 10) : (((x) >= 'A' && (x) <= 'Z') ? ((x) - 'A' + 10) : 0)))
+#define CHARHEXTONUM(x)                     (((x) >= '0' && (x) <= '9') ? ((x) - '0') : (((x) >= 'a' && (x) <= 'f') ? ((x) - 'a' + 10) : (((x) >= 'A' && (x) <= 'F') ? ((x) - 'A' + 10) : 0)))
 #define ISVALIDASCII(x)                     (((x) >= 32 && (x) <= 126) || (x) == '\r' || (x) == '\n')
 #define FROMMEM(x)                          ((const char *)(x))
 
@@ -205,6 +205,7 @@ typedef struct {
 #define __CHECK_INPUTS(c)                   do { if (!(c)) { __RETURN(ESP, espPARERROR); } } while (0)
 
 #define __CONN_RESET(c)                     do { uint8_t number = (c)->Number; memset((void *)(c), 0x00, sizeof(ESP_CONN_t)); (c)->Number = number; } while (0)
+#define __CONN_UPDATE_TIME(e, c)            (c)->PollTime = (e)->Time
 
 #if ESP_RTOS
 #define __IDLE(p)                           do {\
@@ -234,7 +235,7 @@ typedef struct {
 #define __ACTIVE_CMD(p, cmd)                do {\
     uint8_t result = 1;                         \
     if (ESP_LL_Callback(ESP_LL_Control_SYS_Request, (void *)&(p)->Sync, &result) || result) {   \
-                                                \
+        /* __RETURN(p, espTIMEOUT); */          \
     }                                           \
     if ((p)->ActiveCmd == CMD_IDLE) {           \
         (p)->ActiveCmdStart = (p)->Time;        \
@@ -259,6 +260,7 @@ typedef struct {
 #define __RST_EVENTS_RESP(p)                do { (p)->Events.Value = 0; (p)->ActiveCmdStart = (p)->Time; } while (0)
 
 #define ESP_CALL_CALLBACK(p, e)             (p)->Callback(e, (ESP_EventParams_t *)&(p)->CallbackParams);
+#define ESP_CALL_CONN_CALLBACK(p, c, e)     (c)->Cb(e, (ESP_EventParams_t *)&(p)->CallbackParams);
 
 #if ESP_USE_CTS
 #define ESP_SET_RTS(p, s)                   do {\
@@ -306,7 +308,7 @@ struct pt pt_BASIC, pt_WIFI, pt_TCPIP;                      /* Protothread setup
 static
 ESP_LL_Send_t Send;                                         /* Send data setup */
 
-#define __RESET_THREADS(GSM)                  do {          \
+#define __RESET_THREADS(ESP)                  do {          \
 PT_INIT(&pt_BASIC); PT_INIT(&pt_WIFI); PT_INIT(&pt_TCPIP);  \
 } while (0);
 
@@ -336,8 +338,8 @@ ESP_Result_t __return_blocking(evol ESP_t* p, uint32_t b, uint32_t mt) {
 /* Default callback for events */
 estatic
 int ESP_CallbackDefault(ESP_Event_t evt, ESP_EventParams_t* params) {
-	(void)evt;
-	(void)params;
+    (void)evt;
+    (void)params;
     return 0;
 }
 
@@ -403,6 +405,9 @@ uint32_t ParseHexNumber(const char* ptr, uint8_t* cnt) {
 estatic
 void ParseMAC(evol ESP_t* ESP, const char* str, uint8_t* mac, uint8_t* cnt) {
     uint8_t i = 6;
+    
+    (void)ESP;                                              /* Process unused */
+    
     while (i--) {
         *mac++ = ParseHexNumber(str, NULL);
         str += 3;
@@ -410,7 +415,6 @@ void ParseMAC(evol ESP_t* ESP, const char* str, uint8_t* mac, uint8_t* cnt) {
     if (cnt) {
         *cnt = 17;
     }
-	(void)ESP;
 }
 
 /* Parse IP number in string format xxx.xxx.xxx.xxx */
@@ -418,6 +422,9 @@ estatic
 void ParseIP(evol ESP_t* ESP, const char* str, uint8_t* ip, uint8_t* cnt) {
     uint8_t i = 4;
     uint8_t c = 0;
+    
+    (void)ESP;                                              /* Process unused */
+    
     if (cnt) {
         *cnt = 0;
     }
@@ -431,7 +438,6 @@ void ParseIP(evol ESP_t* ESP, const char* str, uint8_t* ip, uint8_t* cnt) {
             }
         }
     }
-	(void)ESP;
 }
 
 /* Parse +CWLAP statement */
@@ -439,13 +445,15 @@ estatic
 void ParseCWLAP(evol ESP_t* ESP, const char* str, ESP_AP_t* AP) {
     uint8_t cnt;
     
+    (void)ESP;                                              /* Process unused */
+    
     if (*str == '(') {                                      /* Remove opening bracket */
         str++;
     }
     
     memset((void *)AP, 0x00, sizeof(ESP_AP_t));             /* Reset structure first */
     
-    AP->Ecn = ParseNumber(str, &cnt);                       /* Parse ECN value */
+    AP->Ecn = (ESP_Ecn_t)ParseNumber(str, &cnt);            /* Parse ECN value */
     str += cnt + 1;
     
     if (*str == '"') {                                      /* Remove opening " */
@@ -487,6 +495,8 @@ estatic
 void ParseCWJAP(evol ESP_t* ESP, const char* ptr, ESP_ConnectedAP_t* AP) {
     uint8_t i, cnt;
     
+    (void)ESP;                                              /* Process unused */
+    
     while (*ptr && *ptr != '"') {                    		/* Find first " character */
         ptr++;
     }
@@ -522,7 +532,7 @@ estatic
 void ParseIPD(evol ESP_t* ESP, const char* str, ESP_IPD_t* IPD) {
     uint8_t cnt;
     
-    memset((void *) IPD, 0x00, sizeof(ESP_IPD_t));          /* Reset structure */
+    memset((void *)IPD, 0x00, sizeof(ESP_IPD_t));           /* Reset structure */
     
 #if !ESP_SINGLE_CONN
     IPD->Conn = (ESP_CONN_t *)&ESP->Conn[ParseNumber(str, &cnt)];   /* Get connection */
@@ -530,6 +540,7 @@ void ParseIPD(evol ESP_t* ESP, const char* str, ESP_IPD_t* IPD) {
 #else
     IPD->Conn = (ESP_CONN_t *)&ESP->Conn[0];                /* Get connection */
 #endif /* !ESP_SINGLE_CONN */
+    __CONN_UPDATE_TIME(ESP, IPD->Conn);                     /* Update connection access time */
     IPD->BytesRemaining = ParseNumber(str, &cnt);           /* Set bytes remaining to read */
 }
 
@@ -537,6 +548,8 @@ void ParseIPD(evol ESP_t* ESP, const char* str, ESP_IPD_t* IPD) {
 estatic
 void ParseCWSAP(evol ESP_t* ESP, const char* ptr, ESP_APConfig_t* AP) {
     uint8_t cnt, i;
+    
+    (void)ESP;                                              /* Process unused */
     
     memset((void *)AP, 0x00, sizeof(ESP_APConfig_t));       /* Reset structure */
     
@@ -605,6 +618,8 @@ estatic
 void ParseSysGPIORead(evol ESP_t* ESP, const char* str, uint8_t* level, ESP_GPIO_Dir_t* dir) {
     uint8_t cnt;
     
+    (void)ESP;                                              /* Process unused */
+    
     ParseNumber(str, &cnt);                                 /* Parse GPIO number */
     str += cnt + 1;
     
@@ -623,6 +638,7 @@ void ParseSysGPIORead(evol ESP_t* ESP, const char* str, uint8_t* level, ESP_GPIO
 /* Parse CWHOSTNAME value */
 estatic 
 void ParseHostName(evol ESP_t* ESP, const char* str, char* dest) {
+    (void)ESP;
     if (*str == '"') {                                      /* Ignore " on beginning */
         str++;
     }
@@ -633,6 +649,7 @@ void ParseHostName(evol ESP_t* ESP, const char* str, char* dest) {
         }
         *dest++ = *str++;
     }
+    *dest = 0;
 }
 
 /* Parse CIPSNTPTIME value: "Thu Aug 04 14:48:05 2016" */
@@ -640,48 +657,50 @@ estatic
 void ParseSNTPTime(evol ESP_t* ESP, const char* str, ESP_DateTime_t* dt) {
     uint8_t cnt;
     
+    (void)ESP;                                              /* Process unused */
+    
     /* Find day in a week */
-    if (strncmp(str, "Mon", 3) == 0) {
+    if (strncmp(str, FROMMEM("Mon"), 3) == 0) {
         dt->Day = 1;
-    } else if (strncmp(str, "Tue", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Tue"), 3) == 0) {
         dt->Day = 2;
-    } else if (strncmp(str, "Wed", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Wed"), 3) == 0) {
         dt->Day = 3;
-    } else if (strncmp(str, "Thu", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Thu"), 3) == 0) {
         dt->Day = 4;
-    } else if (strncmp(str, "Fri", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Fri"), 3) == 0) {
         dt->Day = 5;
-    } else if (strncmp(str, "Sat", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Sat"), 3) == 0) {
         dt->Day = 6;
-    } else if (strncmp(str, "Sun", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Sun"), 3) == 0) {
         dt->Day = 7;
     }
     str += 4;
     
     /* Find month in a year */
-    if (strncmp(str, "Jan", 3) == 0) {
+    if (strncmp(str, FROMMEM("Jan"), 3) == 0) {
         dt->Month = 1;
-    } else if (strncmp(str, "Feb", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Feb"), 3) == 0) {
         dt->Month = 2;
-    } else if (strncmp(str, "Mar", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Mar"), 3) == 0) {
         dt->Month = 3;
-    } else if (strncmp(str, "Apr", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Apr"), 3) == 0) {
         dt->Month = 4;
-    } else if (strncmp(str, "May", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("May"), 3) == 0) {
         dt->Month = 5;
-    } else if (strncmp(str, "Jun", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Jun"), 3) == 0) {
         dt->Month = 6;
-    } else if (strncmp(str, "Jul", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Jul"), 3) == 0) {
         dt->Month = 7;
-    } else if (strncmp(str, "Aug", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Aug"), 3) == 0) {
         dt->Month = 8;
-    } else if (strncmp(str, "Sep", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Sep"), 3) == 0) {
         dt->Month = 9;
-    } else if (strncmp(str, "Oct", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Oct"), 3) == 0) {
         dt->Month = 10;
-    } else if (strncmp(str, "Nov", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Nov"), 3) == 0) {
         dt->Month = 11;
-    } else if (strncmp(str, "Dec", 3) == 0) {
+    } else if (strncmp(str, FROMMEM("Dec"), 3) == 0) {
         dt->Month = 12;
     }
     str += 3;
@@ -706,6 +725,8 @@ estatic
 void ParseSNTPConfig(evol ESP_t* ESP, const char* str, ESP_SNTP_t* conf) {
     uint8_t cnt, i;
     char *dst;
+    
+    (void)ESP;                                              /* Process unused */
     
     conf->Enable = ParseNumber(str, &cnt);                  /* Get enabled status */
     str += cnt + 1;
@@ -744,6 +765,8 @@ estatic
 void ParseSysIOGetCfg(evol ESP_t* ESP, const char* str, ESP_GPIO_t* conf) {
     uint8_t cnt;
     
+    (void)ESP;                                              /* Process unused */
+    
     conf->Pin = ParseNumber(str, &cnt);                     /* Parse pin number */
     str += cnt + 1;
     
@@ -757,6 +780,9 @@ void ParseSysIOGetCfg(evol ESP_t* ESP, const char* str, ESP_GPIO_t* conf) {
 estatic
 void ParseCIPDNS(evol ESP_t* ESP, const char* str, ESP_DNS_t* dns) {
     uint8_t i = 0, cnt;
+    
+    (void)ESP;                                              /* Process unused */
+    
     if (dns->_ptr >= (sizeof(dns->Addr) / sizeof(dns->Addr[0]))) {  /* Check if any available memory */
         return;
     }
@@ -794,7 +820,7 @@ void NumberToString(char* str, uint32_t number) {
 /* Converts number to hex for MAC */
 estatic
 void HexNumberToString(char* str, uint8_t number) {
-    sprintf(str, "%02X", number);
+    sprintf(str, "%02X", (unsigned)number);
 }
 
 /* Escapes string and sends directly to output stream */
@@ -966,10 +992,13 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
         conn->Number = CHARTONUM(str[0]);                   /* Set connection number */
         conn->Flags.F.Active = 1;                           /* Connection is active */
         conn->Callback.F.Connect = 1;
+        __CONN_UPDATE_TIME(ESP, conn);                      /* Update connection access time */
     } else if (strncmp(&str[1], FROMMEM(",CLOSED"), 7) == 0) {
         ESP_CONN_t* conn = (void *)&ESP->Conn[CHARTONUM(str[0])];   /* Get connection from number */
+        ESP_EventCallback_t cb = conn->Cb;
         __CONN_RESET(conn);                                 /* Reset connection */
         conn->Callback.F.Closed = 1;
+        conn->Cb = cb;
     }
 #else
     if (strncmp(str, FROMMEM("CONNECT"), 7) == 0) {
@@ -977,10 +1006,13 @@ void ParseReceived(evol ESP_t* ESP, Received_t* Received_p) {
         conn->Number = 0;                                   /* Set connection number */
         conn->Flags.F.Active = 1;                           /* Connection is active */
         conn->Callback.F.Connect = 1;
+        __CONN_UPDATE_TIME(ESP, conn);                      /* Update connection access time */
     } else if (strncmp(str, FROMMEM("CLOSED"), 6) == 0) {
         ESP_CONN_t* conn = (void *)&ESP->Conn[0];           /* Get connection from number */
+        ESP_EventCallback_t cb = conn->Cb;
         __CONN_RESET(conn);                                 /* Reset connection */
         conn->Callback.F.Closed = 1;
+        conn->Cb = cb;
     }
 #endif /* !ESP_SINGLE_CONN */
     
@@ -1933,6 +1965,7 @@ cmd_tcpip_cipstart_clean:
                                         ESP->Events.F.RespError);   /* Wait for OK or ERROR */
                     
                     ESP->ActiveResult = ESP->Events.F.RespSendOk ? espOK : espSENDERROR; /* Set result to return */
+                    __CONN_UPDATE_TIME(ESP, (ESP_CONN_t *)Pointers.Ptr1);   /* Update connection access time */
                     
                     if (ESP->ActiveResult == espOK) {
                         if (Pointers.Ptr2 != NULL) {
@@ -2437,6 +2470,7 @@ ESP_Result_t ESP_Update(evol ESP_t* ESP) {
             ESP->IPD.Conn->Data[ESP->IPD.BytesRead] = ch;   /* Add character to receive buffer */
             ESP->IPD.BytesRead++;                           /* Increase number of bytes read in this packet */
             ESP->IPD.BytesRemaining--;                      /* Decrease number of bytes remaining to read in entire IPD packet */
+            __CONN_UPDATE_TIME(ESP, ESP->IPD.Conn);         /* Update connection access time */
             
             if (!ESP->IPD.BytesRemaining) {                 /* We read all the data? */
                 ESP->IPD.InIPD = 0;
@@ -2546,6 +2580,10 @@ ESP_Result_t ESP_ProcessCallbacks(evol ESP_t* ESP) {
     for (i = 0; i < sizeof(ESP->Conn) / sizeof(ESP->Conn[0]); i++) {
         ESP_CONN_t* c = (ESP_CONN_t *)&ESP->Conn[i];
         
+        if (!c->Cb) {
+            c->Cb = ESP->Callback;                          /* Check if callback is set */
+        }
+        
         /* Maybe move this part directly to __IDLE() command */
         /* More test required first to see usability of this */
         if (__IS_READY(ESP) && c->Callback.F.CallLastPartOfPacketReceived) {    /* Notify user about last packet */
@@ -2553,27 +2591,38 @@ ESP_Result_t ESP_ProcessCallbacks(evol ESP_t* ESP) {
             ESP->CallbackParams.CP1 = c;
             ESP->CallbackParams.CP2 = c->Data;
             ESP->CallbackParams.UI = c->DataLength;
-            ESP_CALL_CALLBACK(ESP, espEventDataReceived);
+            ESP_CALL_CONN_CALLBACK(ESP, c, espEventDataReceived);
         }
         if (__IS_READY(ESP) && c->Callback.F.DataSent) {    /* Data sent ok */
             c->Callback.F.DataSent = 0;
             ESP->CallbackParams.CP1 = c;
-            ESP_CALL_CALLBACK(ESP, espEventDataSent);
+            ESP_CALL_CONN_CALLBACK(ESP, c, espEventDataSent);
         }
         if (__IS_READY(ESP) && c->Callback.F.DataError) {   /* Data sent error */
             c->Callback.F.DataError = 0;
             ESP->CallbackParams.CP1 = c;
-            ESP_CALL_CALLBACK(ESP, espEventDataSentError);
+            ESP_CALL_CONN_CALLBACK(ESP, c, espEventDataSentError);
         }
         if (__IS_READY(ESP) && c->Callback.F.Connect) {     /* Connection just active */
             c->Callback.F.Connect = 0;
             ESP->CallbackParams.CP1 = c;
-            ESP_CALL_CALLBACK(ESP, espEventConnActive); 
+            ESP_CALL_CONN_CALLBACK(ESP, c, espEventConnActive); 
         }
         if (__IS_READY(ESP) && c->Callback.F.Closed) {      /* Connection just closed */
             c->Callback.F.Closed = 0;
             ESP->CallbackParams.CP1 = c;
-            ESP_CALL_CALLBACK(ESP, espEventConnClosed); 
+            ESP_CALL_CONN_CALLBACK(ESP, c, espEventConnClosed); 
+        }
+        if (__IS_READY(ESP) && c->Flags.F.Active) {
+            if (c->PollTime == 0 || c->PollTimeInterval == 0) {
+                c->PollTimeInterval = 1000;
+                c->PollTime = ESP->Time + c->PollTimeInterval;
+            }
+            if (ESP->Time > c->PollTime) {
+                c->PollTime += c->PollTimeInterval;
+                ESP->CallbackParams.CP1 = c;
+                ESP_CALL_CONN_CALLBACK(ESP, c, espEventConnPoll); 
+            }
         }
     }
     __RETURN(ESP, espOK);
@@ -3007,6 +3056,22 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking) {
     Pointers.UI = ESP_MAX_CONNECTIONS;                      /* Close all connections */
     
     __RETURN_BLOCKING(ESP, blocking, 5000);                 /* Return with blocking support */
+}
+
+ESP_Result_t ESP_CONN_SetArg(evol ESP_t* ESP, ESP_CONN_t* conn, void* arg, uint32_t blocking) {
+    __CHECK_INPUTS(conn);                                   /* Check inputs */
+    conn->Arg = arg;
+    return espOK;
+}
+
+void* ESP_CONN_GetArg(evol ESP_t* ESP, ESP_CONN_t* conn) {
+    return conn->Arg;
+}
+
+ESP_Result_t ESP_CONN_SetCallback(evol ESP_t* ESP, ESP_CONN_t* conn, ESP_EventCallback_t cb, uint32_t blocking) {
+    __CHECK_INPUTS(conn);                                   /* Check inputs */
+    conn->Cb = cb ? cb : ESP->Callback;                     /* Set connection callback */
+    return espOK;
 }
 
 ESP_Result_t ESP_SetSSLBufferSize(evol ESP_t* ESP, uint32_t size, uint32_t blocking) {

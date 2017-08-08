@@ -181,6 +181,38 @@ typedef enum _ESP_SleepMode_t {
 } ESP_SleepMode_t;
 
 /**
+ * \brief           Event enumeration for callback
+ */
+typedef enum _ESP_Event_t {
+    espEventIdle = 0x00,                                /*!< Stack went idle and is ready to accept new instruction */
+    espEventDataReceived,                               /*!< Data were received on connection */
+    espEventWifiConnected,                              /*!< Wifi has connected to network */
+    espEventWifiDisconnected,                           /*!< Wifi has disconnected to network */
+    espEventWifiGotIP,                                  /*!< Wifi got IP address */
+    espEventWifiDhcpTimeout,                            /*!< Wifi DHCP timeout to assing IP address */
+    espEventConnActive,                                 /*!< Connection is just active, either client or server mode */
+    espEventConnClosed,                                 /*!< Connection is just closed, either client or server mode */
+    espEventConnPoll,                                   /*!< Polling opened connection for tasks if anything available */
+    espEventDataSent,                                   /*!< Data were sent on connection */
+    espEventDataSentError,                              /*!< Error trying to sent data on connection */
+    espEventTransparentReceived,                        /*!< Byte has been received from transparent connection mode */
+} ESP_Event_t;
+
+/**
+ * \brief           Parameters for callback processing
+ */
+typedef struct _ESP_EventParams_t {
+    const void* CP1;                                    /*!< Constant void pointer number 1 */
+    const void* CP2;                                    /*!< Constant void pointer number 2 */
+    uint32_t UI;                                        /*!< Unsigned integer value */
+} ESP_EventParams_t;
+
+/**
+ * \brief           Callback function prototype
+ */
+typedef int (*ESP_EventCallback_t)(ESP_Event_t, ESP_EventParams_t *);
+
+/**
  * \brief           Connection type
  */
 typedef enum _ESP_CONN_Type_t {
@@ -209,22 +241,28 @@ typedef struct _ESP_CONN_t {
     uint32_t DataStartTime;                             /*!< Current time in units of milliseconds when first data packet was received on connection */
 	union {
 		struct {
-			uint8_t Active:1;                           /*!< Status if connection is active */
-			uint8_t Client:1;                           /*!< Set to 1 if connection was made as client */
-            uint8_t SSL:1;                              /*!< Connection has been made as SSL */
+			int Active:1;                               /*!< Status if connection is active */
+			int Client:1;                               /*!< Set to 1 if connection was made as client */
+            int SSL:1;                                  /*!< Connection has been made as SSL */
         } F;
 		uint8_t Value;                                  /*!< Value of entire union */
 	} Flags;                                            /*!< Connection flags management */
     union {
         struct {
-            uint8_t Connect:1;                          /*!< Connection was just connected, client or server */
-            uint8_t Closed:1;                           /*!< Connection was just disconnected, client or server */
-            uint8_t DataSent:1;                         /*!< Data were sent successfully */
-            uint8_t DataError:1;                        /*!< Error trying to send data */
-            uint8_t CallLastPartOfPacketReceived:1;     /*!< Data are processed synchronously. When there is last part of packet received and command is not idle, we must save notification for callback */
+            int Connect:1;                              /*!< Connection was just connected, client or server */
+            int Closed:1;                               /*!< Connection was just disconnected, client or server */
+            int DataSent:1;                             /*!< Data were sent successfully */
+            int DataError:1;                            /*!< Error trying to send data */
+            int CallLastPartOfPacketReceived:1;         /*!< Data are processed synchronously. When there is last part of packet received and command is not idle, we must save notification for callback */
         } F;
-        uint8_t Value;
+        int Value;
     } Callback;                                         /*!< Flags for callback management */
+    
+    void* Arg;                                          /*!< Custom connection argument */
+    ESP_EventCallback_t Cb;                             /*!< Connection callback function */
+    
+    uint32_t PollTimeInterval;                          /*!< Interval for poll callback when connection is active but nothing happens to it */
+    uint32_t PollTime;                                  /*!< Internal next poll time */
 } ESP_CONN_t;
 
 /**
@@ -251,7 +289,7 @@ typedef struct _ESP_ConnectedAP_t {
  * \brief           AP station structure to use when searching for network
  */
 typedef struct _ESP_AP_t {
-	uint8_t Ecn;                                        /*!< Security of Wi-Fi spot. This parameter has a value of \ref ESP_Ecn_t enumeration */
+	ESP_Ecn_t Ecn;                                      /*!< Security of Wi-Fi spot. This parameter has a value of \ref ESP_Ecn_t enumeration */
 	char SSID[20 + 1];                                  /*!< Service Set Identifier value. Wi-Fi spot name */
 	int16_t RSSI;                                       /*!< Signal strength of Wi-Fi spot */
 	uint8_t MAC[6];                                     /*!< MAC address of spot */
@@ -358,37 +396,6 @@ typedef struct _ESP_DNS_t {
 } ESP_DNS_t;
 
 /**
- * \brief           Event enumeration for callback
- */
-typedef enum _ESP_Event_t {
-    espEventIdle = 0x00,                                /*!< Stack went idle and is ready to accept new instruction */
-    espEventDataReceived,                               /*!< Data were received on connection */
-    espEventWifiConnected,                              /*!< Wifi has connected to network */
-    espEventWifiDisconnected,                           /*!< Wifi has disconnected to network */
-    espEventWifiGotIP,                                  /*!< Wifi got IP address */
-    espEventWifiDhcpTimeout,                            /*!< Wifi DHCP timeout to assing IP address */
-    espEventConnActive,                                 /*!< Connection is just active, either client or server mode */
-    espEventConnClosed,                                 /*!< Connection is just closed, either client or server mode */
-    espEventDataSent,                                   /*!< Data were sent on connection */
-    espEventDataSentError,                              /*!< Error trying to sent data on connection */
-    espEventTransparentReceived,                        /*!< Byte has been received from transparent connection mode */
-} ESP_Event_t;
-
-/**
- * \brief           Parameters for callback processing
- */
-typedef struct _ESP_EventParams_t {
-    const void* CP1;                                    /*!< Constant void pointer number 1 */
-    const void* CP2;                                    /*!< Constant void pointer number 2 */
-    uint32_t UI;                                        /*!< Unsigned integer value */
-} ESP_EventParams_t;
-
-/**
- * \brief           Callback function prototype
- */
-typedef int (*ESP_EventCallback_t)(ESP_Event_t, ESP_EventParams_t *);
-
-/**
  * \brief           Main ESP8266 working structure
  */
 typedef struct _ESP_t {
@@ -441,22 +448,22 @@ typedef struct _ESP_t {
 
 	union {
 		struct {
-            uint8_t IsBlocking:1;                       /*!< Status whether action was called as blocking */
-            uint8_t Call_Idle:1;                        /*!< Status whether idle status event should be called before we can proceed with another action */
-            uint8_t InTransparentMode:1;                /*!< Status whether we are currently in transparent mode and transfer is active */
-            uint8_t RTSForced:1;                        /*!< Status whether RTS pin was forced by user */
+            int IsBlocking:1;                           /*!< Status whether action was called as blocking */
+            int Call_Idle:1;                            /*!< Status whether idle status event should be called before we can proceed with another action */
+            int InTransparentMode:1;                    /*!< Status whether we are currently in transparent mode and transfer is active */
+            int RTSForced:1;                            /*!< Status whether RTS pin was forced by user */
 		} F;
-		uint32_t Value;
+		int Value;
 	} Flags;                                            /*!< Flags for library purpose */
     
     /*!< Callback management */
     union {
         struct {
-            uint8_t WifiConnected:1;                    /*!< Wifi just got connected */
-            uint8_t WifiDisconnected:1;                 /*!< Wifi just got disconnected */
-            uint8_t WifiGotIP:1;                        /*!< Wifi station just got IP address */
+            int WifiConnected:1;                        /*!< Wifi just got connected */
+            int WifiDisconnected:1;                     /*!< Wifi just got disconnected */
+            int WifiGotIP:1;                            /*!< Wifi station just got IP address */
         } F;
-        uint32_t Value;
+        int Value;
     } CallbackFlags;                                    /*!< List of global flags for callback events */
     ESP_EventCallback_t Callback;                       /*!< Pointer to callback function */
     ESP_EventParams_t CallbackParams;                   /*!< Callback parameters */
@@ -464,23 +471,23 @@ typedef struct _ESP_t {
     /*!< Events management with receive interaction */
     union {
         struct {
-            uint8_t RespOk:1;                           /*!< OK message response */
-            uint8_t RespError:1;                        /*!< Error message response */
-            uint8_t RespBracket:1;                      /*!< Bracket received (SMS messages) */
-            uint8_t RespReady:1;                        /*!< Ready statement was received */
+            int RespOk:1;                               /*!< OK message response */
+            int RespError:1;                            /*!< Error message response */
+            int RespBracket:1;                          /*!< Bracket received (SMS messages) */
+            int RespReady:1;                            /*!< Ready statement was received */
             
-            uint8_t RespConnectOk:1;                    /*!< n, CONNECT OK was returned from device */
-            uint8_t RespConnectFail:1;                  /*!< n, CONNECT FAIL was returned from device */
-            uint8_t RespConnectAlready:1;               /*!< n, ALREADY CONNECTED was returned from device */
-            uint8_t RespCloseOk:1;                      /*!< n, CLOSE OK was returned from device */
-            uint8_t RespSendOk:1;                       /*!< n, SEND OK was returned from device */
-            uint8_t RespSendFail:1;                     /*!< n, SEND FAIL was returned from device */
+            int RespConnectOk:1;                        /*!< n, CONNECT OK was returned from device */
+            int RespConnectFail:1;                      /*!< n, CONNECT FAIL was returned from device */
+            int RespConnectAlready:1;                   /*!< n, ALREADY CONNECTED was returned from device */
+            int RespCloseOk:1;                          /*!< n, CLOSE OK was returned from device */
+            int RespSendOk:1;                           /*!< n, SEND OK was returned from device */
+            int RespSendFail:1;                         /*!< n, SEND FAIL was returned from device */
             
-            uint8_t RespWifiConnected:1;
-            uint8_t RespWifiDisconnected:1;
-            uint8_t RespWifiGotIp:1;
+            int RespWifiConnected:1;
+            int RespWifiDisconnected:1;
+            int RespWifiGotIp:1;
         } F;
-        uint32_t Value;                                 /*!< Value containing all the flags in single memory */
+        int Value;                                      /*!< Value containing all the flags in single memory */
     } Events;                                           /*!< Union holding all the required events for library internal processing */
 } ESP_t;
 
@@ -978,6 +985,11 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking);
  * \hideinitializer
  */
 #define ESP_CONN_IsActive(ESP, conn)        ((conn) && (conn)->Flags.F.Active)
+
+ESP_Result_t ESP_CONN_SetCallback(evol ESP_t* ESP, ESP_CONN_t* conn, ESP_EventCallback_t cb, uint32_t blocking);
+
+ESP_Result_t ESP_CONN_SetArg(evol ESP_t* ESP, ESP_CONN_t* conn, void* arg, uint32_t blocking);
+void* ESP_CONN_GetArg(evol ESP_t* ESP, ESP_CONN_t* conn);
 
 /**
  * \brief           Set SSL buffer size for connection

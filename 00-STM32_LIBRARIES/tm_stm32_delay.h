@@ -133,10 +133,10 @@ extern "C" {
 typedef struct _TM_DELAY_Timer_t {
 	union {
 		struct {			
-			uint8_t AREN:1;  /*!< Auto-reload enabled */
-			uint8_t CNTEN:1; /*!< Count enabled */
+			int AREN:1;                                 /*!< Auto-reload enabled */
+			int CNTEN:1;                                /*!< Count enabled */
 		} F;
-		uint8_t FlagsVal;
+		int FlagsVal;
 	} Flags;
 	uint32_t ARR;                                        /*!< Auto reload value */
 	uint32_t CNT;                                        /*!< Counter value, counter counts down */
