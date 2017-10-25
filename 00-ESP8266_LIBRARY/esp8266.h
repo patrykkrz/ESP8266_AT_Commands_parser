@@ -986,9 +986,32 @@ ESP_Result_t ESP_CONN_CloseAll(evol ESP_t* ESP, uint32_t blocking);
  */
 #define ESP_CONN_IsActive(ESP, conn)        ((conn) && (conn)->Flags.F.Active)
 
+/**
+ * \brief           Set event callback for connection
+ * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]       *conn: Pointer to \ref ESP_CONN_t structure with connection
+ * \param[in]       ch: Pointer to callback function for events
+ * \param[in]       blocking: Status whether this function should be blocking to check for response
+ * \retval          Member of \ref ESP_Result_t enumeration
+ */
 ESP_Result_t ESP_CONN_SetCallback(evol ESP_t* ESP, ESP_CONN_t* conn, ESP_EventCallback_t cb, uint32_t blocking);
 
+/**
+ * \brief           Set user defined parameter for connection
+ * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]       *conn: Pointer to \ref ESP_CONN_t structure with connection
+ * \param[in]       *arg: Pointer to user specific argument
+ * \param[in]       blocking: Status whether this function should be blocking to check for response
+ * \retval          Member of \ref ESP_Result_t enumeration
+ */
 ESP_Result_t ESP_CONN_SetArg(evol ESP_t* ESP, ESP_CONN_t* conn, void* arg, uint32_t blocking);
+
+/**
+ * \brief           Get user defined parameter from connection
+ * \param[in,out]   *ESP: Pointer to working \ref ESP_t structure
+ * \param[in]       *conn: Pointer to \ref ESP_CONN_t structure with connection
+ * \retval          Pointer to user defined argument previously set using \ref ESP_CONN_SetArg function
+ */
 void* ESP_CONN_GetArg(evol ESP_t* ESP, ESP_CONN_t* conn);
 
 /**
