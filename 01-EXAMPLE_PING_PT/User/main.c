@@ -52,12 +52,14 @@ CTS         PA3                 RTS from ST to CTS from ESP
 #include "esp8266.h"
 #include "cmsis_os.h"
 
-#define DEBUG_USART         USART2
-#define DEBUG_USART_PP      TM_USART_PinsPack_1
+/* Set debug port */
+#define DEBUG_USART         DISCO_USART
+#define DEBUG_USART_PP      DISCO_USART_PP
 
 /* Wifi network settings, replace with your settings */
-#define WIFINAME            "Majerle WiFiii"
-#define WIFIPASS            "majerle_internet"
+#define WIFINAME            "wifi_ssid"
+#define WIFIPASS            "wifi_password"
+
 uint8_t networkMAC[] = {0xA4, 0x2B, 0xB0, 0xC2, 0xB7, 0xBE};
 
 /* Search variables */

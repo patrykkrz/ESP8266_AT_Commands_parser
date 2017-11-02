@@ -51,12 +51,13 @@ CTS         PA3                 RTS from ST to CTS from ESP
 #include "tm_stm32_usart.h"
 #include "esp8266.h"
 
-#define DEBUG_USART         USART2
-#define DEBUG_USART_PP      TM_USART_PinsPack_1
+/* Set debug port */
+#define DEBUG_USART         DISCO_USART
+#define DEBUG_USART_PP      DISCO_USART_PP
 
 /* Wifi network settings, replace with your settings */
-#define WIFINAME            "Slikop."//"wifi_network_SSID"
-#define WIFIPASS            "slikop2012"//"wifi_password"
+#define WIFINAME            "wifi_ssid"
+#define WIFIPASS            "wifi_password"
 
 /* ESP working structure and result enumeration */
 evol ESP_t ESP;
