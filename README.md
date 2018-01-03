@@ -1,5 +1,1 @@
-# ESP8266 AT Commands parser
-Platform independent ESP8266 AT commands parser for ESP8266
-
-Please follow link for entire documentation.
-http://esp8266at.com
+Please check https://github.com/MaJerle/ESP_AT_Lib library for new designs.
